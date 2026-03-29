@@ -1,6 +1,6 @@
 package apptive.fin.user.controller;
 
-import apptive.fin.auth.AuthUserDetails;
+import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.user.dto.UserResponseDto;
 import apptive.fin.user.service.UserService;
 import apptive.fin.user.dto.UserUpdateRequestDto;
@@ -17,7 +17,7 @@ public class UserController {
 
     @GetMapping("/me")
     public UserResponseDto getMyInfo(@AuthenticationPrincipal AuthUserDetails userDetails){
-        return userService.getMyInfo(userDetails.getUser().getId());
+        return userService.getMyInfo(userDetails.getId());
     }
 
     @PatchMapping("/me")
@@ -25,8 +25,7 @@ public class UserController {
             @RequestBody UserUpdateRequestDto request,
             @AuthenticationPrincipal AuthUserDetails userDetails
     ){
-        Long userId = userDetails.getUser().getId();
-        userService.updateUser(userId, request);
+        userService.updateUser(userDetails.getId(), request);
     }
 
 }

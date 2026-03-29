@@ -1,7 +1,6 @@
-package apptive.fin.auth;
+package apptive.fin.auth.util;
 
 import apptive.fin.global.properties.AppProperties;
-import apptive.fin.global.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;

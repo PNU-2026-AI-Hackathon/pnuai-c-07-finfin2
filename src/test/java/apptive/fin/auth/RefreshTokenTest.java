@@ -1,5 +1,6 @@
 package apptive.fin.auth;
 
+import apptive.fin.auth.entity.RefreshToken;
 import apptive.fin.user.entity.User;
 import apptive.fin.user.UserRole;
 import org.junit.jupiter.api.Test;

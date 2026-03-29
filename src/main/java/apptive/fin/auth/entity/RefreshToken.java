@@ -1,4 +1,4 @@
-package apptive.fin.auth;
+package apptive.fin.auth.entity;
 
 import apptive.fin.global.entity.BaseCreatedAtEntity;
 import apptive.fin.user.entity.User;
@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
     },
     indexes = {
         @Index(name="idx_refresh_tokens_expires_at", columnList = "expires_at"),
-        @Index(name="idx_refresh_tokens_expires_at", columnList = "token_hash")
+        @Index(name="idx_refresh_tokens_user_id", columnList = "user_id")
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

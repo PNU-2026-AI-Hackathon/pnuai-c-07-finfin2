@@ -1,8 +1,13 @@
-package apptive.fin.auth;
+package apptive.fin.auth.service;
 
 
+import apptive.fin.auth.AuthErrorCode;
+import apptive.fin.auth.dto.LoginResponseDto;
+import apptive.fin.auth.entity.RefreshToken;
+import apptive.fin.auth.repository.RefreshTokenRepository;
 import apptive.fin.global.error.BusinessException;
-import apptive.fin.global.util.JwtUtil;
+import apptive.fin.auth.util.JwtUtil;
+import apptive.fin.term.service.TermService;
 import apptive.fin.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +23,7 @@ public class AuthService {
 
     private final JwtUtil jwtUtil;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final TermService termService;
 
     @Transactional
     public LoginResponseDto refresh(String token) {
@@ -38,7 +44,11 @@ public class AuthService {
                 throw new BusinessException(AuthErrorCode.UNAUTHORIZED);
             }
 
-            String accessToken = jwtUtil.generateAccessToken(user.getId().toString(), user.getUserRole());
+            String accessToken = jwtUtil.generateAccessToken(
+                    user.getId().toString(),
+                    user.getUserRole(),
+                    termService.didUserAgreeAllRequiredTerms(user.getId())
+            );
 
             return LoginResponseDto.builder()
                     .refreshToken(getRefreshToken(user))

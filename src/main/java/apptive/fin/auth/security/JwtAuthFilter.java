@@ -1,9 +1,7 @@
-package apptive.fin.auth;
+package apptive.fin.auth.security;
 
-import apptive.fin.global.error.BusinessException;
-import apptive.fin.global.util.JwtUtil;
-import apptive.fin.user.entity.User;
-import apptive.fin.user.repository.UserRepository;
+import apptive.fin.auth.util.JwtUtil;
+import apptive.fin.user.UserRole;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
@@ -23,7 +21,6 @@ import java.io.IOException;
 @Slf4j
 public class JwtAuthFilter extends GenericFilterBean {
     private final JwtUtil jwtUtil;
-    private final UserRepository userRepository;
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
@@ -35,11 +32,13 @@ public class JwtAuthFilter extends GenericFilterBean {
             try {
 
                 Long userId = jwtUtil.getUserIdFromToken(token); // provider_providerId
+                UserRole role = jwtUtil.getRoleFromToken(token);
+                boolean requiredTermsAgreement = jwtUtil.getRequiredTermsAgreementFromToken(token);
 
-                User user = userRepository.findById(userId)
-                        .orElseThrow(() -> new BusinessException(AuthErrorCode.UNAUTHORIZED));
-
-                UserDetails userDetails = new AuthUserDetails(user);
+                UserDetails userDetails = new AuthUserDetails(userId,
+                        requiredTermsAgreement ?
+                                role : UserRole.BEFORE_AGREED
+                    );
 
                 Authentication authentication = new UsernamePasswordAuthenticationToken(
                         userDetails,

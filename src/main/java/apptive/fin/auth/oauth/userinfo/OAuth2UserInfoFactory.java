@@ -1,4 +1,4 @@
-package apptive.fin.auth.oauth.touserinfo;
+package apptive.fin.auth.oauth.userinfo;
 
 import apptive.fin.global.error.BusinessException;
 import apptive.fin.global.error.CommonErrorCode;

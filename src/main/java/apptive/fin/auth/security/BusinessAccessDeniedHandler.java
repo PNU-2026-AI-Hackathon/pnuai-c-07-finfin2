@@ -1,5 +1,6 @@
-package apptive.fin.auth;
+package apptive.fin.auth.security;
 
+import apptive.fin.auth.AuthErrorCode;
 import apptive.fin.global.error.ErrorResponseDto;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

@@ -1,4 +1,4 @@
-package apptive.fin.auth.oauth.touserinfo;
+package apptive.fin.auth.oauth.userinfo;
 
 import java.util.Map;
 

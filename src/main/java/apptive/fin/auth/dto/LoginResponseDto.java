@@ -1,4 +1,4 @@
-package apptive.fin.auth;
+package apptive.fin.auth.dto;
 
 import lombok.Builder;
 

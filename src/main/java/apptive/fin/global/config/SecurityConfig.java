@@ -1,12 +1,12 @@
 package apptive.fin.global.config;
 
-import apptive.fin.auth.BusinessAccessDeniedHandler;
-import apptive.fin.auth.BusinessAuthenticationEntryPoint;
-import apptive.fin.auth.JwtAuthFilter;
+import apptive.fin.auth.security.BusinessAccessDeniedHandler;
+import apptive.fin.auth.security.BusinessAuthenticationEntryPoint;
+import apptive.fin.auth.security.JwtAuthFilter;
 import apptive.fin.auth.oauth.OAuth2SuccessHandler;
 import apptive.fin.auth.oauth.OAuth2UserService;
 import apptive.fin.global.properties.AppProperties;
-import apptive.fin.global.util.JwtUtil;
+import apptive.fin.auth.util.JwtUtil;
 import apptive.fin.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -31,7 +31,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
     private final JwtUtil jwtUtil;
-    private final UserRepository userRepository;
     private final OAuth2UserService oAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final BusinessAuthenticationEntryPoint businessAuthenticationEntryPoint;
@@ -60,7 +59,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(businessAuthenticationEntryPoint)
                         .accessDeniedHandler(businessAccessDeniedHandler)
                 )
-                .addFilterBefore(new JwtAuthFilter(jwtUtil, userRepository), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(new JwtAuthFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class);
 
 
         return http.build();

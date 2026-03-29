@@ -1,5 +1,6 @@
 package apptive.fin.global.util;
 
+import apptive.fin.auth.util.JwtUtil;
 import apptive.fin.global.properties.JwtProperties;
 import apptive.fin.user.UserRole;
 import io.jsonwebtoken.Claims;
@@ -28,8 +29,8 @@ class JwtUtilTest {
     }
 
     @Test
-    void 액세스_토큰을_생성하면_subject와_role을_담고_검증된다() {
-        String token = jwtUtil.generateAccessToken("1", UserRole.ADMIN);
+    void 액세스_토큰을_생성하면_subject및_role과_requiredTermsAgreement를_담고_검증된다() {
+        String token = jwtUtil.generateAccessToken("1", UserRole.ADMIN, true);
 
         Claims claims = Jwts.parser()
                 .verifyWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
@@ -41,6 +42,7 @@ class JwtUtilTest {
         assertThat(jwtUtil.getUserIdFromToken(token)).isEqualTo(1L);
         assertThat(claims.getSubject()).isEqualTo("1");
         assertThat(claims.get("role", String.class)).isEqualTo(UserRole.ADMIN.name());
+        assertThat(claims.get("required_terms_agreement", Boolean.class)).isEqualTo(true);
         assertThat(claims.getExpiration()).isAfter(claims.getIssuedAt());
     }
 

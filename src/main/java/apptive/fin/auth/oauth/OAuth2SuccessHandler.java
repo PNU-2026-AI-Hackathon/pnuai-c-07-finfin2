@@ -1,9 +1,9 @@
 package apptive.fin.auth.oauth;
 
-import apptive.fin.auth.AuthService;
-import apptive.fin.auth.RefreshTokenCookieProvider;
+import apptive.fin.auth.service.AuthService;
+import apptive.fin.auth.util.RefreshTokenCookieProvider;
 import apptive.fin.global.properties.AppProperties;
-import apptive.fin.global.util.JwtUtil;
+import apptive.fin.auth.util.JwtUtil;
 import apptive.fin.user.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

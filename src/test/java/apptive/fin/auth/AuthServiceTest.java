@@ -1,7 +1,12 @@
 package apptive.fin.auth;
 
+import apptive.fin.auth.dto.LoginResponseDto;
+import apptive.fin.auth.entity.RefreshToken;
+import apptive.fin.auth.repository.RefreshTokenRepository;
+import apptive.fin.auth.service.AuthService;
 import apptive.fin.global.error.BusinessException;
-import apptive.fin.global.util.JwtUtil;
+import apptive.fin.auth.util.JwtUtil;
+import apptive.fin.term.service.TermService;
 import apptive.fin.user.entity.User;
 import apptive.fin.user.UserRole;
 import org.junit.jupiter.api.Test;
@@ -31,6 +36,9 @@ class AuthServiceTest {
 
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
+    private TermService termService;
 
     @InjectMocks
     private AuthService authService;
@@ -76,10 +84,11 @@ class AuthServiceTest {
         when(jwtUtil.hashToken(oldRawToken)).thenReturn("old-hash");
         when(refreshTokenRepository.findByTokenHash("old-hash")).thenReturn(Optional.of(storedToken));
         when(refreshTokenRepository.deactivateIfActive("old-hash")).thenReturn(1);
-        when(jwtUtil.generateAccessToken("1", UserRole.ADMIN)).thenReturn("new-access-token");
+        when(jwtUtil.generateAccessToken("1", UserRole.ADMIN, true)).thenReturn("new-access-token");
         when(jwtUtil.generateRefreshToken()).thenReturn(newRawToken);
         when(jwtUtil.hashToken(newRawToken)).thenReturn("new-hash");
         when(jwtUtil.getRefreshExpiration()).thenReturn(300);
+        when(termService.didUserAgreeAllRequiredTerms(1L)).thenReturn(true);
 
         LoginResponseDto response = authService.refresh(encodedOldToken);
 

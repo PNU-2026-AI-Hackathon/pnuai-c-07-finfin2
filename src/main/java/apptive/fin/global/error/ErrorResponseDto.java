@@ -16,6 +16,13 @@ public record ErrorResponseDto(
                 .build();
     }
 
+    public static ErrorResponseDto of(ErrorCode errorCode, String customMessage) {
+        return ErrorResponseDto.builder()
+                .code(errorCode.getCode())
+                .message(customMessage)
+                .build();
+    }
+
     public static ResponseEntity<ErrorResponseDto> toResponseEntity(ErrorCode errorCode) {
         return ResponseEntity
                 .status(errorCode.getHttpStatus())
