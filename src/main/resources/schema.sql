@@ -35,6 +35,66 @@ CREATE TABLE refresh_tokens (
 CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
 CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
 
+CREATE TABLE median_incomes (
+    id BIGSERIAL PRIMARY KEY,
+    year INT NOT NULL CHECK (year > 0),
+    household_size INT NOT NULL CHECK (household_size > 0),
+    earn_percent INT NOT NULL CHECK (earn_percent > 0),
+    monthly_income INT NOT NULL CHECK (monthly_income >= 0),
+
+    CONSTRAINT uq_year_household_size_earn_percent UNIQUE (year, household_size, earn_percent)
+);
+
+INSERT INTO median_incomes (year, household_size, earn_percent, monthly_income) VALUES
+-- 1인 가구
+(2026, 1, 60, 154),
+(2026, 1, 80, 205),
+(2026, 1, 100, 256),
+(2026, 1, 120, 308),
+(2026, 1, 150, 385),
+(2026, 1, 180, 462),
+
+-- 2인 가구
+(2026, 2, 60, 252),
+(2026, 2, 80, 336),
+(2026, 2, 100, 420),
+(2026, 2, 120, 504),
+(2026, 2, 150, 630),
+(2026, 2, 180, 756),
+
+-- 3인 가구
+(2026, 3, 60, 322),
+(2026, 3, 80, 429),
+(2026, 3, 100, 536),
+(2026, 3, 120, 643),
+(2026, 3, 150, 804),
+(2026, 3, 180, 965),
+
+-- 4인 가구
+(2026, 4, 60, 390),
+(2026, 4, 80, 520),
+(2026, 4, 100, 649),
+(2026, 4, 120, 779),
+(2026, 4, 150, 974),
+(2026, 4, 180, 1169),
+
+-- 5인 가구
+(2026, 5, 60, 453),
+(2026, 5, 80, 605),
+(2026, 5, 100, 756),
+(2026, 5, 120, 907),
+(2026, 5, 150, 1134),
+(2026, 5, 180, 1360),
+
+-- 6인 이상 가구
+(2026, 6, 60, 513),
+(2026, 6, 80, 684),
+(2026, 6, 100, 856),
+(2026, 6, 120, 1027),
+(2026, 6, 150, 1283),
+(2026, 6, 180, 1540);
+
+
 CREATE TABLE terms (
        id BIGSERIAL PRIMARY KEY,
        code VARCHAR(100) NOT NULL UNIQUE,
@@ -225,6 +285,7 @@ INSERT INTO term_versions (
           '2026-03-12 00:00:00'
       );
 
+
 DROP TABLE IF EXISTS category_option;
 DROP TABLE IF EXISTS category;
 
@@ -239,6 +300,7 @@ CREATE TABLE IF NOT EXISTS category_option (
     id BIGSERIAL PRIMARY KEY,
     category_id BIGINT NOT NULL,
     value VARCHAR(100) NOT NULL,
+    code VARCHAR(100) NOT NULL,
     FOREIGN KEY (category_id) REFERENCES category(id)
 );
 
@@ -254,53 +316,52 @@ INSERT INTO category (name) VALUES
 
 -- 키워드 value 삽입
 -- 1) 거주 지역
-INSERT INTO category_option (category_id, value) VALUES
-(1, '서울'),
-(1, '부산'),
-(1, '대구'),
-(1, '인천'),
-(1, '광주'),
-(1, '대전'),
-(1, '울산'),
-(1, '세종'),
-(1, '경기'),
-(1, '강원'),
-(1, '충북'),
-(1, '충남'),
-(1, '전북'),
-(1, '전남'),
-(1, '경북'),
-(1, '경남'),
-(1, '제주');
+INSERT INTO category_option (category_id, value, code) VALUES
+    (1, '서울', 'REGION_SEOUL'),
+    (1, '부산', 'REGION_BUSAN'),
+    (1, '대구', 'REGION_DAEGU'),
+    (1, '인천', 'REGION_INCHEON'),
+    (1, '광주', 'REGION_GWANGJU'),
+    (1, '대전', 'REGION_DAEJEON'),
+    (1, '울산', 'REGION_ULSAN'),
+    (1, '세종', 'REGION_SEJONG'),
+    (1, '경기', 'REGION_GYEONGGI'),
+    (1, '강원', 'REGION_GANGWON'),
+    (1, '충북', 'REGION_CHUNGBUK'),
+    (1, '충남', 'REGION_CHUNGNAM'),
+    (1, '전북', 'REGION_JEONBUK'),
+    (1, '전남', 'REGION_JEONNAM'),
+    (1, '경북', 'REGION_GYEONGBUK'),
+    (1, '경남', 'REGION_GYEONGNAM'),
+    (1, '제주', 'REGION_JEJU');
 
 -- 2) 현재 신분
-INSERT INTO category_option (category_id, value) VALUES
-(2, '미취업'),
-(2, '알바/프리랜서'),
-(2, '중소기업 재직'),
-(2, '군복무');
+INSERT INTO category_option (category_id, value, code) VALUES
+   (2, '미취업', 'STATUS_UNEMPLOYED'),
+   (2, '알바/프리랜서', 'STATUS_PART_TIME'),
+   (2, '중소기업 재직', 'STATUS_SME_WORKER'),
+   (2, '군복무', 'STATUS_MILITARY');
 
 -- 3) 저축 기간
-INSERT INTO category_option (category_id, value) VALUES
-(3, '5년 이상'),
-(3, '2~3년'),
-(3, '1년 내외');
+INSERT INTO category_option (category_id, value, code) VALUES
+   (3, '5년 이상', 'TERM_OVER_5_YEARS'),
+   (3, '2~3년', 'TERM_2_TO_3_YEARS'),
+   (3, '1년 내외', 'TERM_AROUND_1_YEAR');
 
--- 4) 핵심 기간
-INSERT INTO category_option (category_id, value) VALUES
-(4, '최고이율 중심'),
-(4, '비과세'),
-(4, '우대조건 간편'),
-(4, '정부기여금');
+-- 4) 핵심 혜택
+INSERT INTO category_option (category_id, value, code) VALUES
+   (4, '최고이율 중심', 'BENEFIT_MAX_INTEREST'),
+   (4, '비과세', 'BENEFIT_TAX_FREE'),
+   (4, '우대조건 간편', 'BENEFIT_EASY_CONDITION'),
+   (4, '정부기여금', 'BENEFIT_GOV_SUBSIDY');
 
 -- 5) 상품 관심사
-INSERT INTO category_option (category_id, value) VALUES
-(5, '저축'),
-(5, '대출');
+INSERT INTO category_option (category_id, value, code) VALUES
+   (5, '저축', 'INTEREST_SAVINGS'),
+   (5, '대출', 'INTEREST_LOAN');
 
 -- 6) 은행 거래
-INSERT INTO category_option (category_id, value) VALUES
-(6, '첫거래 고객'),
-(6, '급여이체 가능'),
-(6, '카드실적 연동');
-
+INSERT INTO category_option (category_id, value, code) VALUES
+   (6, '첫거래 고객', 'BANK_FIRST_TRANSACTION'),
+   (6, '급여이체 가능', 'BANK_SALARY_TRANSFER'),
+   (6, '카드실적 연동', 'BANK_CARD_USAGE');

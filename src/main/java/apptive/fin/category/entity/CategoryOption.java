@@ -13,6 +13,8 @@ public class CategoryOption {
 
     private String value;
 
+    private String code;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name  = "category_id")
     private Category category ;
