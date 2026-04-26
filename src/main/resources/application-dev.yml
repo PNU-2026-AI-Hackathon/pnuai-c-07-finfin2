@@ -1,0 +1,40 @@
+spring:
+  sql:
+    init:
+      mode: always
+  datasource:
+    url: jdbc:postgresql://localhost:5678/database
+    username: user
+    password: password
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  batch:
+    job:
+      enabled: true
+      name: financialProductSyncJob
+    jdbc:
+      initialize-schema: always
+
+
+collector:
+  enabled: true
+  source: ALL
+  mode: SYNC
+  normalizer-version: 1
+
+  ontong-youth:
+    base-url: https://www.youthcenter.go.kr
+    api-key: ${ONTONG_YOUTH_API_KEY:}
+    page-size : 100
+
+  fss:
+    base-url: https://finlife.fss.or.kr
+    api-key: ${FSS_API_KEY:}
+    page-size : 100
+
