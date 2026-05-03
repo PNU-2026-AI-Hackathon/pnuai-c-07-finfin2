@@ -13,6 +13,8 @@ public record ProductDraft(
         Long rawId,
         Source rawSource,
         int normalizerVersion,
+        ProductClassification classification,
+        Boolean saveProduct,
         String sourceCode,
         String providerCode,
         String providerName,
@@ -36,9 +38,15 @@ public record ProductDraft(
         List<KeywordValueEnum> keywords
 ) {
     public ProductDraft {
+        classification = classification == null ? ProductClassification.FINANCIAL_PRODUCT : classification;
+        saveProduct = saveProduct == null ? Boolean.TRUE : saveProduct;
         options = options == null ? List.of() : List.copyOf(options);
         keywords = keywords == null ? List.of() : List.copyOf(keywords);
         requiresHomeless = requiresHomeless != null && requiresHomeless;
         requiresHouseholder = requiresHouseholder != null && requiresHouseholder;
+    }
+
+    public boolean shouldSaveProduct() {
+        return saveProduct;
     }
 }

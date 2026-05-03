@@ -2,6 +2,7 @@ package apptive.fin.apicollector.tasklet;
 
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.client.OntongYouthClient;
+import apptive.fin.apicollector.config.CollectorProperties;
 import apptive.fin.apicollector.raw.RawProductSaveService;
 import apptive.fin.apicollector.raw.SaveResult;
 import lombok.RequiredArgsConstructor;
@@ -19,12 +20,18 @@ import tools.jackson.databind.JsonNode;
 public class FetchOntongYouthRawTasklet implements Tasklet {
     private final OntongYouthClient ontongYouthClient;
     private final RawProductSaveService rawProductSaveService;
+    private final CollectorProperties properties;
 
     @Override
     public RepeatStatus execute(
             StepContribution contribution,
             ChunkContext chunkContext
     ) {
+        if (properties.mode().isNormalizeOnly()) {
+            log.info("FetchOntongYouthRawTasklet skipped. mode={}", properties.mode());
+            return RepeatStatus.FINISHED;
+        }
+
         int inserted = 0;
         int updated = 0;
         int unchanged = 0;

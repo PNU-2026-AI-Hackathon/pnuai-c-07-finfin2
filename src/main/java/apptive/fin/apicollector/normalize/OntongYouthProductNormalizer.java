@@ -15,6 +15,8 @@ public class OntongYouthProductNormalizer extends AbstractProductNormalizer impl
 
     private final ObjectMapper objectMapper;
     private final CollectorProperties properties;
+    private final OntongYouthPolicyClassifier classifier;
+    private final MonthlyLimitExtractor monthlyLimitExtractor;
 
     @Override
     public Source source() {
@@ -24,9 +26,15 @@ public class OntongYouthProductNormalizer extends AbstractProductNormalizer impl
     @Override
     public ProductDraft normalize(ProductRaw rawProduct) {
         JsonNode raw = read(rawProduct);
+        ProductClassification classification = classifier.classify(raw);
+        if (classification != ProductClassification.FINANCIAL_PRODUCT) {
+            return skippedDraft(rawProduct, classification);
+        }
+
         String providerName = firstText(raw, "sprvsnInstCdNm", "rgtrInstCdNm", "rgtrUpInstCdNm");
         String providerCode = firstText(raw, "sprvsnInstCd", "rgtrInstCd", "rgtrUpInstCd", "sprvsnInstCdNm", "rgtrInstCdNm");
         String productName = firstText(raw, "plcyNm");
+        String supportContent = text(raw, "plcySprtCn");
         String content = joinContent(
                 raw,
                 "plcyExplnCn",
@@ -43,6 +51,8 @@ public class OntongYouthProductNormalizer extends AbstractProductNormalizer impl
                 .rawId(rawProduct.getId())
                 .rawSource(rawProduct.getSource())
                 .normalizerVersion(properties.normalizerVersion())
+                .classification(classification)
+                .saveProduct(true)
                 .sourceCode(Source.ONTONG_YOUTH.name())
                 .providerCode(required(providerCode, "providerCode", rawProduct))
                 .providerName(required(providerName, "providerName", rawProduct))
@@ -53,6 +63,7 @@ public class OntongYouthProductNormalizer extends AbstractProductNormalizer impl
                 .minAge(integer(raw, "sprtTrgtMinAge"))
                 .maxAge(integer(raw, "sprtTrgtMaxAge"))
                 .earnMaxAmt(longValue(raw, "earnMaxAmt"))
+                .maxMonthlyLimit(monthlyLimitExtractor.extract(productName, supportContent))
                 .requiresHomeless(containsAny(content, "무주택"))
                 .requiresHouseholder(containsAny(content, "세대주"))
                 .applyUrl(firstText(raw, "aplyUrlAddr", "refUrlAddr1", "refUrlAddr2"))
@@ -65,6 +76,17 @@ public class OntongYouthProductNormalizer extends AbstractProductNormalizer impl
                         productName,
                         content
                 ))
+                .build();
+    }
+
+    private ProductDraft skippedDraft(ProductRaw rawProduct, ProductClassification classification) {
+        return ProductDraft.builder()
+                .rawId(rawProduct.getId())
+                .rawSource(rawProduct.getSource())
+                .normalizerVersion(properties.normalizerVersion())
+                .classification(classification)
+                .saveProduct(false)
+                .sourceCode(Source.ONTONG_YOUTH.name())
                 .build();
     }
 

@@ -4,6 +4,7 @@ import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.client.fss.FssClient;
 import apptive.fin.apicollector.client.fss.FssProductType;
 import apptive.fin.apicollector.client.fss.FssRawProduct;
+import apptive.fin.apicollector.config.CollectorProperties;
 import apptive.fin.apicollector.raw.RawProductSaveService;
 import apptive.fin.apicollector.raw.SaveResult;
 import lombok.RequiredArgsConstructor;
@@ -25,12 +26,18 @@ public class FetchFssRawTasklet implements Tasklet {
 
     private final FssClient fssClient;
     private final RawProductSaveService rawProductSaveService;
+    private final CollectorProperties properties;
 
     @Override
     public RepeatStatus execute(
             StepContribution contribution,
             ChunkContext chunkContext
     ) {
+        if (properties.mode().isNormalizeOnly()) {
+            log.info("FetchFssRawTasklet skipped. mode={}", properties.mode());
+            return RepeatStatus.FINISHED;
+        }
+
         List<FssRawProduct> products = fssClient.fetchAll();
 
         int inserted = 0;

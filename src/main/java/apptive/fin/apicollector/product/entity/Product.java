@@ -12,7 +12,10 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -137,9 +140,21 @@ public class Product extends BaseTimeEntity {
     }
 
     public void replaceKeywords(List<KeywordValueEnum> keywordCodes) {
-        this.keywords.clear();
-        for (KeywordValueEnum keywordCode : keywordCodes) {
-            this.keywords.add(ProductKeyword.create(this, keywordCode));
+        Set<KeywordValueEnum> desiredKeywords = keywordCodes == null || keywordCodes.isEmpty()
+                ? EnumSet.noneOf(KeywordValueEnum.class)
+                : EnumSet.copyOf(keywordCodes);
+
+        this.keywords.removeIf(keyword -> !desiredKeywords.contains(keyword.getKeywordCode()));
+
+        Set<KeywordValueEnum> currentKeywords = new HashSet<>();
+        for (ProductKeyword keyword : this.keywords) {
+            currentKeywords.add(keyword.getKeywordCode());
+        }
+
+        for (KeywordValueEnum keywordCode : desiredKeywords) {
+            if (!currentKeywords.contains(keywordCode)) {
+                this.keywords.add(ProductKeyword.create(this, keywordCode));
+            }
         }
     }
 }

@@ -29,6 +29,11 @@ public class ProductSyncService {
     }
 
     private void sync(ProductDraft draft) {
+        if (!draft.shouldSaveProduct()) {
+            markNormalized(draft);
+            return;
+        }
+
         ProductSource source = productSourceRepository.findByCode(draft.sourceCode())
                 .orElseGet(() -> productSourceRepository.save(ProductSource.create(
                         draft.sourceCode(),
@@ -59,6 +64,10 @@ public class ProductSyncService {
         product.replaceOptions(draft.options());
         product.replaceKeywords(draft.keywords());
 
+        markNormalized(draft);
+    }
+
+    private void markNormalized(ProductDraft draft) {
         ProductRaw raw = productRawRepository.findById(draft.rawId())
                 .orElseThrow(() -> new IllegalStateException("ProductRaw not found. rawId=" + draft.rawId()));
         raw.markNormalized(draft.normalizerVersion());

@@ -38,6 +38,8 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                 .rawId(rawProduct.getId())
                 .rawSource(rawProduct.getSource())
                 .normalizerVersion(properties.normalizerVersion())
+                .classification(ProductClassification.FINANCIAL_PRODUCT)
+                .saveProduct(true)
                 .sourceCode(Source.FSS.name())
                 .providerCode(firstText(base, "fin_co_no", "kor_co_nm"))
                 .providerName(firstText(base, "kor_co_nm", "fin_co_no"))

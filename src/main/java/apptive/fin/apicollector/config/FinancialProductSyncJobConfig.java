@@ -37,7 +37,9 @@ public class FinancialProductSyncJobConfig {
                 .incrementer(new RunIdIncrementer())
                 .start(sourceDecider)
                     .on("FSS").to(fssSyncFlow)
+                .from(sourceDecider)
                     .on("ONTONG_YOUTH").to(ontongYouthSyncFlow)
+                .from(sourceDecider)
                     .on("ALL").to(allSyncFlow)
                 .end()
                 .build();
