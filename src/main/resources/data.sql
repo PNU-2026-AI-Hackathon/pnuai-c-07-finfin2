@@ -241,3 +241,74 @@ INSERT INTO category_option (category_id, value, code) VALUES
    (6, '첫거래 고객', 'BANK_FIRST_TRANSACTION'),
    (6, '급여이체 가능', 'BANK_SALARY_TRANSFER'),
    (6, '카드실적 연동', 'BANK_CARD_USAGE');
+
+
+--테스트용 임시 데이터 (삭제 예정)
+INSERT INTO provider (source_id, code, name) VALUES
+    ((SELECT id FROM product_source WHERE code = 'FSS'), '0010363', '더케이저축은행');
+
+INSERT INTO product (source_id, provider_id, type, product_code, product_name,
+    content, base_rate, max_rate, min_monthly_limit, max_monthly_limit,
+    min_age, max_age, requires_homeless, requires_householder, is_joinable)
+VALUES (
+    (SELECT id FROM product_source WHERE code = 'FSS'),
+    (SELECT id FROM provider WHERE code = '0010363'),
+    'SAVING', '240076', 'e-회전식정기예금',
+    '단리/복리 선택 가능', 3.45, 3.45, 10, 100,
+    19, 34, false, false, true
+);
+
+INSERT INTO product_option (product_id, intr_rate_type, intr_rate_type_nm, save_trm, intr_rate, intr_rate2)
+VALUES
+    ((SELECT id FROM product WHERE product_code = '240076'), 'S', '단리', 12, 3.45, 3.45),
+    ((SELECT id FROM product WHERE product_code = '240076'), 'M', '복리', 12, 3.45, 3.45);
+
+-- 제공기관 추가
+INSERT INTO provider (source_id, code, name) VALUES
+    ((SELECT id FROM product_source WHERE code = 'ONTONG'), 'GOV001', '금융위원회'),
+    ((SELECT id FROM product_source WHERE code = 'FSS'), '0010364', '국민은행');
+
+-- 2. 근속 요건 있는 상품 (미취업자 제외 확인용)
+INSERT INTO product (source_id, provider_id, type, product_code, product_name,
+    content, base_rate, max_rate, min_monthly_limit, max_monthly_limit,
+    min_age, max_age, min_tenure_months, requires_homeless, requires_householder, is_joinable)
+VALUES (
+    (SELECT id FROM product_source WHERE code = 'ONTONG'),
+    (SELECT id FROM provider WHERE code = 'GOV001'),
+    'POLICY', 'GOV001', '청년내일채움공제',
+    '중소기업 재직 청년 자산형성 지원', 10.0, 10.0, 12, 50,
+    15, 34, 6, false, false, true  -- 근속 6개월 이상 필요
+);
+
+-- 3. 무주택 요건 있는 상품
+INSERT INTO product (source_id, provider_id, type, product_code, product_name,
+    content, base_rate, max_rate, min_monthly_limit, max_monthly_limit,
+    min_age, max_age, requires_homeless, requires_householder, is_joinable)
+VALUES (
+    (SELECT id FROM product_source WHERE code = 'ONTONG'),
+    (SELECT id FROM provider WHERE code = 'GOV001'),
+    'POLICY', 'GOV002', '청년도약계좌',
+    '청년 자산형성 지원 상품', 4.5, 6.0, 1, 70,
+    19, 34, true, false, true  -- 무주택 요건
+);
+
+-- 4. 나이 제한 좁은 상품 (나이 초과 테스트용)
+INSERT INTO product (source_id, provider_id, type, product_code, product_name,
+    content, base_rate, max_rate, min_monthly_limit, max_monthly_limit,
+    min_age, max_age, requires_homeless, requires_householder, is_joinable)
+VALUES (
+    (SELECT id FROM product_source WHERE code = 'FSS'),
+    (SELECT id FROM provider WHERE code = '0010364'),
+    'SAVING', 'BANK001', '청년우대형 적금',
+    '만 19~29세 전용 우대 적금', 3.8, 4.5, 10, 50,
+    19, 29, false, false, true  -- 29세 이하만 가입 가능
+);
+
+-- 5. 옵션 추가 (기존 상품 + 새 FSS 상품)
+INSERT INTO product_option (product_id, intr_rate_type, intr_rate_type_nm, save_trm, intr_rate, intr_rate2)
+VALUES
+    ((SELECT id FROM product WHERE product_code = '240076'), 'S', '단리', 12, 3.45, 3.45),
+    ((SELECT id FROM product WHERE product_code = '240076'), 'M', '복리', 12, 3.45, 3.45),
+    ((SELECT id FROM product WHERE product_code = 'BANK001'), 'S', '단리', 12, 3.8, 4.5),
+    ((SELECT id FROM product WHERE product_code = 'BANK001'), 'S', '단리', 24, 3.5, 4.2),
+    ((SELECT id FROM product WHERE product_code = 'BANK001'), 'M', '복리', 12, 3.8, 4.5);

@@ -117,3 +117,75 @@ CREATE TABLE IF NOT EXISTS category_option (
 
 
 -- 키워드 카테고리 삽입
+
+-- API 데이터 가공 후 저장할 테이블
+-- 출처 테이블
+CREATE TABLE product_source (
+    id      BIGSERIAL PRIMARY KEY,
+    code    VARCHAR(20)  NOT NULL UNIQUE,  -- 'FSS' | 'ONTONG'
+    name    VARCHAR(50)  NOT NULL  -- '금융감독원' | '온통청년'
+);
+
+INSERT INTO product_source (code, name) VALUES
+    ('FSS',    '금융감독원'),
+    ('ONTONG', '온통청년');
+
+-- 제공기관 테이블
+CREATE TABLE provider (
+    id        BIGSERIAL PRIMARY KEY,
+    source_id BIGINT      NOT NULL REFERENCES product_source(id),
+    code      VARCHAR(100), -- FSS: fin_co_no / ONTONG: sprvsnInstCd
+    name      VARCHAR(100) NOT NULL  -- FSS: kor_co_nm / ONTONG: sprvsnInstCdNm 칼럼 값 가져와서 저장.
+);
+
+-- 상품 메인 테이블
+CREATE TABLE product (
+    id                   BIGSERIAL PRIMARY KEY,
+    source_id            BIGINT       NOT NULL REFERENCES product_source(id),
+    provider_id          BIGINT       NOT NULL REFERENCES provider(id),
+    type                 VARCHAR(20)  NOT NULL,   -- 'DEPOSIT' | 'SAVING' | 'POLICY'
+    product_code         VARCHAR(100),
+    product_name         VARCHAR(200) NOT NULL,
+    content              TEXT,  -- 상품 설명
+
+    -- 공통
+    base_rate            DECIMAL(5,2),
+    max_rate             DECIMAL(5,2),
+    min_monthly_limit    BIGINT,
+    max_monthly_limit    BIGINT,
+
+    -- 조건(파싱 결과)
+    min_age              INT,
+    max_age              INT,
+    earn_max_amt         BIGINT, -- 최대 연 소득 (만원)
+    earn_percent         INT, -- 중위소득 기준 % (ex : 150)
+    min_tenure_months    INT, -- 최소 근속 기간 (개월)
+    requires_homeless    BOOLEAN DEFAULT FALSE, -- 무주택 요건 여부
+    requires_householder BOOLEAN DEFAULT FALSE, -- 세대주 요건 여부
+
+    -- 현재 활성화 된(가입 가능한)상품 여부
+    is_joinable         BOOLEAN NOT NULL DEFAULT True,
+    -- 현재 온통청년에서만 url이 제공되고 있음.
+    apply_url            VARCHAR(500),
+
+    created_at   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 상품-옵션 테이블 (FSS 단리/복리, 기간)
+CREATE TABLE product_option (
+    id                BIGSERIAL PRIMARY KEY,
+    product_id        BIGINT      NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+    intr_rate_type    VARCHAR(10) NOT NULL,  -- 'S'(단리) | 'M'(복리)
+    intr_rate_type_nm VARCHAR(20), -- '단리' | '복리'
+    save_trm          INT  NOT NULL,  -- 저축 기간 (개월)
+    intr_rate         DECIMAL(5,2), -- 기본 금리
+    intr_rate2        DECIMAL(5,2) -- 최고 금리
+);
+
+-- 상품-키워드 테이블
+CREATE TABLE product_keyword (
+    id           BIGSERIAL PRIMARY KEY,
+    product_id   BIGINT      NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+    keyword_code VARCHAR(50) NOT NULL  -- KeywordValueEnum code값
+);
