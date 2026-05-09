@@ -41,25 +41,25 @@ export default function Recommend() {
 
         {/* 타이틀 */}
         <div className="bg-linear-to-b from-[#EFFFFD] to-[#FFFFFF] text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-800 font-gmarket">
-            내게 딱 맞는 <span className="text-[#03BFA5]">금융상품,</span>
+          <h1 className="text-[44px] font-bold text-[#4B4B4B] font-gmarket">
+            내게 딱 맞는 <span className="text-[#03BFA5]">금융상품,</span><br />
+            <span className="text-[#03BFA5]">Y-Fin</span>이 찾아줘요
           </h1>
-          <h2 className="text-3xl font-bold text-[#03BFA5] font-gmarket">y-Fin이 찾아줘요</h2>
-          <p className="text-sm text-gray-400 mt-4 font-gmarket">
+          <p className="text-[15px] text-[#A5A5A5] mt-6 leading-relaxed tracking-[-0.01em] font-gmarket">
             수백 개 은행 상품을 일일이 비교할 필요 없이, 키워드만 선택하면<br />
             최적의 상품을 찾을 수 있어요.
           </p>
         </div>
 
         {/* 검색바 + 폼 */}
-        <div className="w-full max-w-2xl bg-white rounded-4xl shadow-lg">
+        <div className="w-full max-w-210 bg-white rounded-4xl shadow-lg">
 
           {/* 검색바 */}
           <button
             type="button"
             onClick={() => setIsOpen((prev) => !prev)}
-            className={`w-full flex items-center justify-between px-3 py-3 hover:bg-gray-50 transition-colors rounded-full border shadow-sm ${
-              isOpen ? "border-gray-200" : "border-[#03BFA5]"
+            className={`w-full flex items-center justify-between px-3 py-3 hover:bg-gray-50 transition-colors rounded-full border  ${
+              isOpen ? "border-transparent" : "border-[#03BFA5]"
             }`}
           >
             {/* 왼쪽 돋보기 아이콘 */}
