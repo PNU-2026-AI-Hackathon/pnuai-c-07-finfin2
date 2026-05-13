@@ -1,4 +1,3 @@
-import Header from '../components/Header'
 import bubbleBg from '../assets/background_bubble.png'
 import keyImg from '../assets/keyImg.png'
 import googleIcon from '../assets/GoogleIcon.png'
@@ -10,7 +9,6 @@ export default function Login() {
       className="min-h-screen bg-cover bg-center bg-no-repeat flex flex-col"
       style={{ backgroundImage: `url(${bubbleBg})` }}
     >
-      <Header />
       <main className="flex-1 flex flex-col items-center justify-end pb-[5%]">
         <img src={keyImg} alt="열쇠" className="w-90" />
         <TextAndButtons />

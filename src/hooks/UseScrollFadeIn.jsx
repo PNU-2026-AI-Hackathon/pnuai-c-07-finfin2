@@ -11,7 +11,7 @@ export default function useScrollFadeIn() {
       ([entry]) => {
         if (!entry.isIntersecting) return;
 
-        // 뷰포트 진입 후 250ms 대기 후 시작, 타이틀 먼저
+        // 뷰포트 진입 후 300ms 대기 후 시작, 타이틀 먼저
         setTimeout(() => {
           const title = el.querySelector('[data-fade="title"]');
           if (title) {
@@ -27,7 +27,7 @@ export default function useScrollFadeIn() {
               item.classList.remove('opacity-0', 'translate-y-6');
             }, 200 + i * 120);
           });
-        }, 250);
+        }, 300);
 
         observer.disconnect();
       },

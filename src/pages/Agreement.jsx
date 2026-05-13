@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import Header from '../components/Header';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 //개별 약관 항목 컴포넌트 
 const AgreementItem = ({ id, label, checked, onChange }) => (
@@ -20,23 +21,43 @@ const AgreementItem = ({ id, label, checked, onChange }) => (
 );
 
 function Agreement() {
-  const [checks, setChecks] = useState({
-    age: false, service: false, privacy: false, location: false, marketing: false
-  });
+  const { accessToken } = useAuth();
+  const [terms, setTerms] = useState([]);
+  const [checks, setChecks] = useState({ age: false });
 
   const isAllChecked = Object.values(checks).every(Boolean);
-  const isRequiredFilled = checks.age && checks.service && checks.privacy;
+
+  // 약관 목록 api 조회
+  useEffect(() => {
+    if (!accessToken) return;
+    const fetchTerms = async () => {
+      try {
+        const res = await fetch("https://test-fin.duckdns.org/term", {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        const data = await res.json();
+        setTerms(data);
+        // API에서 받은 항목들 checks에 동적으로 추가
+        const initialChecks = { age: false };
+        data.forEach(t => { initialChecks[t.code] = false; });
+        setChecks(initialChecks);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchTerms();
+  }, [accessToken]);
+
+  const isRequiredFilled = checks.age &&
+  terms.filter(t => t.code === 'SERVICE_TERMS' || t.code === 'PRIVACY_POLICY')
+      .every(t => checks[t.code]);
 
   //전체 동의 핸들러
   const handleAll = () => {
     const nextVal = !isAllChecked;
-    setChecks({
-      age: nextVal,
-      service: nextVal,
-      privacy: nextVal,
-      location: nextVal,
-      marketing: nextVal,
-    });
+    const newChecks = { age: nextVal };
+    terms.forEach(t => { newChecks[t.code] = nextVal; });
+    setChecks(newChecks);
   };
 
   const handleSingle = (id) => {
@@ -51,8 +72,18 @@ function Agreement() {
     { id: 'settings', label: 'Settings', icon: '⚙️' },
   ];
 
-  //상단 헤더 메뉴(example)
-  const headerMenus = [ "청년금융소개", "지원정책", "금융가이드", "커뮤니티", "고객센터", "공지사항"];
+  const handleNext = async () => {
+    // try {
+    //   const res = await fetch("https://test-fin.duckdns.org/term/agree", {
+    //     method: "POST",
+    //     headers: { Authorization: `Bearer ${accessToken}` },
+    //   });
+    //   if (!res.ok) throw new Error("약관 동의 실패");
+    //   navigate('/');
+    // } catch (e) {
+    //   console.error(e);
+    // }
+  };
 
   return (
     <div className="flex min-h-screen bg-[#EAF8F0] font-inter text-[22px] text-slate-900">
@@ -60,19 +91,6 @@ function Agreement() {
 
       {/* 메인 영역 */}
       <main className="flex-1 flex flex-col">
-        {/* 상단 헤더 */}
-        <Header className="h-16 flex items-center px-10 gap-8">
-          {headerMenus.map((menu, i) => (
-            <button 
-              key={i} 
-              className="text-sm font-bold text-slate-600 hover:text-slate-900 transition-all whitespace-nowrap"
-              onClick={() => console.log(`${menu} 클릭됨`)}
-            >
-              {menu}
-            </button>
-          ))}
-        </Header>
-
         {/*콘텐츠 배치*/}
         <div className="flex-1 flex justify-center items-center p-6">
           <div className="w-full max-w-xl bg-white p-12 rounded-[40px] shadow-2xl">
@@ -95,14 +113,14 @@ function Agreement() {
             {/*개별 약관 리스트*/}
             <div className="space-y-1">
               <AgreementItem id="age" label="[필수] 만 14세 이상입니다." checked={checks.age} onChange={handleSingle} />
-              <AgreementItem id="service" label="[필수] 서비스 이용약관 동의" checked={checks.service} onChange={handleSingle} />
-              <AgreementItem id="privacy" label="[필수] 개인정보 수집 및 이용동의" checked={checks.privacy} onChange={handleSingle} />
-              <AgreementItem id="location" label="[선택] 위치기반 서비스 이용약관 동의" checked={checks.location} onChange={handleSingle} />
-              <AgreementItem id="marketing" label="[선택] 마케팅 정보 수신 동의" checked={checks.marketing} onChange={handleSingle} />
+                {terms.map(t => (
+              <AgreementItem key={t.id} id={t.code} label={t.title} checked={checks[t.code] ?? false} onChange={handleSingle} />
+                ))}
             </div>
 
             <button 
               disabled={!isRequiredFilled}
+              onClick={handleNext}
               className={`w-full mt-10 py-5 rounded-2xl font-black text-xl transition-all shadow-lg ${
                 isRequiredFilled 
                 ? 'bg-slate-700 text-white hover:bg-slate-800 active:scale-95 cursor-pointer' 

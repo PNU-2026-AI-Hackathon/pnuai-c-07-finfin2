@@ -1,29 +1,47 @@
+import { useNavigate, useLocation } from 'react-router-dom'
 import logo from '../assets/logo.png'
 
 export default function Header() {
   return (
-    <header className="w-full h-22 flex items-center justify-between px-[3.5%] bg-white">
+    <header className="sticky top-0 w-full h-22 flex items-center px-[3.5%] bg-white z-50">
       <Logo />
       <NavMenu />
-      <UserButtons />
+      <div className="ml-auto">
+        <UserButtons />
+      </div>
     </header>
   )
 }
 
 function Logo() {
   return (
-    <img src={logo} alt="Fin 로고" className="h-7" />
+    <img src={logo} alt="Fin 로고" className="h-7 cursor-pointer" onClick={() => navigate('/')} />
   )
 }
 
-const navItems = ['서비스 소개', '금융상품 추천', '정보 커뮤니티', '마이페이지']
+const navItems = [
+  { label: '서비스 소개', path: '/introduce' },
+  { label: '금융상품 추천', path: '/recommend' },
+  { label: '정보 커뮤니티', path: '/community' },
+  { label: '마이페이지', path: '/mypage' },
+]
 
 function NavMenu() {
+  const navigate = useNavigate()
+  const location = useLocation()
   return (
-    <ul className="flex justify-between flex-1 max-w-2xl mx-16">
+    <ul className="flex gap-[160px] ml-[300px]">
       {navItems.map((item, i) => (
-        <li key={i} className="font-[Inter] font-medium text-[17px] text-[#515151] hover:text-gray-400 cursor-pointer whitespace-nowrap transition-colors">
-          {item}
+        <li
+          key={i}
+          onClick={() => navigate(item.path)}
+          className={`font-[Inter] font-medium text-[17px] cursor-pointer whitespace-nowrap transition-colors
+            ${location.pathname === item.path
+              ? 'text-[#515151]'
+              : 'text-gray-400 hover:text-[#515151]'
+            }`}
+        >
+          {item.label}
         </li>
       ))}
     </ul>

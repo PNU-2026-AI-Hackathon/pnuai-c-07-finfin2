@@ -1,6 +1,4 @@
 import React from 'react';
-import Header from '../components/Header';
-import Footer from '../components/Footer';
 import useScrollFadeIn from '../hooks/UseScrollFadeIn';
 import usePageScale from '../hooks/UsePageScale';
 import PhoneAnimation from '../components/phone_motion';
@@ -13,14 +11,10 @@ export default function IntroducePage() {
 
   return (
     <div
-      style={{
-        minWidth: '1400px',  // 이 이하로 절대 줄어들지 않음
-        zoom: 'var(--page-scale, 1)',
-      }}
+      style={{ minWidth: '1400px' }}  // 이 이하로 절대 줄어들지 않음
     >
-
-      <Header />
-      <main className="flex-1">
+      <div style={{ zoom:'var(--page-scale, 1)' }}>
+        <main className="flex-1">
           <IntroduceSection />
           <StepIntroSection />
           <MatchingScoreSection />
@@ -29,8 +23,8 @@ export default function IntroducePage() {
           <TopProductsSection />
           <MagazineSection />
           <MyPageSection />
-          <Footer />
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
@@ -53,7 +47,7 @@ function IntroduceSection() {
         30초 만에 원하는 금융상품을 찾는 청년 금융 소울메이트, y-Fin.
       </p>
       <div className="mt-10 w-full max-w-150">
-         <PhoneAnimation />
+        <PhoneAnimation />
       </div>
     </div>
   );
