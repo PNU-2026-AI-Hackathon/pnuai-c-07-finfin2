@@ -12,10 +12,10 @@ import java.util.stream.Collectors;
 public enum ScoreWeightEnum {
 
     // 정부 상품 배점
-    GOV_BENEFITS ("benefits", 40.0,true),
+    GOV_BENEFITS ("benefits", 38.0,true),
     GOV_PERIOD ("period", 20.0, true),
-    GOV_IDENTITY("identity",20.0, true),
-    GOV_DEPOSIT ("deposit",12.0, true),
+    GOV_IDENTITY("identity",18.0, true),
+    GOV_DEPOSIT ("deposit",16.0, true),
     GOV_BANK_COND("bankCond", 8.0, true),
 
     // 시중은행 상품 배점

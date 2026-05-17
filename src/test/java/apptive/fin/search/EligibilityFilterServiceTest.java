@@ -174,7 +174,7 @@ class EligibilityFilterServiceTest {
 
         assertThat(service.filterEligible(request)).isEmpty();
 
-        verifyNoInteractions(productRepository);
+        verifyNoInteractions(productRepository, resolveKeywordService);
     }
 
     private ResolvedKeywords emptyKeywords() {

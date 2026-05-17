@@ -1,45 +1,34 @@
 INSERT INTO median_incomes (year, household_size, earn_percent, monthly_income) VALUES
--- 1인 가구
 (2026, 1, 60, 154),
 (2026, 1, 80, 205),
 (2026, 1, 100, 256),
 (2026, 1, 120, 308),
 (2026, 1, 150, 385),
 (2026, 1, 180, 462),
-
--- 2인 가구
 (2026, 2, 60, 252),
 (2026, 2, 80, 336),
 (2026, 2, 100, 420),
 (2026, 2, 120, 504),
 (2026, 2, 150, 630),
 (2026, 2, 180, 756),
-
--- 3인 가구
 (2026, 3, 60, 322),
 (2026, 3, 80, 429),
 (2026, 3, 100, 536),
 (2026, 3, 120, 643),
 (2026, 3, 150, 804),
 (2026, 3, 180, 965),
-
--- 4인 가구
 (2026, 4, 60, 390),
 (2026, 4, 80, 520),
 (2026, 4, 100, 649),
 (2026, 4, 120, 779),
 (2026, 4, 150, 974),
 (2026, 4, 180, 1169),
-
--- 5인 가구
 (2026, 5, 60, 453),
 (2026, 5, 80, 605),
 (2026, 5, 100, 756),
 (2026, 5, 120, 907),
 (2026, 5, 150, 1134),
 (2026, 5, 180, 1360),
-
--- 6인 이상 가구
 (2026, 6, 60, 513),
 (2026, 6, 80, 684),
 (2026, 6, 100, 856),
@@ -188,7 +177,7 @@ INSERT INTO category (name) VALUES
 ('저축기간'),
 ('혜택선택'),
 ('상품관심사'),
-('은행거래');
+('우대거래');
 
 INSERT INTO category_option (category_id, value, code) VALUES
 (1, '서울', 'REGION_SEOUL'),
@@ -208,14 +197,14 @@ INSERT INTO category_option (category_id, value, code) VALUES
 (1, '경북', 'REGION_GYEONGBUK'),
 (1, '경남', 'REGION_GYEONGNAM'),
 (1, '제주', 'REGION_JEJU'),
-(2, '미취업', 'STATUS_UNEMPLOYED'),
-(2, '알바/프리랜서', 'STATUS_PART_TIME'),
+(2, '미취업자', 'STATUS_UNEMPLOYED'),
+(2, '아르바이트/프리랜서', 'STATUS_PART_TIME'),
 (2, '중소기업 재직', 'STATUS_SME_WORKER'),
 (2, '군복무', 'STATUS_MILITARY'),
 (3, '5년 이상', 'TERM_OVER_5_YEARS'),
 (3, '2~3년', 'TERM_2_TO_3_YEARS'),
 (3, '1년 내외', 'TERM_AROUND_1_YEAR'),
-(4, '최고이율 중심', 'BENEFIT_MAX_INTEREST'),
+(4, '최고이율 중시', 'BENEFIT_MAX_INTEREST'),
 (4, '비과세', 'BENEFIT_TAX_FREE'),
 (4, '우대조건 간편', 'BENEFIT_EASY_CONDITION'),
 (4, '정부기여금', 'BENEFIT_GOV_SUBSIDY'),
@@ -223,7 +212,9 @@ INSERT INTO category_option (category_id, value, code) VALUES
 (5, '대출', 'INTEREST_LOAN'),
 (6, '첫거래 고객', 'BANK_FIRST_TRANSACTION'),
 (6, '급여이체 가능', 'BANK_SALARY_TRANSFER'),
-(6, '카드실적 연동', 'BANK_CARD_USAGE');
+(6, '카드실적 연동', 'BANK_CARD_USAGE'),
+(6, '자동이체 가능', 'BANK_AUTO_TRANSFER'),
+(6, '마케팅 동의', 'BANK_MARKETING');
 
 INSERT INTO provider (source_id, code, name) VALUES
 ((SELECT id FROM product_source WHERE code = 'FSS'), '0010363', '더케이저축은행'),
@@ -231,10 +222,10 @@ INSERT INTO provider (source_id, code, name) VALUES
 ((SELECT id FROM product_source WHERE code = 'FSS'), '0010364', '국민은행');
 
 INSERT INTO product (source_id, type, product_code, product_name, content) VALUES
-((SELECT id FROM product_source WHERE code = 'FSS'), 'SAVING', '240076', 'e-회전식정기예금', '단리/복리 선택 가능'),
+((SELECT id FROM product_source WHERE code = 'FSS'), 'SAVING', '240076', 'e-쎄이프 정기예금', '단리/복리 선택 가능'),
 ((SELECT id FROM product_source WHERE code = 'ONTONG'), 'POLICY', 'GOV001', '청년내일채움공제', '중소기업 재직 청년 자산형성 지원'),
-((SELECT id FROM product_source WHERE code = 'ONTONG'), 'POLICY', 'GOV002', '청년도약계좌', '청년 자산형성 주거 상품'),
-((SELECT id FROM product_source WHERE code = 'FSS'), 'SAVING', 'BANK001', '청년우대형 적금', '만 19~29세 전용 우대 적금');
+((SELECT id FROM product_source WHERE code = 'ONTONG'), 'POLICY', 'GOV002', '청년우대형 청약통장', '청년 자산형성 주거 상품'),
+((SELECT id FROM product_source WHERE code = 'FSS'), 'SAVING', 'BANK001', '청년우대적금', '만 19~29세 전용 우대 적금');
 
 INSERT INTO product_properties (
     product_id, provider_id, base_rate, max_rate, min_monthly_limit, max_monthly_limit,
