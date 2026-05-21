@@ -16,7 +16,7 @@ export function StepSavingPlan({ data, setData, cats, onPrev, onNext }) {
       <div className="pl-5">
         <div className="flex items-center gap-1.5 mb-4">
           <p className="text-[18px] font-semibold text-[#454545]">월 납입 희망액</p>
-          <InfoIcon />
+          <InfoIcon text="예상 만기 수령액 및 적합도 계산에 활용됩니다."/>
         </div>
 
         <div className="w-full max-w-112.5">
@@ -53,7 +53,7 @@ export function StepBasicInfo({ data, setData, cats, onPrev, onNext }) {
     <StepLayout step={1} title="기본 정보" sub="몇 가지 간단한 키워드 태그로 당신에게 Fin. 한 상품을 찾아드립니다.">
       <div className="flex items-center gap-2 mb-3">
         <p className="text-[18px] text-[#454545] font-semibold mb-0">현재 신분</p>
-        <InfoIcon />
+        <InfoIcon text = "가입 자격 1순위로, 미취업/재직/군복무에 따라 추천 가능 상품군이 달라집니다."/>
       </div>
       <div className="flex flex-wrap gap-2 mb-5">
         {cats.status.map((s) => (
@@ -65,7 +65,7 @@ export function StepBasicInfo({ data, setData, cats, onPrev, onNext }) {
 
       <div className="flex items-center gap-2 mb-3">
         <p className="text-[18px] text-[#454545] font-semibold mb-0">희망 저축 기간</p>
-        <InfoIcon />
+        <InfoIcon text = "목표 저축 금액에 맞는 상품을 추천해드립니다."/>
       </div>
       <div className="flex flex-wrap gap-2">
         {cats.savingPeriod.map((p) => (
@@ -87,7 +87,8 @@ export function StepBenefits({ data, setData, cats, onPrev, onNext }) {
     <StepLayout step={1} title="기본 정보" sub="몇 가지 간단한 키워드 태그로 당신에게 Fin. 한 상품을 찾아드립니다.">
       <div className="flex items-center gap-2 mb-3">
         <p className="text-[18px] text-[#454545] font-semibold mb-0">핵심 혜택</p>
-        <InfoIcon />
+        <InfoIcon text={`선호하는 혜택을 선택하면 우선순위에 반영됩니다.
+(복수 선택 가능)`} />
       </div>
       <div className="flex flex-wrap gap-2 mb-5">
         {cats.benefits.map((b) => (
@@ -99,7 +100,8 @@ export function StepBenefits({ data, setData, cats, onPrev, onNext }) {
 
       <div className="flex items-center gap-2 mb-3">
         <p className="text-[18px] text-[#454545] font-semibold mb-0">은행 거래</p>
-        <InfoIcon />
+        <InfoIcon text={`우대 금리 조건 확인을 위한 선택 항목입니다.
+(복수 선택 가능)`} />
       </div>
       <div className="flex flex-wrap gap-2">
         {cats.bankRelation.map((b) => (
@@ -129,7 +131,8 @@ export function StepPersonalInfo({ data, setData, onPrev, onNext }) {
       <div className="pl-4">
         <div className="flex items-center gap-2 mb-2">
           <p className="text-[16px] text-[#454545] font-normal mb-0">생년월일</p>
-        <InfoIcon />
+        <InfoIcon text={`법정 연령 요건은 가입의 첫 관문으로,
+군필자의 경우 복무 기간만큼 상한 연령이 확대됩니다.`} />
         </div>
         
         <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -161,7 +164,7 @@ export function StepPersonalInfo({ data, setData, onPrev, onNext }) {
         {/* 개인 연소득 섹션 */}
         <div className="flex items-center gap-2 mb-3">
           <p className="text-[16px] text-[#454545] font-normal mb-0">개인 연소득</p>
-          <InfoIcon />
+          <InfoIcon text = "기여금 매칭 비율과 가입 가능 여부를 판단합니다."/>
           </div>
           
         <div className="flex flex-col gap-3 mb-8">
@@ -205,7 +208,11 @@ export function StepRegion({ data, setData, cats, onNext, onPrev }) {
   return (
     <div className = "pl-5">
     <StepLayout step={2} title="상세정보" sub="Y-Fin만의 정확한 적합도 분석과 예상 수익률 계산을 위해 필요한 정보입니다.">
-      <p className="text-[18px] text-[#454545] font-semibold mb-1.5">거주지역</p>
+      <div className="flex items-center gap-1.5 mb-3">
+        <p className="text-[18px] text-[#454545] font-semibold mb-1.5">거주지역</p>
+        <InfoIcon text={`지자체별 청년 금융상품(서울 희망두배, 부산 기쁨 
+두배 등) 필터링에 활용됩니다.`} />
+      </div>
       <FormSelect
         value={data.region || ""}
         onChange={(e) => setData({ ...data, region: e.target.value })}
@@ -231,7 +238,10 @@ export function StepHouseholdIncome({ data, setData, cats, onPrev, onNext }) {
 
       <div className="pl-4">
         {/*가구원 수*/}
-        <p className="text-[15px] text-[#454545] font-medium mb-2">가구원 수</p>
+        <div className="flex items-center gap-1.5 mb-3">
+          <p className="text-[15px] text-[#454545] font-medium">가구 소득</p>
+          <InfoIcon text = "가구원 수는 중위소득 산정 기준입니다."/>
+        </div>
         <div className="flex items-center w-fit h-10 border border-[#D9D9D9] rounded-full px-2 mb-6 bg-white">
           <button 
             type="button"
@@ -249,7 +259,7 @@ export function StepHouseholdIncome({ data, setData, cats, onPrev, onNext }) {
         {/*가구 소득*/}
         <div className="flex items-center gap-1.5 mb-3">
           <p className="text-[15px] text-[#454545] font-medium">가구 소득</p>
-          <InfoIcon />
+          <InfoIcon text="가구원 수에 따른 중위소득 기준으로 선택해주세요." />
         </div>
 
         <div className="flex flex-col gap-1 mb-6 max-w-100">
@@ -319,9 +329,7 @@ export function StepHousing({ data, setData, onPrev, onNext }) {
         {/*무주택 여부*/}
         <div className="flex items-center gap-1.5 mb-3">
           <p className="text-[15px] text-[#454545] font-medium">무주택 여부</p>
-          <div className="w-[15px] h-[15px] rounded-full border border-[#03BFA5] flex items-center justify-center">
-            <span className="text-[#03BFA5] text-[10px] font-bold">i</span>
-          </div>
+          <InfoIcon text = "청약/주거 지원 상품 자격 요건입니다."/>
         </div>
 
         <div className="flex gap-3 mb-4">
@@ -405,9 +413,8 @@ export function StepEmployment({ data, setData, onPrev, onNext }) {
         {/* 근속 기간 */}
         <div className="flex items-center gap-1.5 mb-4">
           <p className="text-[17px] text-[#454545] font-medium">근속 기간</p>
-          <div className="w-3.75 h-3.75 rounded-full border border-[#03BFA5] flex items-center justify-center">
-            <span className="text-[#03BFA5] text-[10px] font-bold">i</span>
-          </div>
+          <InfoIcon text={`일부 상품은 근속 요건이 있습니다.
+(예: 내일 채움 공제 6개월 이상)`} />
         </div>
 
         <div className="w-full max-w-112.5 mb-1">
@@ -496,6 +503,7 @@ function BankSelector({
   title, 
   tagText, 
   infoText,
+  icontext,
   selectedBanks = [], 
   onChange, 
   disabledBanks = [],
@@ -568,7 +576,7 @@ function BankSelector({
         <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full bg-opacity-10 ${themeColor.text}`} style={{ backgroundColor: themeColor.bg }}>
           {tagText}
         </span>
-        <InfoIcon />
+        <InfoIcon text={icontext}/>
       </div>
 
       <div className="flex gap-2 mb-6">
@@ -672,7 +680,6 @@ export function StepTransaction({ data, setData, cats, onPrev, onSubmit }) {
       
       <div className="flex items-center gap-1.5 mb-6 pl-5">
         <p className="text-[18px] text-[#454545] font-semibold mb-0">거래 이력</p>
-        <InfoIcon />
       </div>
 
       <div className="pl-6">
@@ -683,6 +690,8 @@ export function StepTransaction({ data, setData, cats, onPrev, onSubmit }) {
             title="첫거래 은행"
             tagText="#첫 거래 자동 활성"
             infoText="복수 선택 가능합니다."
+            icontext ="아직 거래해본 적 없는 은행을 선택하면, 해당 
+은행의 ‘첫 거래 우대금리'가 자동 반영됩니다."
             cats={cats}
             userRegion={data.region} 
             selectedBanks={firstBanks}
@@ -697,6 +706,8 @@ export function StepTransaction({ data, setData, cats, onPrev, onSubmit }) {
             title="만기 예적금이 있는 은행"
             tagText="#재 예치 자동 활성"
             infoText="첫 거래 은행으로 선택하지 않은 은행 중에서만 선택 가능합니다."
+            icontext="만기된(될) 예 ∙ 적금이 있는 은행을 선택하면 해당 
+은행의 ‘재예치 우대금리'가 자동 반영됩니다."
             cats={cats}
             userRegion={data.region} 
             selectedBanks={maturedBanks}
