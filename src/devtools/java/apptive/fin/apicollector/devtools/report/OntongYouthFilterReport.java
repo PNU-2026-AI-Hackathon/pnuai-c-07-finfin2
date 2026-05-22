@@ -4,10 +4,18 @@ import apptive.fin.apicollector.Mode;
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.config.CollectorProperties;
 import apptive.fin.apicollector.devtools.support.DevtoolPaths;
-import apptive.fin.apicollector.normalize.MonthlyLimitExtractor;
-import apptive.fin.apicollector.normalize.OntongYouthPolicyClassifier;
-import apptive.fin.apicollector.normalize.OntongYouthProductNormalizer;
-import apptive.fin.apicollector.normalize.ProductDraft;
+import apptive.fin.apicollector.normalize.classifier.OntongYouthPolicyClassifier;
+import apptive.fin.apicollector.normalize.normalizer.OntongYouthProductNormalizer;
+import apptive.fin.apicollector.normalize.dto.ProductDraft;
+import apptive.fin.apicollector.normalize.extractor.KeywordExtractor;
+import apptive.fin.apicollector.normalize.extractor.MonthlyLimitExtractor;
+import apptive.fin.apicollector.normalize.extractor.keywords.BankKeywordRecognizer;
+import apptive.fin.apicollector.normalize.extractor.keywords.BenefitKeywordRecognizer;
+import apptive.fin.apicollector.normalize.extractor.keywords.InterestKeywordRecognizer;
+import apptive.fin.apicollector.normalize.extractor.keywords.RegionKeywordRecognizer;
+import apptive.fin.apicollector.normalize.extractor.keywords.StatusKeywordRecognizer;
+import apptive.fin.apicollector.normalize.extractor.keywords.TermKeywordRecognizer;
+import apptive.fin.apicollector.product.ProductType;
 import apptive.fin.apicollector.raw.ProductRaw;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -30,7 +38,8 @@ public class OntongYouthFilterReport {
             objectMapper,
             properties(),
             new OntongYouthPolicyClassifier(),
-            new MonthlyLimitExtractor()
+            new MonthlyLimitExtractor(),
+            keywordExtractor()
     );
 
     public static void main(String[] args) throws IOException {
@@ -51,7 +60,7 @@ public class OntongYouthFilterReport {
                 .map(draft -> new FilteredProduct(
                         draft.productCode(),
                         draft.productName(),
-                        draft.providerName()
+                        draft.properties().isEmpty() ? null : draft.properties().getFirst().providerName()
                 ))
                 .toList();
     }
@@ -116,16 +125,32 @@ public class OntongYouthFilterReport {
 
         List<ProductRaw> products = new ArrayList<>();
         for (JsonNode row : rows) {
-            if (Source.ONTONG_YOUTH.name().equals(row.path("source").asString())) {
+            if (isOntongYouthSource(row.path("source").asString())) {
                 products.add(new ProductRaw(
-                        Source.ONTONG_YOUTH,
+                        Source.ONTONG,
                         row.path("external_id").asString(),
                         row.path("content_hash").asString(),
-                        row.path("raw_json").asString()
+                        row.path("raw_json").asString(),
+                        ProductType.POLICY
                 ));
             }
         }
         return products;
+    }
+
+    private boolean isOntongYouthSource(String source) {
+        return Source.ONTONG.name().equals(source) || "ONTONG_YOUTH".equals(source);
+    }
+
+    private static KeywordExtractor keywordExtractor() {
+        return new KeywordExtractor(List.of(
+                new BenefitKeywordRecognizer(),
+                new BankKeywordRecognizer(),
+                new InterestKeywordRecognizer(),
+                new RegionKeywordRecognizer(),
+                new StatusKeywordRecognizer(),
+                new TermKeywordRecognizer()
+        ));
     }
 
     private CollectorProperties properties() {

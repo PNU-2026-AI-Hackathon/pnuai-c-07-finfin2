@@ -1,5 +1,6 @@
 package apptive.fin.apicollector.product.entity;
 
+import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
 import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.product.ProductType;
 import org.junit.jupiter.api.Test;
@@ -14,28 +15,33 @@ class ProductTest {
     void replaceKeywordsReusesExistingKeywordsAndAddsOnlyMissingOnes() {
         ProductSource source = ProductSource.create("ONTONG_YOUTH", "ONTONG_YOUTH");
         Provider provider = Provider.create(source, "ORG001", "테스트기관");
-        Product product = Product.create(source, provider, ProductType.GOVERNMENT, "P001", "청년 저축 지원");
+        Product product = Product.create(source, ProductType.POLICY, "P001", "청년 저축 지원");
+        product.replaceProperties(List.of(ProductPropertyDraft.builder()
+                .providerCode("ORG001")
+                .providerName("테스트기관")
+                .build()), ignored -> provider);
+        ProductProperty property = product.getProperties().getFirst();
 
-        product.replaceKeywords(List.of(
+        property.replaceKeywords(List.of(
                 KeywordValueEnum.BENEFIT_GOV_SUBSIDY,
                 KeywordValueEnum.INTEREST_SAVINGS
         ));
-        ProductKeyword existing = product.getKeywords().stream()
+        ProductKeyword existing = property.getKeywords().stream()
                 .filter(keyword -> keyword.getKeywordCode() == KeywordValueEnum.BENEFIT_GOV_SUBSIDY)
                 .findFirst()
                 .orElseThrow();
 
-        product.replaceKeywords(List.of(
+        property.replaceKeywords(List.of(
                 KeywordValueEnum.BENEFIT_GOV_SUBSIDY,
                 KeywordValueEnum.REGION_SEOUL
         ));
 
-        assertThat(product.getKeywords())
+        assertThat(property.getKeywords())
                 .extracting(ProductKeyword::getKeywordCode)
                 .containsExactlyInAnyOrder(
                         KeywordValueEnum.BENEFIT_GOV_SUBSIDY,
                         KeywordValueEnum.REGION_SEOUL
                 );
-        assertThat(product.getKeywords()).contains(existing);
+        assertThat(property.getKeywords()).contains(existing);
     }
 }

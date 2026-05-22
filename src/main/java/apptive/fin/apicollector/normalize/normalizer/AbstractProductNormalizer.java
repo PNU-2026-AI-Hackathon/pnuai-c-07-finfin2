@@ -1,5 +1,8 @@
-package apptive.fin.apicollector.normalize;
+package apptive.fin.apicollector.normalize.normalizer;
 
+import apptive.fin.apicollector.normalize.dto.ProductDraft;
+import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
+import apptive.fin.apicollector.normalize.extractor.KeywordExtractor;
 import apptive.fin.apicollector.product.KeywordValueEnum;
 import tools.jackson.databind.JsonNode;
 
@@ -9,7 +12,28 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
-abstract class AbstractProductNormalizer {
+public abstract class AbstractProductNormalizer {
+
+    protected ProductDraft extractKeywords(
+            KeywordExtractor extractor,
+            ProductDraft draft
+
+    ) {
+        List<ProductPropertyDraft> productPropertyDrafts = new ArrayList<>();
+        for (ProductPropertyDraft property : draft.properties()) {
+            List<KeywordValueEnum> keywords = extractor.extract(draft, property);
+
+            productPropertyDrafts.add(
+                    property
+                            .toBuilder()
+                            .keywords(keywords)
+                            .build()
+            );
+        }
+        return draft.toBuilder()
+                .properties(productPropertyDrafts)
+                .build();
+    }
 
     protected String text(JsonNode node, String fieldName) {
         JsonNode value = node.path(fieldName);
@@ -93,6 +117,7 @@ abstract class AbstractProductNormalizer {
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }
+
 
     protected List<KeywordValueEnum> keywordsFromText(String... values) {
         Set<KeywordValueEnum> keywords = EnumSet.noneOf(KeywordValueEnum.class);

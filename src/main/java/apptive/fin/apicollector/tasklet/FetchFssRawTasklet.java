@@ -5,6 +5,7 @@ import apptive.fin.apicollector.client.fss.FssClient;
 import apptive.fin.apicollector.client.fss.FssProductType;
 import apptive.fin.apicollector.client.fss.FssRawProduct;
 import apptive.fin.apicollector.config.CollectorProperties;
+import apptive.fin.apicollector.product.ProductType;
 import apptive.fin.apicollector.raw.RawProductSaveService;
 import apptive.fin.apicollector.raw.SaveResult;
 import lombok.RequiredArgsConstructor;
@@ -65,7 +66,10 @@ public class FetchFssRawTasklet implements Tasklet {
             SaveResult result = rawProductSaveService.saveOrUpdate(
                     Source.FSS,
                     product.externalId(),
-                    product.raw()
+                    product.raw(),
+                    product.productType() == FssProductType.SAVING ?
+                            ProductType.SAVING :
+                            ProductType.DEPOSIT
             );
 
             switch (result) {

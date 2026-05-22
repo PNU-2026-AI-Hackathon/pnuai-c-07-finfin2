@@ -1,4 +1,4 @@
-package apptive.fin.apicollector.product;
+package apptive.fin.apicollector.product.repository;
 
 import apptive.fin.apicollector.product.entity.ProductSource;
 import org.springframework.data.jpa.repository.JpaRepository;

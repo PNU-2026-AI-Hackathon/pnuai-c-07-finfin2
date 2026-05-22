@@ -33,7 +33,7 @@ public class ItemReaderConfig {
         return new RawProductItemReader(
                 repository,
                 properties,
-                Source.ONTONG_YOUTH
+                Source.ONTONG
         );
     }
 }

@@ -1,8 +1,9 @@
 package apptive.fin.apicollector.batch;
 
 import apptive.fin.apicollector.Source;
-import apptive.fin.apicollector.normalize.ProductDraft;
-import apptive.fin.apicollector.normalize.ProductNormalizer;
+import apptive.fin.apicollector.normalize.dto.ProductDraft;
+import apptive.fin.apicollector.normalize.normalizer.ProductNormalizer;
+import apptive.fin.apicollector.product.ProductType;
 import apptive.fin.apicollector.raw.ProductRaw;
 import org.junit.jupiter.api.Test;
 
@@ -21,7 +22,7 @@ class RawProductItemProcessorTest {
                 .build();
         RawProductItemProcessor processor = new RawProductItemProcessor(List.of(new StubNormalizer(Source.FSS, draft)));
 
-        ProductDraft result = processor.process(new ProductRaw(Source.FSS, "external", "hash", "{}"));
+        ProductDraft result = processor.process(new ProductRaw(Source.FSS, "external", "hash", "{}", ProductType.SAVING));
 
         assertThat(result).isSameAs(draft);
     }
@@ -30,7 +31,7 @@ class RawProductItemProcessorTest {
     void throwsWhenNormalizerDoesNotExist() {
         RawProductItemProcessor processor = new RawProductItemProcessor(List.of());
 
-        assertThatThrownBy(() -> processor.process(new ProductRaw(Source.FSS, "external", "hash", "{}")))
+        assertThatThrownBy(() -> processor.process(new ProductRaw(Source.FSS, "external", "hash", "{}", ProductType.SAVING)))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported raw source");
     }

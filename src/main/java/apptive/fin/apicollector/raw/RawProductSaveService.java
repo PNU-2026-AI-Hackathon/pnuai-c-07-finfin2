@@ -1,6 +1,7 @@
 package apptive.fin.apicollector.raw;
 
 import apptive.fin.apicollector.Source;
+import apptive.fin.apicollector.product.ProductType;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,7 @@ public class RawProductSaveService {
     private final ProductRawRepository productRawRepository;
     private final ObjectMapper objectMapper;
 
-    public SaveResult saveOrUpdate(Source source, String externalId, JsonNode raw) {
+    public SaveResult saveOrUpdate(Source source, String externalId, JsonNode raw, ProductType productType) {
         String rawJson = toJson(raw);
         String hash = sha256(rawJson);
 
@@ -32,7 +33,7 @@ public class RawProductSaveService {
                     return SaveResult.UPDATED;
                 })
                 .orElseGet(()->{
-                    productRawRepository.save(new ProductRaw(source, externalId, hash, rawJson));
+                    productRawRepository.save(new ProductRaw(source, externalId, hash, rawJson, productType));
                     return SaveResult.INSERTED;
                 });
     }

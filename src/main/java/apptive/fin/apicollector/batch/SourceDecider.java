@@ -21,7 +21,7 @@ public class SourceDecider implements JobExecutionDecider {
         return switch (properties.source()) {
             case ALL -> new FlowExecutionStatus("ALL");
             case FSS -> new FlowExecutionStatus("FSS");
-            case ONTONG_YOUTH ->  new FlowExecutionStatus("ONTONG_YOUTH");
+            case ONTONG ->  new FlowExecutionStatus("ONTONG_YOUTH");
         };
     }
 }

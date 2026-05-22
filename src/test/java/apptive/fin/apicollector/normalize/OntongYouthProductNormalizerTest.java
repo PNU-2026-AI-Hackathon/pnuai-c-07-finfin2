@@ -3,11 +3,25 @@ package apptive.fin.apicollector.normalize;
 import apptive.fin.apicollector.Mode;
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.config.CollectorProperties;
+import apptive.fin.apicollector.normalize.classifier.OntongYouthPolicyClassifier;
+import apptive.fin.apicollector.normalize.dto.ProductDraft;
+import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
+import apptive.fin.apicollector.normalize.extractor.KeywordExtractor;
+import apptive.fin.apicollector.normalize.extractor.MonthlyLimitExtractor;
+import apptive.fin.apicollector.normalize.extractor.keywords.BankKeywordRecognizer;
+import apptive.fin.apicollector.normalize.extractor.keywords.BenefitKeywordRecognizer;
+import apptive.fin.apicollector.normalize.extractor.keywords.InterestKeywordRecognizer;
+import apptive.fin.apicollector.normalize.extractor.keywords.RegionKeywordRecognizer;
+import apptive.fin.apicollector.normalize.extractor.keywords.StatusKeywordRecognizer;
+import apptive.fin.apicollector.normalize.extractor.keywords.TermKeywordRecognizer;
+import apptive.fin.apicollector.normalize.normalizer.OntongYouthProductNormalizer;
 import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.product.ProductType;
 import apptive.fin.apicollector.raw.ProductRaw;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -17,12 +31,13 @@ class OntongYouthProductNormalizerTest {
             new ObjectMapper(),
             properties(),
             new OntongYouthPolicyClassifier(),
-            new MonthlyLimitExtractor()
+            new MonthlyLimitExtractor(),
+            keywordExtractor()
     );
 
     @Test
     void normalizesOnlyFinancialPolicy() {
-        ProductRaw raw = new ProductRaw(Source.ONTONG_YOUTH, "P001", "hash", """
+        ProductRaw raw = new ProductRaw(Source.ONTONG, "P001", "hash", """
                 {
                   "plcyNo": "P001",
                   "plcyNm": "청년 저축 지원",
@@ -38,26 +53,27 @@ class OntongYouthProductNormalizerTest {
                   "earnMaxAmt": "0",
                   "aplyUrlAddr": "https://example.com"
                 }
-                """);
+                """, ProductType.POLICY);
 
         ProductDraft draft = normalizer.normalize(raw);
 
         assertThat(draft.classification()).isEqualTo(ProductClassification.FINANCIAL_PRODUCT);
         assertThat(draft.shouldSaveProduct()).isTrue();
-        assertThat(draft.sourceCode()).isEqualTo("ONTONG_YOUTH");
-        assertThat(draft.type()).isEqualTo(ProductType.GOVERNMENT);
+        assertThat(draft.sourceCode()).isEqualTo("ONTONG");
+        assertThat(draft.type()).isEqualTo(ProductType.POLICY);
         assertThat(draft.productCode()).isEqualTo("P001");
-        assertThat(draft.providerCode()).isEqualTo("ORG001");
-        assertThat(draft.maxMonthlyLimit()).isEqualTo(100_000L);
-        assertThat(draft.minAge()).isEqualTo(19);
-        assertThat(draft.maxAge()).isEqualTo(34);
-        assertThat(draft.earnMaxAmt()).isNull();
-        assertThat(draft.options()).isEmpty();
+        assertThat(draft.properties()).hasSize(1);
+        ProductPropertyDraft property = draft.properties().getFirst();
+        assertThat(property.providerCode()).isEqualTo("ORG001");
+        assertThat(property.maxMonthlyLimit()).isEqualTo(100_000L);
+        assertThat(property.minAge()).isEqualTo(19);
+        assertThat(property.maxAge()).isEqualTo(34);
+        assertThat(property.earnMaxAmt()).isNull();
     }
 
     @Test
     void returnsSkippedDraftForLoanPolicy() {
-        ProductRaw raw = new ProductRaw(Source.ONTONG_YOUTH, "P002", "hash", """
+        ProductRaw raw = new ProductRaw(Source.ONTONG, "P002", "hash", """
                 {
                   "plcyNo": "P002",
                   "plcyNm": "청년 대출 지원",
@@ -66,18 +82,18 @@ class OntongYouthProductNormalizerTest {
                   "plcyPvsnMthdCd": "0042006",
                   "plcySprtCn": "금리 지원"
                 }
-                """);
+                """, ProductType.POLICY);
 
         ProductDraft draft = normalizer.normalize(raw);
 
         assertThat(draft.classification()).isEqualTo(ProductClassification.LOAN_EXCLUDED);
         assertThat(draft.shouldSaveProduct()).isFalse();
-        assertThat(draft.sourceCode()).isEqualTo("ONTONG_YOUTH");
+        assertThat(draft.sourceCode()).isEqualTo("ONTONG");
     }
 
     @Test
     void extractsKeywordsFromOntongPolicyJson() {
-        ProductRaw raw = new ProductRaw(Source.ONTONG_YOUTH, "P003", "hash", """
+        ProductRaw raw = new ProductRaw(Source.ONTONG, "P003", "hash", """
                 {
                   "plcyNo": "P003",
                   "plcyNm": "서울 청년 저축 장려금",
@@ -91,11 +107,11 @@ class OntongYouthProductNormalizerTest {
                   "sprvsnInstCd": "SEOUL",
                   "sprvsnInstCdNm": "서울시"
                 }
-                """);
+                """, ProductType.POLICY);
 
         ProductDraft draft = normalizer.normalize(raw);
 
-        assertThat(draft.keywords())
+        assertThat(draft.properties().getFirst().keywords())
                 .contains(
                         KeywordValueEnum.REGION_SEOUL,
                         KeywordValueEnum.BENEFIT_GOV_SUBSIDY,
@@ -115,5 +131,16 @@ class OntongYouthProductNormalizerTest {
                 new CollectorProperties.OntongYouth("http://localhost", "key", 100),
                 new CollectorProperties.Fss("http://localhost", "key", 100)
         );
+    }
+
+    private KeywordExtractor keywordExtractor() {
+        return new KeywordExtractor(List.of(
+                new BenefitKeywordRecognizer(),
+                new BankKeywordRecognizer(),
+                new InterestKeywordRecognizer(),
+                new RegionKeywordRecognizer(),
+                new StatusKeywordRecognizer(),
+                new TermKeywordRecognizer()
+        ));
     }
 }

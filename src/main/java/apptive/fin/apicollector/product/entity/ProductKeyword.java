@@ -11,11 +11,11 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
-        name = "product_keyword",
+        name = "product_property_keyword",
         uniqueConstraints = {
                 @UniqueConstraint(
-                        name = "uk_product_keyword_product_keyword_code",
-                        columnNames = {"product_id", "keyword_code"}
+                        name = "uk_product_property_keyword_property_keyword_code",
+                        columnNames = {"product_property_id", "keyword_code"}
                 )
         }
 )
@@ -26,19 +26,19 @@ public class ProductKeyword {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
-    private Product product;
+    @JoinColumn(name = "product_property_id", nullable = false)
+    private ProductProperty productProperty;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "keyword_code", nullable = false)
     private KeywordValueEnum keywordCode;
 
-    private ProductKeyword(Product product, KeywordValueEnum keywordCode) {
-        this.product = product;
+    private ProductKeyword(ProductProperty productProperty, KeywordValueEnum keywordCode) {
+        this.productProperty = productProperty;
         this.keywordCode = keywordCode;
     }
 
-    public static ProductKeyword create(Product product, KeywordValueEnum keywordCode) {
-        return new ProductKeyword(product, keywordCode);
+    public static ProductKeyword create(ProductProperty productProperty, KeywordValueEnum keywordCode) {
+        return new ProductKeyword(productProperty, keywordCode);
     }
 }

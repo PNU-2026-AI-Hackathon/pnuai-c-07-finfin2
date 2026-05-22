@@ -2,6 +2,7 @@ package apptive.fin.apicollector.raw;
 
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.global.entity.BaseTimeEntity;
+import apptive.fin.apicollector.product.ProductType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -23,6 +24,10 @@ public class ProductRaw extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private Source source;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ProductType type;
 
     @Column(name = "external_id", nullable = false, length = 150)
     private String externalId;
@@ -50,13 +55,15 @@ public class ProductRaw extends BaseTimeEntity {
             Source source,
             String externalId,
             String contentHash,
-            String rawJson
+            String rawJson,
+            ProductType productType
     ) {
         this.source = source;
         this.externalId = externalId;
         this.contentHash = contentHash;
         this.rawJson = rawJson;
         this.lastSeenAt = Instant.now();
+        this.type = productType;
     }
 
     public void updateRaw(String contentHash, String rawJson) {

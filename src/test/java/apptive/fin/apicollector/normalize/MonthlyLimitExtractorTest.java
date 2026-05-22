@@ -1,5 +1,6 @@
 package apptive.fin.apicollector.normalize;
 
+import apptive.fin.apicollector.normalize.extractor.MonthlyLimitExtractor;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;

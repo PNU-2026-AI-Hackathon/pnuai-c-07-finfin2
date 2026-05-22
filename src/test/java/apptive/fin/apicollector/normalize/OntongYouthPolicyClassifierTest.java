@@ -1,5 +1,6 @@
 package apptive.fin.apicollector.normalize;
 
+import apptive.fin.apicollector.normalize.classifier.OntongYouthPolicyClassifier;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
@@ -13,7 +14,7 @@ class OntongYouthPolicyClassifierTest {
 
     @Test
     void classifiesFinancialProduct() {
-        ObjectNode policy = policy("취약계층 및 금융지원", "보조금", "0042006", "매월 10만원 저축 시 장려금 지원");
+        ObjectNode policy = policy("취약계층 및 금융지원", "보조금", "0042006", "청년적금");
 
         ProductClassification result = classifier.classify(policy);
 

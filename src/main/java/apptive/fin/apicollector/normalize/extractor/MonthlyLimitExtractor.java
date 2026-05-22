@@ -1,4 +1,4 @@
-package apptive.fin.apicollector.normalize;
+package apptive.fin.apicollector.normalize.extractor;
 
 import org.springframework.stereotype.Component;
 

@@ -1,5 +1,6 @@
 package apptive.fin.apicollector.normalize;
 
+import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -15,9 +16,6 @@ class ProductDraftTest {
 
         assertThat(draft.classification()).isEqualTo(ProductClassification.FINANCIAL_PRODUCT);
         assertThat(draft.shouldSaveProduct()).isTrue();
-        assertThat(draft.options()).isEmpty();
-        assertThat(draft.keywords()).isEmpty();
-        assertThat(draft.requiresHomeless()).isFalse();
-        assertThat(draft.requiresHouseholder()).isFalse();
+        assertThat(draft.properties()).isEmpty();
     }
 }

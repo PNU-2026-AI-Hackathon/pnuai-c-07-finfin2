@@ -3,6 +3,7 @@ package apptive.fin.apicollector.tasklet;
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.client.OntongYouthClient;
 import apptive.fin.apicollector.config.CollectorProperties;
+import apptive.fin.apicollector.product.ProductType;
 import apptive.fin.apicollector.raw.RawProductSaveService;
 import apptive.fin.apicollector.raw.SaveResult;
 import lombok.RequiredArgsConstructor;
@@ -46,9 +47,10 @@ public class FetchOntongYouthRawTasklet implements Tasklet {
             }
 
             SaveResult result = rawProductSaveService.saveOrUpdate(
-                    Source.ONTONG_YOUTH,
+                    Source.ONTONG,
                     externalId,
-                    item
+                    item,
+                    ProductType.POLICY
             );
 
             switch (result) {

@@ -3,7 +3,7 @@ package apptive.fin.apicollector.tasklet;
 import apptive.fin.apicollector.Mode;
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.config.CollectorProperties;
-import apptive.fin.apicollector.product.ProductSyncService;
+import apptive.fin.apicollector.product.service.ProductSyncService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.batch.infrastructure.repeat.RepeatStatus;
@@ -37,7 +37,7 @@ class DeactivateMissingProductTaskletTest {
     void deactivatesOntongYouthOnlyWhenSourceIsOntongYouth() {
         DeactivateMissingProductTasklet tasklet = new DeactivateMissingProductTasklet(
                 productSyncService,
-                properties(Source.ONTONG_YOUTH, Mode.SYNC, 7)
+                properties(Source.ONTONG, Mode.SYNC, 7)
         );
 
         Instant before = Instant.now().minusSeconds(1);
@@ -48,7 +48,7 @@ class DeactivateMissingProductTaskletTest {
 
         ArgumentCaptor<Instant> thresholdCaptor = ArgumentCaptor.forClass(Instant.class);
         verify(productSyncService).disableAllUnseenProducts(
-                org.mockito.ArgumentMatchers.eq(Source.ONTONG_YOUTH),
+                org.mockito.ArgumentMatchers.eq(Source.ONTONG),
                 thresholdCaptor.capture()
         );
         verify(productSyncService, never()).disableAllUnseenProducts(
@@ -74,7 +74,7 @@ class DeactivateMissingProductTaskletTest {
                 org.mockito.ArgumentMatchers.any()
         );
         verify(productSyncService, never()).disableAllUnseenProducts(
-                org.mockito.ArgumentMatchers.eq(Source.ONTONG_YOUTH),
+                org.mockito.ArgumentMatchers.eq(Source.ONTONG),
                 org.mockito.ArgumentMatchers.any()
         );
     }
@@ -90,7 +90,7 @@ class DeactivateMissingProductTaskletTest {
 
         assertThat(result).isEqualTo(RepeatStatus.FINISHED);
         verify(productSyncService).disableAllUnseenProducts(
-                org.mockito.ArgumentMatchers.eq(Source.ONTONG_YOUTH),
+                org.mockito.ArgumentMatchers.eq(Source.ONTONG),
                 org.mockito.ArgumentMatchers.any()
         );
         verify(productSyncService).disableAllUnseenProducts(

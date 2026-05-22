@@ -2,7 +2,7 @@ package apptive.fin.apicollector.tasklet;
 
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.config.CollectorProperties;
-import apptive.fin.apicollector.product.ProductSyncService;
+import apptive.fin.apicollector.product.service.ProductSyncService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.scope.context.ChunkContext;
@@ -40,8 +40,8 @@ public class DeactivateMissingProductTasklet implements Tasklet {
 
         Instant threshold = Instant.now().minus(properties.unseenDisablePeriod(), ChronoUnit.DAYS);
 
-        if (properties.source() == Source.ALL || properties.source() == Source.ONTONG_YOUTH) {
-            int ontongDeactivated = productSyncService.disableAllUnseenProducts(Source.ONTONG_YOUTH, threshold);
+        if (properties.source() == Source.ALL || properties.source() == Source.ONTONG) {
+            int ontongDeactivated = productSyncService.disableAllUnseenProducts(Source.ONTONG, threshold);
             log.info(
                     "DeactivateMissingProductTasklet: ontong={}",
                     ontongDeactivated
