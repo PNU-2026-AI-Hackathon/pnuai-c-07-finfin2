@@ -41,4 +41,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     """)
     List<Product> findByKeywords(@Param("keywords") List<KeywordValueEnum> keywords);
 
+    //
+
 }

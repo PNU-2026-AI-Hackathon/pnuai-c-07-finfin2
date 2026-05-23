@@ -24,19 +24,19 @@ public class MatchScoreService {
 
     private final ResolveKeywordService resolveKeywordService;
 
-    public List<ProductMatchDto> score(Product p, SearchRequestDto request) {
+    public ProductMatchDto score(Product p, SearchRequestDto request) {
         return score(p, request, resolveKeywordService.resolveKeywords(request.options()));
     }
 
-    public List<ProductMatchDto> score(Product p, SearchRequestDto request, ResolvedKeywords keywords) {
+    public ProductMatchDto score(Product p, SearchRequestDto request, ResolvedKeywords keywords) {
         var detail = request.detailedOptions();
 
         boolean isGov = p.getSource().getCode().equals("ONTONG");
         Map<String, Double> weights = distributeWeights(keywords, isGov);
 
-        return p.getProperties()
-                .stream()
-                .map(property-> scoreProperty(
+        // 모든 property 점수 계산 후 최고 점수 선택
+        ProductPropertyScore bestScore = p.getProperties().stream()
+                .map(property -> scoreProperty(
                         property,
                         keywords.coreBenefits(),
                         keywords.identities(),
@@ -46,21 +46,22 @@ public class MatchScoreService {
                         isGov,
                         weights
                 ))
-                .map(bestScore -> ProductMatchDto.builder()
-                    .productId(p.getId())
-                    .productPropertyId(bestScore.property() != null ? bestScore.property().getId() : null)
-                    .productName(p.getProductName())
-                    .providerName(providerName(bestScore.property()))
-                    .source(p.getSource().getCode())
-                    .totalScore(bestScore.totalScore())
-                    .benefitScore(bestScore.benefitScore())
-                    .periodScore(bestScore.periodScore())
-                    .identityScore(bestScore.identityScore())
-                    .depositScore(bestScore.depositScore())
-                    .bankCondScore(bestScore.bankCondScore())
-                    .build()
-                )
-                .toList();
+                .max((a, b) -> Double.compare(a.totalScore(), b.totalScore()))
+                .orElseGet(() -> new ProductPropertyScore(null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
+
+        return ProductMatchDto.builder()
+                .productId(p.getId())
+                .productPropertyId(bestScore.property() != null ? bestScore.property().getId() : null)
+                .productName(p.getProductName())
+                .providerName(providerName(bestScore.property()))
+                .source(p.getSource().getCode())
+                .totalScore(bestScore.totalScore())
+                .benefitScore(bestScore.benefitScore())
+                .periodScore(bestScore.periodScore())
+                .identityScore(bestScore.identityScore())
+                .depositScore(bestScore.depositScore())
+                .bankCondScore(bestScore.bankCondScore())
+                .build();
     }
 
     private ProductPropertyScore scoreProperty(

@@ -9,47 +9,47 @@ import apptive.fin.search.entity.ProductProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
 public class RateCalculatorService {
-    public List<ProductRateDto> calculate(Product p, SearchRequestDto request) {
-        List<ProductRateDto> result = new ArrayList<>();
+    public ProductRateDto calculate(Product p, SearchRequestDto request) {
         boolean isGov = p.getSource().getCode().equals("ONTONG");
-        for (ProductProperty property : p.getProperties()) {
-            if (hasKeyword(property, KeywordValueEnum.INTEREST_SAVINGS)) {
-                result.add(ProductRateDto.builder()
-                        .productId(p.getId())
-                        .productPropertyId(property.getId())
-                        .productName(p.getProductName())
-                        .providerName(providerName(property))
-                        .source(p.getSource().getCode())
-                        .isSubscription(true)
-                        .subscriptionNote("청약: 금리 비교 대상 아님")
-                        .build());
-                continue;
-            }
 
-            double base = baseRate(property);
-            double achievableRate = isGov
-                    ? base + contributionRate(property) + group1BankBonus(property)
-                    : (effectiveRate(property));
-            ProductRateDto productRate = ProductRateDto
-                    .builder()
+        boolean isSubscription = p.getProperties().stream()
+                .anyMatch(property -> hasKeyword(property,KeywordValueEnum.INTEREST_SAVINGS));
+        if (isSubscription) {
+            return ProductRateDto.builder()
                     .productId(p.getId())
-                    .productPropertyId(property.getId())
+                    .productPropertyId(null)
                     .productName(p.getProductName())
-                    .providerName(providerName(property))
+                    .providerName(null)
                     .source(p.getSource().getCode())
-                    .baseRate(base)
-                    .achievableRate(achievableRate)
-                    .isSubscription(false)
+                    .isSubscription(true)
+                    .subscriptionNote("청약: 금리 비교 대상 아님")
                     .build();
-
-            result.add(productRate);
         }
+        // 최고 금리 property 선택
+        ProductProperty bestProperty = p.getProperties().stream()
+                .max(Comparator.comparingDouble(this::effectiveRate))
+                .orElse(null);
 
-        return result;
+        double base = baseRate(bestProperty);
+        double achievableRate = isGov
+                ? base + contributionRate(bestProperty) + group1BankBonus(bestProperty)
+                : effectiveRate(bestProperty);
+
+        return ProductRateDto.builder()
+                .productId(p.getId())
+                .productPropertyId(bestProperty != null ? bestProperty.getId() : null)
+                .productName(p.getProductName())
+                .providerName(providerName(bestProperty))
+                .source(p.getSource().getCode())
+                .baseRate(base)
+                .achievableRate(achievableRate)
+                .isSubscription(false)
+                .build();
     }
 
     private boolean hasKeyword(ProductProperty property, KeywordValueEnum keyword) {

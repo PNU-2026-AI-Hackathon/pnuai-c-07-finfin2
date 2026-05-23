@@ -47,18 +47,15 @@ public class SearchService {
 
         List<ProductMatchDto> govRanked = govList.stream()
                 .map(p -> matchScoreService.score(p, request, resolvedKeywords))
-                .flatMap(Collection::stream)
                 .sorted(Comparator.comparingDouble(ProductMatchDto::totalScore).reversed())
                 .toList();
         List<ProductMatchDto> bankRanked = bankList.stream()
                 .map(p -> matchScoreService.score(p, request, resolvedKeywords))
-                .flatMap(Collection::stream)
                 .sorted(Comparator.comparingDouble(ProductMatchDto::totalScore).reversed())
                 .toList();
 
         List<ProductRateDto> allRated = Stream.concat(govList.stream(), bankList.stream())
                 .map(p -> rateCalculatorService.calculate(p, request))
-                .flatMap(Collection::stream)
                 .toList();
 
         List<ProductRateDto> rateRanked = allRated.stream()

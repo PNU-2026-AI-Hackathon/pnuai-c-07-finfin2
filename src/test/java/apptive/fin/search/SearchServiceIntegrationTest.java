@@ -116,6 +116,30 @@ class SearchServiceIntegrationTest {
         assertThat(matchNames(result.bankRanked()))
                 .doesNotContain("청년우대적금");
     }
+    @Test
+    void 동일_상품의_여러_옵션은_하나로_합쳐져서_반환된다() {
+        ProductSearchResultDto result = searchService.search(createRequest(50, List.of()));
+
+        // 상품명 기준으로 중복 없는지 확인
+        List<String> govNames = matchNames(result.governmentRanked());
+        List<String> bankNames = matchNames(result.bankRanked());
+        List<String> rateNames = rateNames(result.rateRanked());
+
+        // 중복 없이 distinct하게 반환되는지
+        assertThat(govNames).doesNotHaveDuplicates();
+        assertThat(bankNames).doesNotHaveDuplicates();
+        assertThat(rateNames).doesNotHaveDuplicates();
+
+        // 단리/복리가 있는 e-쎄이프 정기예금이 하나만 나오는지
+        assertThat(bankNames.stream()
+                .filter(name -> name.equals("e-쎄이프 정기예금"))
+                .count()).isEqualTo(1);
+
+        // 12개월/24개월 옵션이 있는 청년우대적금이 하나만 나오는지
+        assertThat(bankNames.stream()
+                .filter(name -> name.equals("청년우대적금"))
+                .count()).isEqualTo(1);
+    }
 
     private SearchRequestDto createRequest(long monthlySavingsGoal, List<OptionRequestDto> options) {
         return new SearchRequestDto(

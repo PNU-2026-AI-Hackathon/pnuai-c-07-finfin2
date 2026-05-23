@@ -50,37 +50,29 @@ class MatchScoreServiceTest {
         SearchRequestDto request = new SearchRequestDto(
                 List.of(),
                 new DetailedOptionsDto(
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        List.of()
+                        null, null, null, null, null,
+                        null, null, null, null, null, List.of()
                 )
         );
         when(resolveKeywordService.resolveKeywords(request.options()))
                 .thenReturn(new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()));
 
-        List<ProductMatchDto> results = matchScoreService.score(product, request);
+        // List → 단일 반환으로 변경
+        ProductMatchDto result = matchScoreService.score(product, request);
 
-        assertThat(results).hasSize(1);
-        ProductMatchDto result = results.get(0);
         assertThat(result.depositScore()).isZero();
         assertThat(result.productPropertyId()).isEqualTo(10L);
         assertThat(result.providerName()).isEqualTo("테스트은행");
     }
 
     @Test
-    void 상품에_옵션이_여러개이면_옵션별_점수결과를_모두_반환한다() {
+    void 옵션이_여러개이면_최고점수_옵션_하나만_반환한다() {
         MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
         Product product = new Product();
         ProductSource source = new ProductSource();
-        ProductProperty firstProperty = createProperty(10L, "테스트은행A", 300_000L);
+
+        // maxMonthlyLimit이 더 큰 쪽이 depositScore 높음
+        ProductProperty firstProperty  = createProperty(10L, "테스트은행A", 300_000L);
         ProductProperty secondProperty = createProperty(11L, "테스트은행B", 500_000L);
 
         ReflectionTestUtils.setField(source, "code", "FSS");
@@ -92,30 +84,25 @@ class MatchScoreServiceTest {
         SearchRequestDto request = new SearchRequestDto(
                 List.of(),
                 new DetailedOptionsDto(
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        400_000L,
-                        null,
-                        List.of()
+                        null, null, null, null, null,
+                        null, null, null, 400_000L, null, List.of()
                 )
         );
         when(resolveKeywordService.resolveKeywords(request.options()))
                 .thenReturn(new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()));
 
-        List<ProductMatchDto> results = matchScoreService.score(product, request);
+        // List → 단일 반환으로 변경
+        ProductMatchDto result = matchScoreService.score(product, request);
 
-        assertThat(results)
-                .extracting(ProductMatchDto::productPropertyId)
-                .containsExactly(10L, 11L);
-        assertThat(results)
-                .extracting(ProductMatchDto::providerName)
-                .containsExactly("테스트은행A", "테스트은행B");
+        // 상품 하나로 합쳐져서 단일 반환
+        assertThat(result.productId()).isEqualTo(1L);
+        assertThat(result.productName()).isEqualTo("청년우대적금");
+
+        // maxMonthlyLimit이 더 큰 secondProperty(11L)가 최고 점수
+        // 희망 40만 > 한도 30만(10L) → depositScore 감점
+        // 희망 40만 ≤ 한도 50만(11L) → depositScore 만점
+        assertThat(result.productPropertyId()).isEqualTo(11L);
+        assertThat(result.providerName()).isEqualTo("테스트은행B");
     }
 
     private ProductProperty createProperty(Long id, String providerName, Long maxMonthlyLimit) {
