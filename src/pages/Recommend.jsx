@@ -45,7 +45,7 @@ export default function Recommend() {
         </div>
 
         {/* 검색바 + 폼 */}
-        <div className="w-full max-w-210 bg-white rounded-4xl shadow-xl">
+        <div className="w-full max-w-299.5 bg-white rounded-4xl shadow-xl">
 
           {/* 검색바 */}
           <button
@@ -73,7 +73,7 @@ export default function Recommend() {
 
           {/* 폼 */}
           {isOpen && (
-            <div className="px-8 pb-8 border-t border-gray-100 pt-6">
+            <div className="px-12 pb-10 border-t border-gray-100 pt-12">
               {!loading && steps[step]}
             </div>
           )}

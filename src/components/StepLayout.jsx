@@ -1,13 +1,12 @@
 import StepBadge from "./StepBadge";
 
-// step 제목/설명 공통 레이아웃
 export default function StepLayout({ step, title, sub, children }) {
   return (
-    <div>
+    <div className="w-full">
       <StepBadge step={step} />
-      <h2 className="text-[22px] font-bold text-[#454545] mb-2">{title}</h2>
-      <p className="text-[13px] font-regular text-[#454545] mb-8">{sub}</p>
-      {children}
+      <h2 className="text-[28px] font-bold text-[#454545] tracking-tight mb-1">{title}</h2>
+      <p className="text-[15px] font-regular text-[#7A7A7A] mb-8 leading-relaxed tracking-tight whitespace-pre-line">{sub}</p>
+      <div className="w-full">{children}</div>
     </div>
   );
 }
