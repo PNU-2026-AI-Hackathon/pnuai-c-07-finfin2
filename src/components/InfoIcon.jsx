@@ -11,8 +11,8 @@ export default function InfoIcon({ text }) {
     <div className="relative inline-flex items-center group cursor-pointer ml-1">
       
       {/* 기본 느낌표/인포 아이콘 */}
-      <div className="w-[16px] h-[16px] rounded-full border-2 border-[#03BFA5] flex items-center justify-center bg-white shrink-0 transition-colors group-hover:bg-[#EFFFFD]">
-        <span className="text-[#03BFA5] text-[12px] font-bold">!</span>
+      <div className="w-[18px] h-[18px] rounded-full border-2 border-[#03BFA5] flex items-center justify-center bg-white shrink-0 transition-colors group-hover:bg-[#EFFFFD]">
+        <span className="text-[#03BFA5] text-[14px] font-bold">!</span>
       </div>
 
         <div className="absolute left-6 top-1/2 -translate-y-1/2 hidden group-hover:flex items-center 
@@ -22,7 +22,7 @@ export default function InfoIcon({ text }) {
         <div className="absolute -left-[5px] top-1/2 -translate-y-1/2 w-2 h-2 bg-[#F0FFFE] border-l border-b border-[#03BFA5] rotate-45"></div>
         
         {/* 설명 텍스트 */}
-        <span className="text-[#454545] text-[11px] font-normal relative z-10 tracking-tight leading-relaxed">
+        <span className="text-[#454545] text-[13px] font-inter relative z-10 tracking-tight leading-relaxed">
           {text}
         </span>
       </div>

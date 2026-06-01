@@ -18,12 +18,12 @@ export function StepSavingPlan({ data, setData, cats, onPrev, onNext }) {
             <InfoIcon text="예상 만기 수령액 및 적합도 계산에 활용됩니다." />
           </div>
 
-          <div className="w-full max-w-170 mb-12">
+          <div className="w-full max-w-130 mb-12">
             <input type="range" min={1} max={100} value={amount}
               onChange={(e) => setData({ ...data, monthlyAmount: Number(e.target.value) })}
               className="w-full h-1.5 bg-[#E5E5E5] rounded-full appearance-none cursor-pointer accent-[#03BFA5] mb-4" />
             
-            <div className="flex font-semibold justify-between text-[16px] text-[#454545] px-1">
+            <div className="flex font-inter justify-between text-[16px] text-[#454545] px-1">
               <span>1만원</span>
               <span>100만원</span>
             </div>
@@ -212,7 +212,7 @@ export function StepRegion({ data, setData, cats, onNext, onPrev }) {
           <FormSelect
             value={data.region || ""}
             onChange={(e) => setData({ ...data, region: e.target.value })}
-            className="w-full max-w-[480px] h-12 px-4 text-[16px] border border-[#D9D9D9] rounded-[8px] focus:border-[#03BFA5] mb-20 bg-white font-semibold shadow-sm cursor-pointer text-[#454545]"
+            className="w-full max-w-[480px] h-12 px-4 text-[16px] border border-[#D9D9D9] rounded-[8px] focus:border-[#03BFA5] mb-20 bg-white font-inter shadow-sm cursor-pointer text-[#454545]"
           >
             <option value="">선택해주세요.</option>
             {cats.regions.map((r) => (
@@ -241,13 +241,13 @@ export function StepHouseholdIncome({ data, setData, cats, onPrev, onNext }) {
             <div className="flex items-center w-fit h-12 border border-[#D9D9D9] rounded-full px-3 mb-8 bg-white shadow-sm">
               <button type="button"
                 onClick={() => setData({ ...data, householdCount: Math.max(1, count + 1) })}
-                className="w-8 h-6 flex items-center justify-center border-2 border-[#454545] rounded-full text-[#454545] text-[18px] font-bold hover:bg-gray-50">+</button>
-              <span className="text-[20px] font-bold px-6 min-w-[80px] text-center text-[#333333]">
+                className="w-8 h-6 flex items-center justify-center border-2 border-[#454545] rounded-full text-[#454545] text-[19px] font-inter hover:bg-gray-50">+</button>
+              <span className="text-[20px] font-inter px-6 min-w-[80px] text-center text-[#333333]">
                 {count}인
               </span>
               <button type="button"
                 onClick={() => setData({ ...data, householdCount: Math.max(1, count - 1) })}
-                className="w-8 h-6 flex items-center justify-center border-2 border-[#454545] rounded-full text-[#454545] text-[18px] font-bold hover:bg-gray-50">-</button>
+                className="w-8 h-6 flex items-center justify-center border-2 border-[#454545] rounded-full text-[#454545] text-[18px] font-inter hover:bg-gray-50">-</button>
             </div>
 
             <div className="flex items-center gap-1.5 mb-3">
@@ -277,11 +277,11 @@ export function StepHouseholdIncome({ data, setData, cats, onPrev, onNext }) {
                       )}
                     </div>
 
-                    <span className={`text-[17px] font-regular w-[140px] ${isSelected ? "text-white" : "text-[#454545]"}`}>
+                    <span className={`text-[18px] font-inter w-[140px] ${isSelected ? "text-white" : "text-[#454545]"}`}>
                       {item.label}
                     </span>
                     {item.amount && (
-                      <span className={`text-[17px] font-regular ${isSelected ? "text-[#EFFFFD]" : "text-[#03BFA5]"}`}>
+                      <span className={`text-[18px] font-inter ${isSelected ? "text-[#EFFFFD]" : "text-[#03BFA5]"}`}>
                         {item.amount}
                       </span>
                     )}
@@ -312,7 +312,7 @@ export function StepHousing({ data, setData, onPrev, onNext }) {
 
           <div className="pl-2">
             <div className="flex items-center gap-1.5 mb-4">
-              <p className="text-[18px] text-[#454545] font-semibold">무주택 여부</p>
+              <p className="text-[18px] text-[#454545] font-medium">무주택 여부</p>
               <InfoIcon text="청약/주거 지원 상품 자격 요건입니다." />
             </div>
 
@@ -341,7 +341,7 @@ export function StepHousing({ data, setData, onPrev, onNext }) {
                     </svg>
                   )}
                 </div>
-                <span className="text-[15px] font-medium">{opt}</span>
+                <span className="text-[16px] font-inter">{opt}</span>
               </label>
             );
           })}
@@ -361,7 +361,7 @@ export function StepHousing({ data, setData, onPrev, onNext }) {
                   </svg>
                 )}
               </div>
-              <span className="text-[15px] font-medium">세대주입니다.</span>
+              <span className="text-[16px] font-inter">세대주입니다.</span>
             </label>
             <div className="flex items-center gap-2 bg-[#F6FCFA] border border-[#03BFA5] flex-2 rounded-4xl px-5 py-2 h-8.5 text-xs text-[#03BFA5] w-full max-w-75">
             <div className="w-4 h-4 rounded-full bg-[#03BFA5] text-[#FFFFFF] flex items-center justify-center text-[10px] font-bold shrink-0">i</div>
@@ -391,7 +391,7 @@ export function StepEmployment({ data, setData, onPrev, onNext }) {
               <InfoIcon text="일부 상품은 근속 요건이 있습니다.\n(예: 내일 채움 공제 6개월 이상)" />
             </div>
 
-            <div className="w-full max-w-[580px] mb-5">
+            <div className="w-full max-w-[540px] mb-5">
               <input type="range" min={0} max={120} value={months}
                 onChange={(e) => setData({ ...data, employmentMonths: Number(e.target.value) })}
                 className="w-full h-[6px] bg-[#E5E5E5] rounded-lg appearance-none cursor-pointer accent-[#03BFA5]" />
@@ -401,16 +401,16 @@ export function StepEmployment({ data, setData, onPrev, onNext }) {
               </div>
             </div>
 
-            <div className="flex items-center border border-[#D9D9D9] rounded-full w-full max-w-[400px] h-12 px-5 bg-white mb-5 focus-within:border-[#03BFA5] shadow-sm">
-              <div className="flex items-center justify-center border border-[#E0E0E0] rounded-[4px] w-24 h-8 mr-3 bg-[#FBFBFB]">
+            <div className="flex items-center border border-[#D9D9D9] rounded-full w-full max-w-[400px] h-10 px-5 bg-white mb-5 focus-within:border-[#03BFA5]">
+              <div className="flex items-center justify-center border border-[#E0E0E0] rounded-[4px] w-18 h-6 mr-3 bg-[#FBFBFB]">
                 <FormInput type="text" value={months}
                   onChange={(e) => setData({ ...data, employmentMonths: Math.min(120, Math.max(0, Number(e.target.value))) })}
-                  className="w-full text-center text-[#454545] text-[16px] font-inter bg-transparent outline-none border-none focus:ring-0" />
+                  className="w-full text-center text-[#E0DFDF] text-[16px] font-inter bg-transparent outline-none border-none focus:ring-0" />
               </div>
-              <span className="text-[16px] font-inter text-[#454545]">개월</span>
+              <span className="text-[17px] font-inter text-[#454545]">개월</span>
             </div>
             
-            <label className={`h-12 flex items-center gap-3 px-6 py-2 rounded-full border border-[#D9D9D9] transition-all mb-6 cursor-pointer w-full max-w-[400px] ${
+            <label className={`h-10 flex items-center gap-3 px-6 py-2 rounded-full border border-[#D9D9D9] transition-all mb-6 cursor-pointer w-full max-w-[400px] ${
                 data.isFirstJob ? "bg-[#03BFA5] border-[#03BFA5] text-white shadow-md" : "bg-white text-[#454545] hover:border-[#03BFA5]"
               }`}
             >
@@ -425,12 +425,12 @@ export function StepEmployment({ data, setData, onPrev, onNext }) {
                   </svg>
                 )}
               </div>
-              <span className="text-[16px] font-inter">첫 직장입니다.</span>
+              <span className="text-[17px] font-inter">첫 직장입니다.</span>
             </label>
             
-            <div className="flex items-center gap-2 bg-[#F6FCFA] border border-[#03BFA5] rounded-4xl px-5 py-3 text-sm text-[#03BFA5] w-full max-w-[400px] mb-4">
-              <div className="w-5 h-5 rounded-full bg-[#03BFA5] text-[#FFFFFF] flex items-center justify-center text-[11px] font-bold shrink-0">i</div>
-              <span className="text-[#333333] font-inter">첫 직장 선택 시 신규 취업자 전용 상품을 추천합니다.</span>
+            <div className="flex items-center gap-2 bg-[#F6FCFA] border border-[#03BFA5] rounded-4xl px-5 py-2 text-sm text-[#03BFA5] w-full max-w-[400px] mb-4">
+              <div className="w-4 h-4 rounded-full bg-[#03BFA5] text-[#FFFFFF] flex items-center justify-center text-[11px] font-bold shrink-0">i</div>
+              <span className="text-[#454545] font-inter">첫 직장 선택 시 신규 취업자 전용 상품을 추천합니다.</span>
             </div>
           </div>
         </div>
@@ -521,7 +521,7 @@ function BankSelector({
         <svg className={`w-[22px] h-[22px] ${themeColor.text}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
         </svg>
-        <span className="text-[18px] font-inter text-[#333333] tracking-tight">{title}</span>
+        <span className="text-[18px] font-medium text-[#333333] tracking-tight">{title}</span>
         <span className={`text-[12px] font-inter px-2.5 py-0.5 rounded-full bg-opacity-10 ${themeColor.text}`} style={{ backgroundColor: themeColor.bg }}>
           {tagText}
         </span>
@@ -612,7 +612,7 @@ export function StepTransaction({ data, setData, cats, onPrev, onSubmit }) {
       {isLoading && <LoadingScreen onAnimationComplete={onSubmit} />}
       
       <StepLayout step={2} title="상세 정보" sub="Y-Fin.만의 정확한 적합도 분석과 예상 수익률 계산을 위해 필요한 정보입니다.">
-        <div className="flex items-center gap-1.5 mb-6 pl-5">
+        <div className="flex items-center gap-1.5 mb-4 pl-5">
           <p className="text-[24px] text-[#454545] font-semibold tracking-tight">거래 이력</p>
         </div>
 
