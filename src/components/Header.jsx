@@ -1,4 +1,6 @@
+import axios from 'axios'
 import { useNavigate, useLocation } from 'react-router-dom'
+import {useAuth} from '../context/AuthContext'
 import logo from '../assets/logo.png'
 
 export default function Header() {
@@ -49,9 +51,41 @@ function NavMenu() {
 }
 
 function UserButtons() {
+  const { accessToken, setAccessToken } = useAuth()
+  const navigate = useNavigate()
+
+  const handleLogout = async () => {
+  try {
+    await axios.post('https://test-fin.duckdns.org/auth/logout', {}, { withCredentials: true })
+  } catch (e) {
+    console.error(e)
+  } finally {
+    setAccessToken(null)
+    navigate('/login')
+  }
+}
+
+  if (accessToken) {
+    return (
+      <div className="flex items-center gap-3 font-inter text-[14.5px]">
+        <button
+          onClick={() => navigate('/mypage')}
+          className="text-[#515151] border border-gray-300 rounded-lg h-9 px-4 hover:border-[#03BFA5] hover:text-[#03BFA5] transition-colors whitespace-nowrap"
+        >
+          프로필
+        </button>
+        <button
+          onClick={handleLogout}
+          className="text-white bg-[#03BFA5] rounded-lg h-9 px-4 hover:bg-[#02a892] transition-colors whitespace-nowrap"
+        >
+          로그아웃
+        </button>
+      </div>
+    )
+  }
+
   return (
-    <div
-    className="flex items-center gap-3 font-inter text-[14.5px]">
+    <div className="flex items-center gap-3 font-inter text-[14.5px]">
       <LoginButton />
       <JoinButton />
     </div>

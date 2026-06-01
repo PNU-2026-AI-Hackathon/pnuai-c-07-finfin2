@@ -1,53 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
-// 전문보기 모달
-const ContentModal = ({ term, onClose }) => {
-  const parseContent = (text) => {
-    return text.split(/(\*\*.*?\*\*)/).map((part, i) =>
-      part.startsWith('**') && part.endsWith('**')
-        ? <strong key={i}>{part.slice(2, -2)}</strong>
-        : part
-    );
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[70]" onClick={onClose}>
-      <div className="bg-white font-[Inter] text-[#515151] w-full mt-5 max-w-2xl p-9 rounded-2xl shadow-2xl relative" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
-        <h3 className="text-lg font-bold mb-4">{term.title}</h3>
-        <p className="text-sm whitespace-pre-wrap leading-relaxed overflow-y-auto max-h-[60vh]">{parseContent(term.content)}</p>
-      </div>
-    </div>
-  );
-};
-
-// 개별 약관 항목
-const AgreementItem = ({ id, label, checked, onChange, onView }) => (
-  <div className="flex items-center justify-between p-4 bg-[#EFEFEF] rounded-lg mb-2">
-    <div className="flex items-center gap-3">
-      <div
-        onClick={() => onChange(id)}
-        className={`w-5 h-5 rounded-sm border-2 flex items-center justify-center cursor-pointer transition-colors ${
-          checked ? 'bg-[#03BFA5] border-[#03BFA5]' : 'bg-white border-white'
-        }`}
-      >
-        {checked && (
-          <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-          </svg>
-        )}
-      </div>
-      <span className="text-sm">{label}</span>
-    </div>
-    {onView && (
-      <button onClick={onView} className="text-xs text-[#515151] underline hover:text-gray-400 transition-colors">
-        전문보기
-      </button>
-    )}
-  </div>
-);
+import AgreementItem from '../components/AgreementItem';
+import ContentModal from '../components/ContentModal';
 
 function Agreement() {
   const { accessToken } = useAuth();
@@ -99,12 +54,24 @@ function Agreement() {
 
   const handleNext = async () => {
     try {
-      const res = await fetch("https://test-fin.duckdns.org/term/agree", {
+      const agreements = terms.map(t => ({
+        versionId: t.versionId,
+        agreed: checks[t.code] ?? false
+      }));
+      const res = await fetch("https://test-fin.duckdns.org/term", {
         method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: { Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+        body: JSON.stringify({
+          agreements: terms.map(t => ({
+            versionId: t.versionId,
+            agreed: checks[t.code] ?? false
+          }))
+        })
       });
       if (!res.ok) throw new Error("약관 동의 실패");
-      navigate('/');
+      navigate('/introduce', { replace: true });
     } catch (e) {
       console.error(e);
     }
@@ -121,7 +88,7 @@ function Agreement() {
           <h2 className="text-xl font-bold mb-5 mt-6">이용약관에 동의해주세요.</h2>
 
           {/* 전체 동의 */}
-          <div className="p-6 bg-[#EFEFEF] rounded-xl mb-6">
+          <div className="p-5 bg-[#EFEFEF] rounded-lg mb-6">
             <div className="flex items-center gap-3 mb-1">
               <div
                 onClick={handleAll}

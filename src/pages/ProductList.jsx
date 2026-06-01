@@ -1,7 +1,10 @@
 import { useState } from "react";
-import { useAuth } from "../context/AuthContext"; 
+import { useAuth } from "../context/AuthContext";
 import InfoIcon from "../components/InfoIcon";
 import { TopCard, ListItem } from "../components/ProductComponents";
+import icon_1_fin_sector from "../assets/icon_1_fin_sector.png";
+import icon_gov_support from "../assets/icon_gov_support.png";
+import icon_subscription from "../assets/icon_subscription.png";
 
 const INITIAL_PRODUCTS = [
   { id: 1, category: "정부 청년 상품", title: "청년 미래 적금", subtitle: "정부 지원 · 3년 만기 · 월 1만~50만원", baseRate: "5.0", maxRate: "16.9", myRate: "10.2", suitability: 52, tags: ["적합도 52%", "비과세", "정부기여금"] },
@@ -23,7 +26,12 @@ export default function ProductList() {
   const [activeFilter, setActiveFilter] = useState("전체");
   const [showLoginModal, setShowLoginModal] = useState(false);
 
-  const filters = ["전체", "🏢 정부 지원", "🏦 제 1금융권", "🏠 청약"];
+  const filters = [
+    { label: "전체", icon: null },
+    { label: "정부 지원", icon: icon_gov_support },
+    { label: "제 1금융권", icon: icon_1_fin_sector },
+    { label: "청약", icon: icon_subscription },
+  ];
 
   const handleTabClick = (tabName) => {
     if (tabName === "내가 달성 가능한 금리 순" && !isLoggedIn) {
@@ -40,59 +48,56 @@ export default function ProductList() {
   const topThree = processedProducts.slice(0, 3);
 
   const Sections = [
-    { name: "정부 청년 상품", filterKey: "🏢 정부 지원" },
-    { name: "시중 은행 상품 · 제 1금융권", filterKey: "🏦 제 1금융권" },
-    { name: "청약 상품", filterKey: "🏠 청약" }
+    { name: "정부 청년 상품", filterKey: "정부 지원" },
+    { name: "시중 은행 상품 · 제 1금융권", filterKey: "제 1금융권" },
+    { name: "청약 상품", filterKey: "청약" }
   ];
 
   return (
-    <div className="h-screen w-screen bg-white flex flex-col overflow-hidden select-none">
+    <div className="h-screen w-screen bg-white flex flex-col overflow-hidden select-none font-[Inter]">
       
       {/* 상단 고정 검색바 영역 */}
-      <div className="bg-white pt-8 pb-4 shrink-0">
-        <div className="max-w-[800px] mx-auto px-4">
+      <div className="bg-white mt-10 mb-15 shrink-0">
+        <div className="max-w-[950px] mx-auto ">
           <div className="relative w-full">
             <svg className="absolute left-6 top-1/2 -translate-y-1/2 w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
             </svg>
-            <input 
+            <input
               type="text" placeholder="상품명으로 검색하기" value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full h-[56px] pl-16 pr-16 rounded-full border-2 border-[#03BFA5] text-[16px] text-[#333333] placeholder-gray-400 focus:outline-none shadow-sm bg-white"
+              className="w-full h-[70px] pl-16 pr-16 rounded-full border-2 border-[#03BFA5] text-[19px] text-[#A4BAB2] placeholder-gray-400 focus:outline-none shadow-sm bg-white"
             />
             <button className="absolute right-2.5 top-1/2 -translate-y-1/2 w-[38px] h-[38px] rounded-full bg-[#03BFA5] flex items-center justify-center hover:bg-[#02A68F] transition-colors">
-              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14M12 5l7 7-7 7" /></svg>
+              <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 12h14M12 5l7 7-7 7" /></svg>
             </button>
           </div>
         </div>
       </div>
 
       {/* 메인 콘텐츠 영역 바구니 */}
-      <div className="max-w-287.5 w-full mx-auto px-4 flex-1 pb-6 min-h-0 flex flex-col">
+      <div className="max-w-370 w-full mx-60 fauex-1 pb-6 min-h-0 flex flex-col">
         
         <div className="flex items-end gap-4 h-auto shrink-0 relative z-50">
           
           {/* 탭 버튼 묶음 */}
-          <div className="flex items-end">
+          <div className="flex items-end mb-[-1px] relative z-10">
             <button
-              type="button"
               onClick={() => handleTabClick("나에게 맞는 순")}
-              className={`px-5 h-9 flex items-center justify-center text-[15px] font-bold rounded-t-xs border-t border-x transition-all ${
-                activeTab === "나에게 맞는 순" 
-                  ? "bg-[#03BFA5] text-white border-[#03BFA5] z-10" 
-                  : "text-[#03BFA5] bg-white border-[#03BFA5] opacity-90 hover:opacity-100"
+              className={`px-3 h-8 flex items-center justify-center text-[15px] rounded-tl-sm transition-all border-[2px] border-r-0 ${
+                activeTab === "나에게 맞는 순"
+                  ? "bg-[#03BFA5] text-white border-[#03BFA5]"
+                  : "text-[#03BFA5] bg-white border-[#03BFA5]"
               }`}
             >
               나에게 맞는 순
             </button>
-
             <button
-              type="button"
               onClick={() => handleTabClick("내가 달성 가능한 금리 순")}
-              className={`px-5 h-9 flex items-center justify-center gap-1.5 text-[15px] font-bold rounded-t-xs border-t border-x transition-all ${
-                activeTab === "내가 달성 가능한 금리 순" 
-                  ? "bg-[#03BFA5] text-white border-[#03BFA5]" 
-                  : "text-[#03BFA5] bg-white border-[#03BFA5] border-b-white"
+              className={`px-3 h-8 flex items-center justify-center gap-1.5 text-[15px] rounded-tr-sm transition-all border-[2px] ${
+                activeTab === "내가 달성 가능한 금리 순"
+                  ? "bg-[#03BFA5] text-white border-[#03BFA5]"
+                  : "text-[#03BFA5] bg-white border-[#03BFA5]"
               }`}
             >
               {!isLoggedIn && (
@@ -105,14 +110,14 @@ export default function ProductList() {
             </button>
           </div>
           
-          <div className="flex items-center gap-1 pb-2.5">
-            <span className="text-[15px] text-[#03BFA5] font-regular tracking-tight">
+          <div className="flex items-center gap-1 pb-1.5">
+            <span className="text-[15px] text-[#03BFA5] tracking-tight">
               {activeTab === "나에게 맞는 순" ? "적합도란?" : "달성 가능 금리란?"}
             </span>
             
             <InfoIcon 
               text={
-                activeTab === "나에게 맞는 순" 
+                activeTab === "나에게 맞는 순"
                   ? "선택하신 키워드(핵심 혜택 · 저축 기간 · 현재 신분 · 은행 거래)를 기준으로 산정한 매칭 점수예요.\n정부 지원 상품과 제 1금융권 상품별로 가중치를 다르게 반영하여 산정했어요."
                   : "입력하신 정보(소득 · 근속 · 주거래 은행 등)와 단계 1 키워드를 기반으로 실제로 받을 수 있는 우대조건만 적용한 실질 금리에요.\n정부 상품과 시중은행 상품의 계산 방식이 달라요."
               } 
@@ -121,15 +126,16 @@ export default function ProductList() {
 
         </div>
 
-        <div className="bg-white rounded-b-xl border-x border-b border-[#EBEBEB] shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden">
+        <div className="bg-white rounded-b-xl border-[1.5px] border-[#EBEBEB] shadow-sm flex flex-col flex-1 min-h-0 overflow-hidden px-16 py-5">
           
           {/* 필터 버튼 바 */}
           <div className="p-6 pb-4 border-b border-gray-100 shrink-0 bg-white">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div className="flex gap-2">
                 {filters.map(filter => (
-                  <button key={filter} onClick={() => setActiveFilter(filter)} className={`flex items-center px-3 py-1 rounded-md border text-[14px] font-medium transition-colors ${activeFilter === filter ? "border-[#03BFA5] text-[#03BFA5] bg-[#F0FFFE] shadow-sm" : "border-gray-200 text-gray-500 bg-white hover:bg-gray-50"}`}>
-                    {filter}
+                  <button key={filter.label} onClick={() => setActiveFilter(filter.label)} className={`flex items-center gap-1.5 px-3 py-1 rounded-md border text-[14px] font-medium transition-colors ${activeFilter === filter.label ? "border-[2px] border-[#03BFA5] text-[#03BFA5] bg-[#F0FFFE] shadow-sm" : "border-[2px] border-[#E0DFDF] text-[#454545] bg-white hover:bg-gray-50"}`}>
+                    {filter.icon && <img src={filter.icon} alt="" className="w-4 h-4" />}
+                    {filter.label}
                   </button>
                 ))}
               </div>
@@ -142,9 +148,9 @@ export default function ProductList() {
             {/* 안내 문구 */}
             <div className="flex items-center gap-1.5 mt-4 text-[14px] font-medium text-[#03BFA5]">
               {isLoggedIn ? (
-                <><div className="w-[18px] h-[18px] rounded-full bg-[#03BFA5] text-white flex items-center justify-center text-[11px] font-bold">✓</div><span>총 160개 상품 중 자격요건 미충족 상품 23개가 제외되었어요.</span></>
+                <><div className="w-[16px] h-[16px] rounded-full bg-[#03BFA5] text-white flex items-center justify-center text-[11px] font-bold">✓</div><span>총 160개 상품 중 자격요건 미충족 상품 23개가 제외되었어요.</span></>
               ) : (
-                <><div className="w-[18px] h-[18px] rounded-full bg-[#03BFA5] text-white flex items-center justify-center text-[12px] font-bold">i</div><span>로그인하면 자격요건 필터링 결과와 내가 달성 가능한 금리를 확인할 수 있어요.</span></>
+                <><div className="w-[16px] h-[16px] rounded-full bg-[#03BFA5] text-white flex items-center justify-center text-[12px] font-bold">i</div><span>로그인하면 자격요건 필터링 결과와 내가 달성 가능한 금리를 확인할 수 있어요.</span></>
               )}
             </div>
           </div>

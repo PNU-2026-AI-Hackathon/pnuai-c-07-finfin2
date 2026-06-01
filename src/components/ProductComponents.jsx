@@ -3,20 +3,20 @@ import React from "react";
 // 상단 TOP 3 카드
 export function TopCard({ rank, title, subtitle, baseRate, maxRate, myRate, tags, isBest, isLoggedIn }) {
   return (
-    <div className="p-6 bg-white rounded-xl border border-gray-200 hover:border-[#03BFA5] hover:shadow-md cursor-pointer shadow-sm flex flex-col justify-between min-h-[300px] w-full transition-all">
+    <div className="px-9 py-7 bg-white rounded-xl border-[2px] border-[#E0DFDF] hover:border-[#03BFA5] hover:shadow-md cursor-pointer shadow-sm flex flex-col justify-between min-h-[300px] w-full transition-all">
       <div>
-        <h3 className="text-[16px] font-bold text-[#03BFA5] mb-2.5">TOP {rank}</h3>
+        <h3 className="text-[22px] font-bold text-[#03BFA5] mb-2.5">TOP {rank}</h3>
         <div className="flex gap-1.5 mb-3 flex-wrap">
           {tags.map((tag, i) => {
-            let tagStyle = "bg-[#F5F5F5] text-[#7A7A7A]";
-            if (tag.includes('적합도')) tagStyle = "bg-[#FFF4E6] text-[#FF8A00]";
-            if (tag.includes('정부기여금') || tag.includes('비과세') || tag.includes('우대')) tagStyle = "bg-[#F2FBF9] text-[#03BFA5]";
+            let tagStyle = "bg-[#F5F5F5] text-[#7A7A7A] text-[13px]";
+            if (tag.includes('적합도')) tagStyle = "bg-[#FFF4E6] text-[#FF8A00] text-[13px]";
+            if (tag.includes('정부기여금') || tag.includes('비과세') || tag.includes('우대')) tagStyle = "bg-[#F2FBF9] text-[#03BFA5] text-[13px]";
             return (
               <span key={i} className={`px-2 py-0.5 rounded-sm text-[11px] font-bold shrink-0 ${tagStyle}`}>{tag}</span>
             );
           })}
         </div>
-        <h4 className="text-[18px] font-bold text-[#333333] mb-1.5 break-keep">{title}</h4>
+        <h4 className="text-[25px] font-bold text-[#333333] mb-1.5 break-keep">{title}</h4>
         <p className="text-[12px] text-[#7A7A7A] leading-normal">{subtitle}</p>
       </div>
       <div className="mt-4">

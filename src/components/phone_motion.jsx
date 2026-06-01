@@ -16,7 +16,7 @@ const AnimationContainer = styled.div`
 const PhoneWrapper = styled(motion.div)`
   position: absolute;
   width: 300px; 
-  z-index: ${(props) => props.zIndex};
+  z-index: ${(props) => props.$zIndex};
   img {
     width: 100%;
     height: auto; 
@@ -29,7 +29,7 @@ const PhoneAnimation = () => {
     <AnimationContainer>
       {/* 왼쪽 휴대폰 */}
       <PhoneWrapper
-        zIndex={1}
+        $zIndex={1}
         initial={{ x: 0, opacity: 0, rotate: 0 }}
         whileInView={{ x: -180, opacity: 1, rotate: -10 }} // 화면에 들어오면 실행
         viewport={{ once: true, margin: "-100px" }} 
@@ -40,7 +40,7 @@ const PhoneAnimation = () => {
 
       {/* 오른쪽 휴대폰 */}
       <PhoneWrapper
-        zIndex={1}
+        $zIndex={1}
         initial={{ x: 0, opacity: 0, rotate: 0 }}
         whileInView={{ x: 180, opacity: 1, rotate: 10 }}
         viewport={{ once: true, margin: "-100px" }}
@@ -51,7 +51,7 @@ const PhoneAnimation = () => {
 
       {/* 중앙 휴대폰 */}
       <PhoneWrapper
-        zIndex={2}
+        $zIndex={2}
         initial={{ y: 10, opacity: 0 }}
         whileInView={{ y: -30, opacity: 1 }}
         viewport={{ once: true, margin: "-100px" }}

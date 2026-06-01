@@ -30,7 +30,7 @@ function App() {
         
         <Route path="/terms" element={
           <div className="min-h-screen bg-[#EFFFFD]">
-            <AuthGuard><Agreement /></AuthGuard>
+            <Agreement />
           </div>
         } />
       </Routes>

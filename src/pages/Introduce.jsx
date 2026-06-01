@@ -5,6 +5,12 @@ import PhoneAnimation from '../components/phone_motion';
 import leftphone from '../assets/phone_left.png'
 import rightphone from '../assets/phone_right.png'
 import centerphone from '../assets/phone_center.png'
+import introPic1 from '../assets/introPic1.png'
+import introPic2 from '../assets/introPic2.png'
+import introPic3 from '../assets/introPic3.png'
+import introPic4 from '../assets/introPic4.png'
+import introPic5 from '../assets/introPic5.png'
+import introPic6 from '../assets/introPic6.png'
 
 export default function IntroducePage() {
   usePageScale(1400, 960);
@@ -385,12 +391,12 @@ function MagazineSection() {
   const ref = useScrollFadeIn();
 
   const articles = [
-    { title: "복리와 단리의 차이,\n내 돈이 불어나는 진짜 원리" },
-    { title: "신용점수 관리, 사회초년생이\n꼭 알아야 할 3가지 수칙" },
-    { title: "ISA? IRP? 세금을 아끼는\n'절세 통장' 완벽 정리" },
-    { title: "2026년 하반기 금리 전망,\n예·적금 갈아타기 타이밍은?" },
-    { title: "6월 출시 '청년미래적금', 기존\n도약계좌 가입자도 갈아탈 수 있을까?" },
-    { title: "디지털 자산 1억 시대,\n핀테크가 바꾸는 미래 결제 트렌드" }
+    { title: "복리와 단리의 차이,\n내 돈이 불어나는 진짜 원리", imgUrl: introPic1 },
+    { title: "신용점수 관리, 사회초년생이\n꼭 알아야 할 3가지 수칙", imgUrl: introPic2 },
+    { title: "ISA? IRP? 세금을 아끼는\n'절세 통장' 완벽 정리", imgUrl: introPic3 },
+    { title: "2026년 하반기 금리 전망,\n예·적금 갈아타기 타이밍은?", imgUrl: introPic4 },
+    { title: "6월 출시 '청년미래적금', 기존\n도약계좌 가입자도 갈아탈 수 있을까?", imgUrl: introPic5 },
+    { title: "디지털 자산 1억 시대,\n핀테크가 바꾸는 미래 결제 트렌드", imgUrl: introPic6 },
   ];
 
   return (
@@ -400,14 +406,14 @@ function MagazineSection() {
         data-fade="title"
         className="opacity-0 translate-y-6 transition-all duration-700 ease-out text-center mb-16"
       >
-        <h2 className="font-gmarket text-[32px] font-extrabold text-[#333] leading-tight">
+        <h2 className="font-gmarket text-[35px] font-extrabold text-[#333] leading-tight">
           어려운 <span className="text-[#03BFA5]">금융 지식,</span> <br />
           y-Fin.으로 가볍게 쌓아보세요.
         </h2>
       </div>
 
       {/* 매거진 카드 그리드 */}
-      <div className="grid grid-cols-3 gap-x-8 gap-y-12 max-w-7xl w-full">
+      <div className="grid grid-cols-3 gap-x-7 gap-y-12 max-w-6xl w-full">
         {articles.map((article, index) => (
           <div
             key={index}
@@ -424,14 +430,14 @@ function MagazineSection() {
 
 function MagazineCard({ title, imgUrl }) {
   return (
-    <div className="font-inter overflow-hidden rounded-4xl border-[1.5px] border-[#B6D6D2] shadow-sm">
-      <div className="aspect-video bg-gray-100 overflow-hidden">
+    <div className="font-inter overflow-hidden rounded-[35px] border-[3.8px] border-[#B6D6D2] shadow-sm">
+      <div className="aspect-[19/13] bg-gray-100 overflow-hidden">
         <img src={imgUrl} alt="image" className="w-full h-full object-cover" />
       </div>
 
       {/* 하단 텍스트 영역 */}
-      <div className="bg-white p-8 border-t border-[#B6D6D2]/10">
-        <h3 className="text-[19px] font-semibold text-[#454545] leading-snug whitespace-pre-wrap">{title}</h3>
+      <div className="bg-white px-4 py-6 border-t border-[#B6D6D2]/10 min-h-[117px] flex items-center">
+        <h3 className="text-[21px] font-semibold text-[#454545] leading-snug whitespace-pre-wrap">{title}</h3>
       </div>
     </div>
   );
