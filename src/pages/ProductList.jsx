@@ -7,14 +7,94 @@ import icon_gov_support from "../assets/icon_gov_support.png";
 import icon_subscription from "../assets/icon_subscription.png";
 
 const INITIAL_PRODUCTS = [
-  { id: 1, category: "정부 청년 상품", title: "청년 미래 적금", subtitle: "정부 지원 · 3년 만기 · 월 1만~50만원", baseRate: "5.0", maxRate: "16.9", myRate: "10.2", suitability: 52, tags: ["적합도 52%", "비과세", "정부기여금"] },
-  { id: 2, category: "정부 청년 상품", title: "청년 내일 저축 계좌", subtitle: "정부 지원 (은행 위탁) · 3년 만기 · 월 10만~30만원", baseRate: "2.0", maxRate: "5.0", myRate: "4.5", suitability: 52, tags: ["적합도 52%", "비과세", "급여 이체_우대", "마케팅_동의_ok"] },
-  { id: 3, category: "정부 청년 상품", title: "청년 내일 저축 계좌", subtitle: "정부 지원 (은행 위탁) · 3년 만기 · 월 10만~30만원", baseRate: "2.0", maxRate: "5.0", myRate: "4.5", suitability: 52, tags: ["적합도 52%", "비과세", "급여 이체_우대", "마케팅_동의_ok"] },
-  { id: 4, category: "정부 청년 상품", title: "청년 내일 저축 계좌", subtitle: "정부 지원 (은행 위탁) · 3년 만기 · 월 10만~30만원", baseRate: "2.0", maxRate: "5.0", myRate: "4.5", suitability: 52, tags: ["적합도 52%", "비과세", "급여 이체_우대", "마케팅_동의_ok"] },
-  { id: 5, category: "시중 은행 상품 · 제 1금융권", title: "급여하나 월복리 적금", subtitle: "하나은행 · 1년~3년 만기 · 월 1만~300만원", baseRate: "2.0", maxRate: "5.0", myRate: "3.2", suitability: 52, tags: ["적합도 52%", "급여 이체_우대", "카드 실적 우대"] },
-  { id: 6, category: "시중 은행 상품 · 제 1금융권", title: "급여하나 월복리 적금", subtitle: "하나은행 · 1년~3년 만기 · 월 1만~300만원", baseRate: "2.0", maxRate: "5.0", myRate: "3.2", suitability: 52, tags: ["적합도 52%", "급여 이체_우대", "카드 실적 우대"] },
-  { id: 7, category: "시중 은행 상품 · 제 1금융권", title: "급여하나 월복리 적금", subtitle: "하나은행 · 1년~3년 만기 · 월 1만~300만원", baseRate: "2.0", maxRate: "5.0", myRate: "3.2", suitability: 52, tags: ["적합도 52%", "급여 이체_우대", "카드 실적 우대"] },
-  { id: 8, category: "청약 상품", title: "청년 주택드림 청약통장", subtitle: "정부지원 · 월 2만~100만원", baseRate: "2.0", maxRate: "5.0", myRate: "3.7", suitability: 52, tags: ["적합도 52%", "내집마련"] },
+  { 
+    id: 1, 
+    category: "정부 청년 상품", 
+    title: "청년도약계좌", 
+    subtitle: "서민금융진흥원 · 5년 만기 · 월 1만~70만원", 
+    baseRate: "4.5", 
+    maxRate: "6.0", 
+    myRate: "5.5", 
+    suitability: 88, 
+    tags: ["적합도 88%", "비과세", "정부기여금", "장기자산형성"] 
+  },
+  { 
+    id: 2, 
+    category: "정부 청년 상품", 
+    title: "청년내일저축계좌", 
+    subtitle: "보건복지부 · 3년 만기 · 월 10만~30만원", 
+    baseRate: "2.0", 
+    maxRate: "5.0", 
+    myRate: "4.5", 
+    suitability: 52, 
+    tags: ["적합도 52%", "비과세", "소득조건 충족", "자산형성지원"] 
+  },
+  { 
+    id: 3, 
+    category: "정부 청년 상품", 
+    title: "장병내일준비적금", 
+    subtitle: "국방부 · 병역의무 이행 필수 · 월 최대 40만원", 
+    baseRate: "5.0", 
+    maxRate: "7.5", 
+    myRate: "5.0", 
+    suitability: 15, 
+    tags: ["적합도 15%", "비과세", "정부재정지원", "군장병특화"] 
+  },
+  { 
+    id: 4, 
+    category: "정부 청년 상품", 
+    title: "청년희망적금 (만기연계)", 
+    subtitle: "서민금융진흥원 · 연계 가입 상품 · 일시납 가능", 
+    baseRate: "5.0", 
+    maxRate: "6.0", 
+    myRate: "5.2", 
+    suitability: 40, 
+    tags: ["적합도 40%", "비과세 혜택", "청년희망적금 연계"] 
+  },
+  { 
+    id: 5, 
+    category: "시중 은행 상품 · 제 1금융권", 
+    title: "신한 청년처음적금", 
+    subtitle: "신한은행 · 1년 만기 · 월 1만~30만원", 
+    baseRate: "3.5", 
+    maxRate: "8.0", 
+    myRate: "6.5", 
+    suitability: 92, 
+    tags: ["적합도 92%", "주거래 우대", "첫거래 고객", "모바일 특화"] 
+  },
+  { 
+    id: 6, 
+    category: "시중 은행 상품 · 제 1금융권", 
+    title: "급여하나 월복리 적금", 
+    subtitle: "하나은행 · 1년~3년 만기 · 월 1만~300만원", 
+    baseRate: "3.55", 
+    maxRate: "5.0", 
+    myRate: "4.1", 
+    suitability: 78, 
+    tags: ["적합도 78%", "급여 이체_우대", "카드 실적 우대"] 
+  },
+  { 
+    id: 7, 
+    category: "시중 은행 상품 · 제 1금융권", 
+    title: "KB청년도약 특별적금", 
+    subtitle: "KB국민은행 · 1년 만기 · 월 1만~50만원", 
+    baseRate: "4.0", 
+    maxRate: "5.5", 
+    myRate: "4.8", 
+    suitability: 65, 
+    tags: ["적합도 65%", "자동이체 우대", "청청 응원"] 
+  },
+  { 
+    id: 8, 
+    category: "청약 상품", 
+    title: "청년 주택드림 청약통장", 
+    subtitle: "정부지원 (시중은행 위탁) · 무제한 · 월 2만~100만원", 
+    baseRate: "2.0", 
+    maxRate: "4.5", 
+    myRate: "4.5", 
+    suitability: 95, 
+    tags: ["적합도 95%", "내집마련", "소득공제 혜택", "전환가입 가능"] 
+  },
 ];
 
 export default function ProductList() {
