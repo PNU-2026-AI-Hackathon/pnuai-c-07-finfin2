@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: fin
+  profiles:
+    active: dev
+  config:
+    import: optional:file:.env[.properties]
