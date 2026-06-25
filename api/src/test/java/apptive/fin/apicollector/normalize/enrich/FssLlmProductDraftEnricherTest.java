@@ -5,9 +5,13 @@ import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.config.CollectorProperties;
 import apptive.fin.apicollector.llm.*;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
+import apptive.fin.apicollector.normalize.dto.PreferentialRateDraft;
 import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
+import apptive.fin.apicollector.normalize.dto.RequiredKeywordDraft;
+import apptive.fin.apicollector.product.ExtractionConfidence;
 import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.product.ProductType;
+import apptive.fin.apicollector.product.RequiredKeywordEffect;
 import apptive.fin.apicollector.raw.ProductRaw;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
@@ -58,7 +62,24 @@ class FssLlmProductDraftEnricherTest {
                 180,
                 true,
                 false,
-                new BigDecimal("3.5")
+                new BigDecimal("3.5"),
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(RequiredKeywordDraft.builder()
+                        .keywordCode(KeywordValueEnum.STATUS_SME_WORKER)
+                        .effect(RequiredKeywordEffect.REQUIRE)
+                        .confidence(ExtractionConfidence.HIGH)
+                        .build()),
+                List.of(PreferentialRateDraft.builder()
+                        .keywordCode(KeywordValueEnum.BANK_CARD_USAGE)
+                        .rate(new BigDecimal("0.5"))
+                        .description("카드 사용 우대")
+                        .build())
         ));
         when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
                 any(), any(), any(), any(), any(), anyInt(), anyInt()
@@ -86,6 +107,12 @@ class FssLlmProductDraftEnricherTest {
         assertThat(property.requiresHomeless()).isTrue();
         assertThat(property.requiresHouseholder()).isFalse();
         assertThat(property.govContributionRate()).isEqualByComparingTo("3.5");
+        assertThat(property.requiredKeywords())
+                .extracting(RequiredKeywordDraft::keywordCode)
+                .containsExactly(KeywordValueEnum.STATUS_SME_WORKER);
+        assertThat(property.preferentialRates())
+                .extracting(PreferentialRateDraft::keywordCode)
+                .containsExactly(KeywordValueEnum.BANK_CARD_USAGE);
         assertThat(property.keywords()).contains(
                 KeywordValueEnum.BANK_CARD_USAGE,
                 KeywordValueEnum.BENEFIT_TAX_FREE,

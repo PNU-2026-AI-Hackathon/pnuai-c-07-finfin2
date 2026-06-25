@@ -1,6 +1,12 @@
 package apptive.fin.apicollector.llm;
 
 import apptive.fin.apicollector.config.CollectorProperties;
+import apptive.fin.apicollector.normalize.dto.PreferentialRateDraft;
+import apptive.fin.apicollector.normalize.dto.RequiredKeywordDraft;
+import apptive.fin.apicollector.product.ContributionType;
+import apptive.fin.apicollector.product.ExtractionConfidence;
+import apptive.fin.apicollector.product.KeywordValueEnum;
+import apptive.fin.apicollector.product.RequiredKeywordEffect;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -79,14 +85,99 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         properties.set("requiresHomeless", booleanSchema("무주택 조건이 명시되어 있으면 true"));
         properties.set("requiresHouseholder", booleanSchema("세대주 조건이 명시되어 있으면 true"));
         properties.set("govContributionRate", numberSchema("정부 기여금 또는 지원금 비율. 없으면 null"));
+        properties.set("govContributionType", contributionTypeSchema());
+        properties.set("govMatchingRatio", numberSchema("정부 매칭 비율. 없으면 null"));
+        properties.set("govMonthlyFixedContribution", integerSchema("정부 월 정액 지원금. 없으면 null"));
+        properties.set("govContributionPeriodMonths", integerSchema("정부 지원 기간 개월 수. 없으면 null"));
+        properties.set("excludeFromRateComparison", booleanSchema("금리/수익률 비교 대상에서 제외해야 하면 true"));
+        properties.set("allowsMilitaryAgeExtension", booleanSchema("병역 이행 기간만큼 나이 연장 조건이 명시되어 있으면 true"));
+        properties.set("militaryMaxAge", integerSchema("병역 연장 적용 후 최대 나이. 없으면 null"));
+        properties.set("requiredKeywords", requiredKeywordsSchema());
+        properties.set("preferentialRates", preferentialRatesSchema());
 
         schema.set("properties", properties);
         schema.set("required", array(
                 "summaryContent",
                 "keywords",
+                "minMonthlyLimit",
+                "maxMonthlyLimit",
+                "minAge",
+                "maxAge",
+                "earnMaxAmt",
+                "earnPercent",
                 "requiresHomeless",
-                "requiresHouseholder"
+                "requiresHouseholder",
+                "govContributionRate",
+                "govContributionType",
+                "govMatchingRatio",
+                "govMonthlyFixedContribution",
+                "govContributionPeriodMonths",
+                "excludeFromRateComparison",
+                "allowsMilitaryAgeExtension",
+                "militaryMaxAge",
+                "requiredKeywords",
+                "preferentialRates"
         ));
+        return schema;
+    }
+
+    private ObjectNode contributionTypeSchema() {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.set("type", array("string", "null"));
+        schema.set("enum", nullableArray("NONE", "RATIO", "FIXED_AMOUNT"));
+        schema.put("description", "정부 지원 방식. 없으면 null");
+        return schema;
+    }
+
+    private ObjectNode requiredKeywordsSchema() {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.put("type", "array");
+        schema.put("description", "가입 가능 여부를 제한하는 필수/제외 신분 키워드");
+
+        ObjectNode item = objectMapper.createObjectNode();
+        item.put("type", "object");
+        ObjectNode properties = objectMapper.createObjectNode();
+        properties.set("keywordCode", keywordEnumSchema("STATUS_* 키워드만 허용"));
+        properties.set("effect", enumSchema("필수 또는 제외 조건", "REQUIRE", "EXCLUDE"));
+        properties.set("confidence", enumSchema("추출 신뢰도", "HIGH", "MEDIUM", "LOW"));
+        item.set("properties", properties);
+        item.set("required", array("keywordCode", "effect", "confidence"));
+        schema.set("items", item);
+        return schema;
+    }
+
+    private ObjectNode preferentialRatesSchema() {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.put("type", "array");
+        schema.put("description", "조건별 명시 가산 우대금리. 총합/최고우대금리만 있으면 빈 배열");
+
+        ObjectNode item = objectMapper.createObjectNode();
+        item.put("type", "object");
+        ObjectNode properties = objectMapper.createObjectNode();
+        properties.set("keywordCode", keywordEnumSchema("우대금리 조건 키워드"));
+        properties.set("rate", numberSchema("가산 우대금리 percentage point"));
+        properties.set("description", stringSchema("원문 근거 요약"));
+        properties.set("minAge", integerSchema("나이 우대 최소 나이. 없으면 null"));
+        properties.set("maxAge", integerSchema("나이 우대 최대 나이. 없으면 null"));
+        item.set("properties", properties);
+        item.set("required", array("keywordCode", "rate", "description", "minAge", "maxAge"));
+        schema.set("items", item);
+        return schema;
+    }
+
+    private ObjectNode enumSchema(String description, String... values) {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.put("type", "string");
+        schema.set("enum", array(values));
+        schema.put("description", description);
+        return schema;
+    }
+
+    private ObjectNode keywordEnumSchema(String description) {
+        ObjectNode schema = objectMapper.createObjectNode();
+        schema.put("type", "string");
+        schema.set("enum", keywordEnumValues());
+        schema.put("description", description);
         return schema;
     }
 
@@ -125,39 +216,7 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
 
         ObjectNode items = objectMapper.createObjectNode();
         items.put("type", "string");
-        items.set("enum", array(
-                "REGION_SEOUL",
-                "REGION_BUSAN",
-                "REGION_DAEGU",
-                "REGION_INCHEON",
-                "REGION_GWANGJU",
-                "REGION_DAEJEON",
-                "REGION_ULSAN",
-                "REGION_SEJONG",
-                "REGION_GYEONGGI",
-                "REGION_GANGWON",
-                "REGION_CHUNGBUK",
-                "REGION_CHUNGNAM",
-                "REGION_JEONBUK",
-                "REGION_JEONNAM",
-                "REGION_GYEONGBUK",
-                "REGION_GYEONGNAM",
-                "REGION_JEJU",
-                "STATUS_UNEMPLOYED",
-                "STATUS_PART_TIME",
-                "STATUS_SME_WORKER",
-                "STATUS_MILITARY",
-                "BENEFIT_MAX_INTEREST",
-                "BENEFIT_TAX_FREE",
-                "BENEFIT_EASY_CONDITION",
-                "BENEFIT_GOV_SUBSIDY",
-                "BENEFIT_HOUSE_PREPARE",
-                "INTEREST_SAVINGS",
-                "INTEREST_LOAN",
-                "BANK_FIRST_TRANSACTION",
-                "BANK_SALARY_TRANSFER",
-                "BANK_CARD_USAGE"
-        ));
+        items.set("enum", keywordEnumValues());
         schema.set("items", items);
         return schema;
     }
@@ -166,6 +225,20 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         ArrayNode array = objectMapper.createArrayNode();
         for (String value : values) {
             array.add(value);
+        }
+        return array;
+    }
+
+    private ArrayNode nullableArray(String... values) {
+        ArrayNode array = array(values);
+        array.addNull();
+        return array;
+    }
+
+    private ArrayNode keywordEnumValues() {
+        ArrayNode array = objectMapper.createArrayNode();
+        for (KeywordValueEnum keyword : KeywordValueEnum.values()) {
+            array.add(keyword.name());
         }
         return array;
     }
@@ -184,7 +257,16 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
                 integer(enrichmentNode, "earnPercent"),
                 bool(enrichmentNode, "requiresHomeless"),
                 bool(enrichmentNode, "requiresHouseholder"),
-                decimal(enrichmentNode, "govContributionRate")
+                decimal(enrichmentNode, "govContributionRate"),
+                contributionType(enrichmentNode, "govContributionType"),
+                decimal(enrichmentNode, "govMatchingRatio"),
+                longValue(enrichmentNode, "govMonthlyFixedContribution"),
+                integer(enrichmentNode, "govContributionPeriodMonths"),
+                bool(enrichmentNode, "excludeFromRateComparison"),
+                bool(enrichmentNode, "allowsMilitaryAgeExtension"),
+                integer(enrichmentNode, "militaryMaxAge"),
+                requiredKeywords(enrichmentNode.path("requiredKeywords")),
+                preferentialRates(enrichmentNode.path("preferentialRates"))
         );
     }
 
@@ -238,9 +320,24 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         requireField(node, "requiresHomeless");
         requireField(node, "requiresHouseholder");
         requireField(node, "govContributionRate");
+        requireField(node, "govContributionType");
+        requireField(node, "govMatchingRatio");
+        requireField(node, "govMonthlyFixedContribution");
+        requireField(node, "govContributionPeriodMonths");
+        requireField(node, "excludeFromRateComparison");
+        requireField(node, "allowsMilitaryAgeExtension");
+        requireField(node, "militaryMaxAge");
+        requireField(node, "requiredKeywords");
+        requireField(node, "preferentialRates");
 
         if (!node.path("keywords").isArray()) {
             throw new IllegalStateException("Gemini response keywords must be an array. response=" + preview(node));
+        }
+        if (!node.path("requiredKeywords").isArray()) {
+            throw new IllegalStateException("Gemini response requiredKeywords must be an array. response=" + preview(node));
+        }
+        if (!node.path("preferentialRates").isArray()) {
+            throw new IllegalStateException("Gemini response preferentialRates must be an array. response=" + preview(node));
         }
     }
 
@@ -285,6 +382,71 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
             }
         }
         return result;
+    }
+
+    private List<RequiredKeywordDraft> requiredKeywords(JsonNode node) {
+        if (node == null || !node.isArray()) {
+            return List.of();
+        }
+
+        List<RequiredKeywordDraft> result = new ArrayList<>();
+        for (JsonNode item : node) {
+            KeywordValueEnum keyword = keyword(item, "keywordCode");
+            RequiredKeywordEffect effect = enumValue(RequiredKeywordEffect.class, text(item, "effect"));
+            ExtractionConfidence confidence = enumValue(ExtractionConfidence.class, text(item, "confidence"));
+            if (keyword == null || effect == null || confidence == null) {
+                throw new IllegalStateException("Gemini response requiredKeywords item is invalid. response=" + preview(item));
+            }
+            result.add(RequiredKeywordDraft.builder()
+                    .keywordCode(keyword)
+                    .effect(effect)
+                    .confidence(confidence)
+                    .build());
+        }
+        return List.copyOf(result);
+    }
+
+    private List<PreferentialRateDraft> preferentialRates(JsonNode node) {
+        if (node == null || !node.isArray()) {
+            return List.of();
+        }
+
+        List<PreferentialRateDraft> result = new ArrayList<>();
+        for (JsonNode item : node) {
+            KeywordValueEnum keyword = keyword(item, "keywordCode");
+            BigDecimal rate = decimal(item, "rate");
+            if (keyword == null || rate == null) {
+                throw new IllegalStateException("Gemini response preferentialRates item is invalid. response=" + preview(item));
+            }
+            result.add(PreferentialRateDraft.builder()
+                    .keywordCode(keyword)
+                    .rate(rate)
+                    .description(text(item, "description"))
+                    .minAge(integer(item, "minAge"))
+                    .maxAge(integer(item, "maxAge"))
+                    .build());
+        }
+        return List.copyOf(result);
+    }
+
+    private KeywordValueEnum keyword(JsonNode node, String fieldName) {
+        return enumValue(KeywordValueEnum.class, text(node, fieldName));
+    }
+
+    private ContributionType contributionType(JsonNode node, String fieldName) {
+        return enumValue(ContributionType.class, text(node, fieldName));
+    }
+
+    private <T extends Enum<T>> T enumValue(Class<T> enumType, String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Enum.valueOf(enumType, value);
+        }
+        catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     private String text(JsonNode node, String fieldName) {

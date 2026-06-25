@@ -1,6 +1,9 @@
 package apptive.fin.apicollector.product.entity;
 
 import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
+import apptive.fin.apicollector.normalize.dto.PreferentialRateDraft;
+import apptive.fin.apicollector.normalize.dto.RequiredKeywordDraft;
+import apptive.fin.apicollector.product.ContributionType;
 import apptive.fin.apicollector.product.InterestRateType;
 import apptive.fin.apicollector.product.KeywordValueEnum;
 import jakarta.persistence.*;
@@ -38,6 +41,14 @@ public class ProductProperty {
     @OneToMany(mappedBy = "productProperty", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductKeyword> keywords = new ArrayList<>();
 
+    @BatchSize(size = 100)
+    @OneToMany(mappedBy = "productProperty", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductRequiredKeyword> requiredKeywords = new ArrayList<>();
+
+    @BatchSize(size = 100)
+    @OneToMany(mappedBy = "productProperty", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProductPreferentialRate> preferentialRates = new ArrayList<>();
+
     @Column(precision = 5, scale = 2)
     private BigDecimal baseRate;
 
@@ -47,11 +58,29 @@ public class ProductProperty {
     @Column(precision = 5, scale = 2)
     private BigDecimal govContributionRate;
 
+    @Enumerated(EnumType.STRING)
+    private ContributionType govContributionType;
+
+    @Column(precision = 8, scale = 4)
+    private BigDecimal govMatchingRatio;
+
+    private Long govMonthlyFixedContribution;
+    private Integer govContributionPeriodMonths;
+
+    @Column(nullable = false)
+    private Boolean excludeFromRateComparison = false;
+
     private Long minMonthlyLimit;
     private Long maxMonthlyLimit;
 
     private Integer minAge;
     private Integer maxAge;
+
+    @Column(nullable = false)
+    private Boolean allowsMilitaryAgeExtension = false;
+
+    private Integer militaryMaxAge;
+
     private Long earnMaxAmt;
     private Integer earnPercent;
     private Integer minTenureMonths;
@@ -82,10 +111,17 @@ public class ProductProperty {
         this.baseRate = propertyDraft.baseRate();
         this.maxRate = propertyDraft.maxRate();
         this.govContributionRate = propertyDraft.govContributionRate();
+        this.govContributionType = propertyDraft.govContributionType();
+        this.govMatchingRatio = propertyDraft.govMatchingRatio();
+        this.govMonthlyFixedContribution = propertyDraft.govMonthlyFixedContribution();
+        this.govContributionPeriodMonths = propertyDraft.govContributionPeriodMonths();
+        this.excludeFromRateComparison = propertyDraft.excludeFromRateComparison();
         this.minMonthlyLimit = propertyDraft.minMonthlyLimit();
         this.maxMonthlyLimit = propertyDraft.maxMonthlyLimit();
         this.minAge = propertyDraft.minAge();
         this.maxAge = propertyDraft.maxAge();
+        this.allowsMilitaryAgeExtension = propertyDraft.allowsMilitaryAgeExtension();
+        this.militaryMaxAge = propertyDraft.militaryMaxAge();
         this.earnMaxAmt = propertyDraft.earnMaxAmt();
         this.earnPercent = propertyDraft.earnPercent();
         this.minTenureMonths = propertyDraft.minTenureMonths();
@@ -96,6 +132,8 @@ public class ProductProperty {
         this.intrRateType = InterestRateType.fromCode(propertyDraft.intrRateType());
         this.saveTrm = propertyDraft.saveTerm();
         replaceKeywords(propertyDraft.keywords());
+        replaceRequiredKeywords(propertyDraft.requiredKeywords());
+        replacePreferentialRates(propertyDraft.preferentialRates());
     }
 
     public static ProductProperty create(
@@ -121,6 +159,32 @@ public class ProductProperty {
         for (KeywordValueEnum keywordCode : desiredKeywords) {
             if (!currentKeywords.contains(keywordCode)) {
                 this.keywords.add(ProductKeyword.create(this, keywordCode));
+            }
+        }
+    }
+
+    public void replaceRequiredKeywords(List<RequiredKeywordDraft> drafts) {
+        this.requiredKeywords.clear();
+        if (drafts == null) {
+            return;
+        }
+
+        for (RequiredKeywordDraft draft : drafts) {
+            if (draft.keywordCode() != null) {
+                this.requiredKeywords.add(ProductRequiredKeyword.create(this, draft));
+            }
+        }
+    }
+
+    public void replacePreferentialRates(List<PreferentialRateDraft> drafts) {
+        this.preferentialRates.clear();
+        if (drafts == null) {
+            return;
+        }
+
+        for (PreferentialRateDraft draft : drafts) {
+            if (draft.keywordCode() != null && draft.rate() != null) {
+                this.preferentialRates.add(ProductPreferentialRate.create(this, draft));
             }
         }
     }

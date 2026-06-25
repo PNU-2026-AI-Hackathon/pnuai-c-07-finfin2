@@ -5,6 +5,8 @@ import apptive.fin.apicollector.config.CollectorProperties;
 import apptive.fin.apicollector.llm.*;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
+import apptive.fin.apicollector.normalize.dto.PreferentialRateDraft;
+import apptive.fin.apicollector.normalize.dto.RequiredKeywordDraft;
 import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.raw.ProductRaw;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +19,9 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Slf4j
@@ -132,6 +136,9 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
                 - maxMonthlyLimit은 유한한 최대 가입한도 또는 월 납입한도가 명시된 경우만 채운다.
                 - keywords에는 기간 키워드(TERM_*)를 넣지 않는다.
                 - summaryContent는 마케팅 문구 없이 가입방법, 우대조건, 가입대상, 유의사항을 짧게 정리한다.
+                - requiredKeywords에는 가입 가능 여부를 제한하는 STATUS_* 필수/제외 조건만 넣는다.
+                - preferentialRates에는 조건별 가산금리가 명시된 경우만 넣는다. 최고/최대 우대금리 총합만 있으면 빈 배열로 둔다.
+                - FSS 원문에 정부기여금/병역연장/비교제외가 명시되지 않았으면 관련 필드는 null 또는 false로 둔다.
 
                 현재 정규화 결과:
                 productName=%s
@@ -160,6 +167,10 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
         validateRange(enrichment.maxAge(), 0, 100, "maxAge");
         validateRange(enrichment.earnPercent(), 0, 1000, "earnPercent");
         validateRate(enrichment.govContributionRate(), "govContributionRate");
+        validateRate(enrichment.govMatchingRatio(), "govMatchingRatio");
+        validateAmount(enrichment.govMonthlyFixedContribution(), "govMonthlyFixedContribution");
+        validateRange(enrichment.govContributionPeriodMonths(), 0, 1200, "govContributionPeriodMonths");
+        validateRange(enrichment.militaryMaxAge(), 0, 100, "militaryMaxAge");
 
         if (enrichment.minMonthlyLimit() != null
                 && enrichment.maxMonthlyLimit() != null
@@ -174,6 +185,24 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
             KeywordValueEnum keywordValue = KeywordValueEnum.from(keyword);
             if (keywordValue == null || keywordValue.name().startsWith("TERM_")) {
                 throw new IllegalArgumentException("Unsupported LLM keyword: " + keyword);
+            }
+        }
+        for (RequiredKeywordDraft requiredKeyword : enrichment.requiredKeywords()) {
+            if (requiredKeyword.keywordCode() == null
+                    || !requiredKeyword.keywordCode().name().startsWith("STATUS_")
+                    || requiredKeyword.effect() == null
+                    || requiredKeyword.confidence() == null) {
+                throw new IllegalArgumentException("Unsupported LLM required keyword: " + requiredKeyword);
+            }
+        }
+        for (PreferentialRateDraft preferentialRate : enrichment.preferentialRates()) {
+            validateRate(preferentialRate.rate(), "preferentialRate.rate");
+            if (preferentialRate.keywordCode() == null || preferentialRate.keywordCode().name().startsWith("TERM_")) {
+                throw new IllegalArgumentException("Unsupported LLM preferential keyword: " + preferentialRate);
+            }
+            if (preferentialRate.minAge() != null && preferentialRate.maxAge() != null
+                    && preferentialRate.maxAge() < preferentialRate.minAge()) {
+                throw new IllegalArgumentException("preferentialRate maxAge is smaller than minAge");
             }
         }
     }
@@ -218,9 +247,18 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
                 .earnMaxAmt(enrichment.earnMaxAmt())
                 .earnPercent(enrichment.earnPercent())
                 .govContributionRate(enrichment.govContributionRate())
+                .govContributionType(enrichment.govContributionType())
+                .govMatchingRatio(enrichment.govMatchingRatio())
+                .govMonthlyFixedContribution(enrichment.govMonthlyFixedContribution())
+                .govContributionPeriodMonths(enrichment.govContributionPeriodMonths())
+                .excludeFromRateComparison(enrichment.excludeFromRateComparison())
+                .allowsMilitaryAgeExtension(enrichment.allowsMilitaryAgeExtension())
+                .militaryMaxAge(enrichment.militaryMaxAge())
                 .requiresHomeless(Boolean.TRUE.equals(enrichment.requiresHomeless()))
                 .requiresHouseholder(Boolean.TRUE.equals(enrichment.requiresHouseholder()))
                 .keywords(mergeKeywords(property, enrichment))
+                .requiredKeywords(mergeRequiredKeywords(property.requiredKeywords(), enrichment.requiredKeywords()))
+                .preferentialRates(mergePreferentialRates(property.preferentialRates(), enrichment.preferentialRates()))
                 .build();
     }
 
@@ -241,11 +279,50 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
                 keywords.add(KeywordValueEnum.TERM_2_TO_3_YEARS);
             }
             else {
-                keywords.add(KeywordValueEnum.TERM_OVER_5_YEARS);
+                keywords.add(KeywordValueEnum.TERM_OVER_3_YEARS);
             }
         }
 
         return List.copyOf(keywords);
+    }
+
+    private List<RequiredKeywordDraft> mergeRequiredKeywords(
+            List<RequiredKeywordDraft> existing,
+            List<RequiredKeywordDraft> enrichment
+    ) {
+        Map<String, RequiredKeywordDraft> merged = new LinkedHashMap<>();
+        for (RequiredKeywordDraft draft : existing) {
+            merged.put(requiredKeywordKey(draft), draft);
+        }
+        for (RequiredKeywordDraft draft : enrichment) {
+            merged.put(requiredKeywordKey(draft), draft);
+        }
+        return List.copyOf(merged.values());
+    }
+
+    private String requiredKeywordKey(RequiredKeywordDraft draft) {
+        return draft.keywordCode() + ":" + draft.effect();
+    }
+
+    private List<PreferentialRateDraft> mergePreferentialRates(
+            List<PreferentialRateDraft> existing,
+            List<PreferentialRateDraft> enrichment
+    ) {
+        Map<KeywordValueEnum, PreferentialRateDraft> merged = new LinkedHashMap<>();
+        for (PreferentialRateDraft draft : existing) {
+            keepHighest(merged, draft);
+        }
+        for (PreferentialRateDraft draft : enrichment) {
+            keepHighest(merged, draft);
+        }
+        return List.copyOf(merged.values());
+    }
+
+    private void keepHighest(Map<KeywordValueEnum, PreferentialRateDraft> merged, PreferentialRateDraft draft) {
+        PreferentialRateDraft existing = merged.get(draft.keywordCode());
+        if (existing == null || draft.rate().compareTo(existing.rate()) > 0) {
+            merged.put(draft.keywordCode(), draft);
+        }
     }
 
     private <T> T firstNonNull(T existing, T enrichment) {

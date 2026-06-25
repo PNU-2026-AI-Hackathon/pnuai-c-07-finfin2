@@ -32,12 +32,34 @@ class GeminiLlmProviderClientTest {
                 .putNull("earnPercent")
                 .put("requiresHomeless", false)
                 .put("requiresHouseholder", false)
-                .putNull("govContributionRate"));
+                .putNull("govContributionRate")
+                .putNull("govContributionType")
+                .putNull("govMatchingRatio")
+                .putNull("govMonthlyFixedContribution")
+                .putNull("govContributionPeriodMonths")
+                .put("excludeFromRateComparison", false)
+                .put("allowsMilitaryAgeExtension", false)
+                .putNull("militaryMaxAge")
+                .set("requiredKeywords", objectMapper.createArrayNode()
+                        .add(objectMapper.createObjectNode()
+                                .put("keywordCode", "STATUS_MILITARY")
+                                .put("effect", "REQUIRE")
+                                .put("confidence", "HIGH")
+                                .put("evidence", "군 장병 대상")))
+                .set("preferentialRates", objectMapper.createArrayNode()
+                        .add(objectMapper.createObjectNode()
+                                .put("keywordCode", "BANK_CARD_USAGE")
+                                .put("rate", 0.3)
+                                .put("description", "카드 실적 우대")
+                                .put("minAge", 19)
+                                .put("maxAge", 34))));
 
         assertThat(result.summaryContent()).isEqualTo("요약");
         assertThat(result.keywords()).containsExactly("BANK_CARD_USAGE");
         assertThat(result.maxMonthlyLimit()).isEqualTo(100_000L);
         assertThat(result.minAge()).isEqualTo(19);
+        assertThat(result.requiredKeywords()).hasSize(1);
+        assertThat(result.preferentialRates()).hasSize(1);
     }
 
     @Test
@@ -54,7 +76,16 @@ class GeminiLlmProviderClientTest {
                   "earnPercent": null,
                   "requiresHomeless": false,
                   "requiresHouseholder": false,
-                  "govContributionRate": null
+                  "govContributionRate": null,
+                  "govContributionType": null,
+                  "govMatchingRatio": null,
+                  "govMonthlyFixedContribution": null,
+                  "govContributionPeriodMonths": null,
+                  "excludeFromRateComparison": false,
+                  "allowsMilitaryAgeExtension": false,
+                  "militaryMaxAge": null,
+                  "requiredKeywords": [],
+                  "preferentialRates": []
                 }
                 """;
 
@@ -95,7 +126,16 @@ class GeminiLlmProviderClientTest {
                 .putNull("earnPercent")
                 .put("requiresHomeless", false)
                 .put("requiresHouseholder", false)
-                .putNull("govContributionRate")))
+                .putNull("govContributionRate")
+                .putNull("govContributionType")
+                .putNull("govMatchingRatio")
+                .putNull("govMonthlyFixedContribution")
+                .putNull("govContributionPeriodMonths")
+                .put("excludeFromRateComparison", false)
+                .put("allowsMilitaryAgeExtension", false)
+                .putNull("militaryMaxAge")
+                .set("requiredKeywords", objectMapper.createArrayNode())
+                .set("preferentialRates", objectMapper.createArrayNode())))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("keywords must be an array");
     }

@@ -60,10 +60,17 @@ CREATE TABLE IF NOT EXISTS product_properties (
                                     base_rate DECIMAL(5,2),
                                     max_rate DECIMAL(5,2),
                                     gov_contribution_rate DECIMAL(5,2),
+                                    gov_contribution_type VARCHAR(30),
+                                    gov_matching_ratio DECIMAL(8,4),
+                                    gov_monthly_fixed_contribution BIGINT,
+                                    gov_contribution_period_months INT,
+                                    exclude_from_rate_comparison BOOLEAN NOT NULL DEFAULT FALSE,
                                     min_monthly_limit BIGINT,
                                     max_monthly_limit BIGINT,
                                     min_age INT,
                                     max_age INT,
+                                    allows_military_age_extension BOOLEAN NOT NULL DEFAULT FALSE,
+                                    military_max_age INT,
                                     earn_max_amt BIGINT,
                                     earn_percent INT,
                                     min_tenure_months INT,
@@ -79,6 +86,24 @@ CREATE TABLE IF NOT EXISTS product_property_keyword (
                                  id BIGSERIAL PRIMARY KEY,
                                  product_property_id BIGINT NOT NULL REFERENCES product_properties(id) ON DELETE CASCADE,
                                  keyword_code VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS product_property_required_keyword (
+                                 id BIGSERIAL PRIMARY KEY,
+                                 product_property_id BIGINT NOT NULL REFERENCES product_properties(id) ON DELETE CASCADE,
+                                 keyword_code VARCHAR(50) NOT NULL,
+                                 effect VARCHAR(20) NOT NULL DEFAULT 'REQUIRE',
+                                 confidence VARCHAR(20) NOT NULL DEFAULT 'HIGH'
+);
+
+CREATE TABLE IF NOT EXISTS product_preferential_rates (
+                                 id BIGSERIAL PRIMARY KEY,
+                                 product_property_id BIGINT NOT NULL REFERENCES product_properties(id) ON DELETE CASCADE,
+                                 keyword_code VARCHAR(50) NOT NULL,
+                                 rate DECIMAL(5,2) NOT NULL,
+                                 description TEXT,
+                                 min_age INT,
+                                 max_age INT
 );
 
 CREATE TABLE IF NOT EXISTS llm_enrichment_cache (
@@ -113,3 +138,5 @@ CREATE TABLE IF NOT EXISTS llm_enrichment_cache (
 -- SELECT setval(pg_get_serial_sequence('product', 'id'), COALESCE((SELECT MAX(id) FROM product), 1), (SELECT MAX(id) FROM product) IS NOT NULL);
 -- SELECT setval(pg_get_serial_sequence('product_properties', 'id'), COALESCE((SELECT MAX(id) FROM product_properties), 1), (SELECT MAX(id) FROM product_properties) IS NOT NULL);
 -- SELECT setval(pg_get_serial_sequence('product_property_keyword', 'id'), COALESCE((SELECT MAX(id) FROM product_property_keyword), 1), (SELECT MAX(id) FROM product_property_keyword) IS NOT NULL);
+-- SELECT setval(pg_get_serial_sequence('product_property_required_keyword', 'id'), COALESCE((SELECT MAX(id) FROM product_property_required_keyword), 1), (SELECT MAX(id) FROM product_property_required_keyword) IS NOT NULL);
+-- SELECT setval(pg_get_serial_sequence('product_preferential_rates', 'id'), COALESCE((SELECT MAX(id) FROM product_preferential_rates), 1), (SELECT MAX(id) FROM product_preferential_rates) IS NOT NULL);

@@ -5,6 +5,8 @@ import apptive.fin.apicollector.config.CollectorProperties;
 import apptive.fin.apicollector.normalize.ProductClassification;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
+import apptive.fin.apicollector.normalize.extractor.FssPreferentialRateExtractor;
+import apptive.fin.apicollector.normalize.extractor.FssRequiredKeywordExtractor;
 import apptive.fin.apicollector.normalize.extractor.KeywordExtractor;
 import apptive.fin.apicollector.raw.ProductRaw;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,8 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
     private final ObjectMapper objectMapper;
     private final CollectorProperties properties;
     private final KeywordExtractor keywordExtractor;
+    private final FssPreferentialRateExtractor preferentialRateExtractor;
+    private final FssRequiredKeywordExtractor requiredKeywordExtractor;
 
     @Override
     public Source source() {
@@ -77,6 +81,8 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
         String providerCode = firstText(base, "fin_co_no", "kor_co_nm");
         String providerName = firstText(base, "kor_co_nm", "fin_co_no");
         Long maxMonthlyLimit = longValue(base, "max_limit");
+        var preferentialRates = preferentialRateExtractor.extract(text(base, "spcl_cnd"));
+        var requiredKeywords = requiredKeywordExtractor.extract(text(base, "join_member"), text(base, "etc_note"));
         JsonNode optionsNode = raw.path("options");
         if (optionsNode == null || !optionsNode.isArray() || optionsNode.isEmpty()) {
             return List.of(ProductPropertyDraft.builder()
@@ -86,6 +92,8 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                     .requiresHomeless(false)
                     .requiresHouseholder(false)
                     .keywords(keywords)
+                    .requiredKeywords(requiredKeywords)
+                    .preferentialRates(preferentialRates)
                     .build());
         }
 
@@ -104,6 +112,8 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                     .requiresHomeless(false)
                     .requiresHouseholder(false)
                     .keywords(keywords)
+                    .requiredKeywords(requiredKeywords)
+                    .preferentialRates(preferentialRates)
                     .build());
         }
         return properties;
