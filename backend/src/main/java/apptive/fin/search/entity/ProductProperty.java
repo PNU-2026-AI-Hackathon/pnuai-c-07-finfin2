@@ -1,5 +1,6 @@
 package apptive.fin.search.entity;
 
+import apptive.fin.search.ContributionType;
 import apptive.fin.search.InterestRateType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -47,11 +48,29 @@ public class ProductProperty {
     @Column(precision = 5, scale = 2)
     private BigDecimal govContributionRate;
 
+    @Enumerated(EnumType.STRING)
+    private ContributionType govContributionType;
+
+    @Column(precision = 8, scale = 4)
+    private BigDecimal govMatchingRatio;
+
+    private Long govMonthlyFixedContribution;
+    private Integer govContributionPeriodMonths;
+
+    @Column(nullable = false)
+    private Boolean excludeFromRateComparison = false;
+
     private Long minMonthlyLimit;
     private Long maxMonthlyLimit;
 
     private Integer minAge;
     private Integer maxAge;
+
+    @Column(nullable = false)
+    private Boolean allowsMilitaryAgeExtension = false;
+
+    private Integer militaryMaxAge;
+
     private Long earnMaxAmt;
     private Integer earnPercent;
     private Integer minTenureMonths;
@@ -75,4 +94,12 @@ public class ProductProperty {
     @BatchSize(size = 100)
     @OneToMany(mappedBy = "productProperty", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<ProductKeyword> keywords = new ArrayList<>();
+
+    @BatchSize(size = 100)
+    @OneToMany(mappedBy = "productProperty", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<ProductRequiredKeyword> requiredKeywords = new ArrayList<>();
+
+    @BatchSize(size = 100)
+    @OneToMany(mappedBy = "productProperty", fetch = FetchType.LAZY)
+    private List<ProductPreferentialRate> preferentialRates = new ArrayList<>();
 }

@@ -50,6 +50,7 @@ public class SecurityConfig {
            //                     .requestMatchers("/favicon.ico").permitAll()
                                 .requestMatchers("/oauth2/authorization/**", "/login/oauth2/**").permitAll()
                                 .requestMatchers("/auth/**").permitAll()
+                                .requestMatchers("/search/**").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/users").permitAll()
                                 //.anyRequest().permitAll()
                                 .anyRequest().authenticated()

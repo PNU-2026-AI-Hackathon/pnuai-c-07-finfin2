@@ -122,10 +122,17 @@ CREATE TABLE product_properties (
     base_rate DECIMAL(5,2),
     max_rate DECIMAL(5,2),
     gov_contribution_rate DECIMAL(5,2),
+    gov_contribution_type VARCHAR(30),
+    gov_matching_ratio DECIMAL(8,4),
+    gov_monthly_fixed_contribution BIGINT,
+    gov_contribution_period_months INT,
+    exclude_from_rate_comparison BOOLEAN NOT NULL DEFAULT FALSE,
     min_monthly_limit BIGINT,
     max_monthly_limit BIGINT,
     min_age INT,
     max_age INT,
+    allows_military_age_extension BOOLEAN NOT NULL DEFAULT FALSE,
+    military_max_age INT,
     earn_max_amt BIGINT,
     earn_percent INT,
     min_tenure_months INT,
@@ -141,4 +148,22 @@ CREATE TABLE product_property_keyword (
     id BIGSERIAL PRIMARY KEY,
     product_property_id BIGINT NOT NULL REFERENCES product_properties(id) ON DELETE CASCADE,
     keyword_code VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE product_property_required_keyword (
+    id BIGSERIAL PRIMARY KEY,
+    product_property_id BIGINT NOT NULL REFERENCES product_properties(id) ON DELETE CASCADE,
+    keyword_code VARCHAR(50) NOT NULL,
+    effect VARCHAR(20) NOT NULL DEFAULT 'REQUIRE',
+    confidence VARCHAR(20) NOT NULL DEFAULT 'HIGH'
+);
+
+CREATE TABLE product_preferential_rates (
+    id BIGSERIAL PRIMARY KEY,
+    product_property_id BIGINT NOT NULL REFERENCES product_properties(id) ON DELETE CASCADE,
+    keyword_code VARCHAR(50) NOT NULL,
+    rate DECIMAL(5,2) NOT NULL,
+    description TEXT,
+    min_age INT,
+    max_age INT
 );

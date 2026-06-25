@@ -8,6 +8,7 @@ import apptive.fin.search.service.EligibilityFilterService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
 
 import java.time.LocalDate;
@@ -29,6 +30,9 @@ class EligibilityFilterServiceIntegrationTest {
     @Autowired
     private EligibilityFilterService eligibilityFilterService;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @Test
     void 만27세_무주택자이면_모든_상품이_노출된다() {
         SearchRequestDto request = createRequest(27, true, List.of());
@@ -40,7 +44,8 @@ class EligibilityFilterServiceIntegrationTest {
                         "TEST_COMMON",
                         "TEST_TENURE_REQUIRED",
                         "TEST_HOMELESS_ONLY",
-                        "TEST_YOUTH_PREFERENTIAL"
+                        "TEST_YOUTH_PREFERENTIAL",
+                        "TEST_MILITARY_EXTENSION"
                 );
     }
 
@@ -58,7 +63,8 @@ class EligibilityFilterServiceIntegrationTest {
                 .containsExactlyInAnyOrder(
                         "TEST_COMMON",
                         "TEST_HOMELESS_ONLY",
-                        "TEST_YOUTH_PREFERENTIAL"
+                        "TEST_YOUTH_PREFERENTIAL",
+                        "TEST_MILITARY_EXTENSION"
                 );
         assertThat(productCodes(result)).doesNotContain("TEST_TENURE_REQUIRED");
     }
@@ -82,7 +88,8 @@ class EligibilityFilterServiceIntegrationTest {
                 .containsExactlyInAnyOrder(
                         "TEST_COMMON",
                         "TEST_TENURE_REQUIRED",
-                        "TEST_YOUTH_PREFERENTIAL"
+                        "TEST_YOUTH_PREFERENTIAL",
+                        "TEST_MILITARY_EXTENSION"
                 );
         assertThat(productCodes(result)).doesNotContain("TEST_HOMELESS_ONLY");
     }
@@ -97,9 +104,108 @@ class EligibilityFilterServiceIntegrationTest {
                 .containsExactlyInAnyOrder(
                         "TEST_COMMON",
                         "TEST_TENURE_REQUIRED",
-                        "TEST_HOMELESS_ONLY"
+                        "TEST_HOMELESS_ONLY",
+                        "TEST_MILITARY_EXTENSION"
                 );
         assertThat(productCodes(result)).doesNotContain("TEST_YOUTH_PREFERENTIAL");
+    }
+
+    @Test
+    void 만36세_일반유저이면_병역연령확장_상품도_제외된다() {
+        SearchRequestDto request = createRequest(36, true, List.of());
+
+        List<Product> result = eligibilityFilterService.filterEligible(request);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void 만36세_군복무_신분이면_병역연령확장_상품만_통과한다() {
+        SearchRequestDto request = createRequest(
+                36,
+                true,
+                List.of(new OptionRequestDto(CategoryIdEnum.IDENTITY.getId(), 21L))
+        );
+
+        List<Product> result = eligibilityFilterService.filterEligible(request);
+
+        assertThat(productCodes(result))
+                .containsExactly("TEST_MILITARY_EXTENSION");
+    }
+
+    @Test
+    void 만40세_군복무_신분이면_병역연령확장_상품도_제외된다() {
+        SearchRequestDto request = createRequest(
+                40,
+                true,
+                List.of(new OptionRequestDto(CategoryIdEnum.IDENTITY.getId(), 21L))
+        );
+
+        List<Product> result = eligibilityFilterService.filterEligible(request);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void high_confidence_required_identity_matches_selected_identity() {
+        insertRequiredKeyword("TEST_COMMON", "STATUS_MILITARY", "REQUIRE", "HIGH");
+        SearchRequestDto request = createRequest(
+                27,
+                true,
+                List.of(new OptionRequestDto(CategoryIdEnum.IDENTITY.getId(), 21L))
+        );
+
+        List<Product> result = eligibilityFilterService.filterEligible(request);
+
+        assertThat(productCodes(result)).contains("TEST_COMMON");
+    }
+
+    @Test
+    void high_confidence_required_identity_excludes_unmatched_identity() {
+        insertRequiredKeyword("TEST_COMMON", "STATUS_MILITARY", "REQUIRE", "HIGH");
+        SearchRequestDto request = createRequest(
+                27,
+                true,
+                List.of(new OptionRequestDto(CategoryIdEnum.IDENTITY.getId(), 20L))
+        );
+
+        List<Product> result = eligibilityFilterService.filterEligible(request);
+
+        assertThat(productCodes(result)).doesNotContain("TEST_COMMON");
+    }
+
+    @Test
+    void high_confidence_required_identity_excludes_when_identity_not_selected() {
+        insertRequiredKeyword("TEST_COMMON", "STATUS_MILITARY", "REQUIRE", "HIGH");
+        SearchRequestDto request = createRequest(27, true, List.of());
+
+        List<Product> result = eligibilityFilterService.filterEligible(request);
+
+        assertThat(productCodes(result)).doesNotContain("TEST_COMMON");
+    }
+
+    @Test
+    void high_confidence_excluded_identity_excludes_matched_identity() {
+        insertRequiredKeyword("TEST_COMMON", "STATUS_UNEMPLOYED", "EXCLUDE", "HIGH");
+        SearchRequestDto request = createRequest(
+                27,
+                true,
+                List.of(new OptionRequestDto(CategoryIdEnum.IDENTITY.getId(), 18L))
+        );
+
+        List<Product> result = eligibilityFilterService.filterEligible(request);
+
+        assertThat(productCodes(result)).doesNotContain("TEST_COMMON");
+    }
+
+    @Test
+    void medium_confidence_required_identity_is_not_used_for_filtering() {
+        insertRequiredKeyword("TEST_COMMON", "STATUS_MILITARY", "REQUIRE", "MEDIUM");
+        SearchRequestDto request = createRequest(27, true, List.of());
+
+        List<Product> result = eligibilityFilterService.filterEligible(request);
+
+        assertThat(productCodes(result)).contains("TEST_COMMON");
     }
 
     private SearchRequestDto createRequest(int age, Boolean isHomeless, List<OptionRequestDto> options) {
@@ -125,5 +231,17 @@ class EligibilityFilterServiceIntegrationTest {
         return products.stream()
                 .map(Product::getProductCode)
                 .toList();
+    }
+
+    private void insertRequiredKeyword(String productCode, String keywordCode, String effect, String confidence) {
+        jdbcTemplate.update("""
+                INSERT INTO product_property_required_keyword (
+                    product_property_id, keyword_code, effect, confidence
+                )
+                SELECT pp.id, ?, ?, ?
+                FROM product_properties pp
+                JOIN product p ON p.id = pp.product_id
+                WHERE p.product_code = ?
+                """, keywordCode, effect, confidence, productCode);
     }
 }

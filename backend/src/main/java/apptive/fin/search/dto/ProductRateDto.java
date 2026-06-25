@@ -11,7 +11,8 @@ public record ProductRateDto(
         String source,
         double baseRate,
         double achievableRate,
+        boolean rateComparable,
         boolean isSubscription,
-        String subscriptionNote // 금리가 없는 청약 상품용 안내 문구
+        String subscriptionNote
 ) {
 }
