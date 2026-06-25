@@ -19,6 +19,7 @@ public record ProductDraft(
         String productCode,
         String productName,
         String content,
+        String contentSummary,
         List<ProductPropertyDraft> properties
 ) {
     public ProductDraft {

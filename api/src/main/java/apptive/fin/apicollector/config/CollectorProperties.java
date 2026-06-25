@@ -14,7 +14,8 @@ public record CollectorProperties(
         int readerPageSize,
         int unseenDisablePeriod,
         OntongYouth ontongYouth,
-        Fss fss
+        Fss fss,
+        Llm llm
 ) {
 
     public record OntongYouth(
@@ -27,5 +28,15 @@ public record CollectorProperties(
             String baseUrl,
             String apiKey,
             int pageSize
+    ) {}
+
+    public record Llm(
+            boolean enabled,
+            String provider,
+            String model,
+            int promptVersion,
+            int schemaVersion,
+            String baseUrl,
+            String apiKey
     ) {}
 }

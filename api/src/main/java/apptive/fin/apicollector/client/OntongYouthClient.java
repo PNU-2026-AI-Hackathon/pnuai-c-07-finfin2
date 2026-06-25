@@ -3,7 +3,6 @@ package apptive.fin.apicollector.client;
 import apptive.fin.apicollector.config.CollectorProperties;
 import org.springframework.beans.factory.annotation.Qualifier;
 import tools.jackson.databind.JsonNode;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -11,11 +10,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Component
-@RequiredArgsConstructor
 public class OntongYouthClient {
 
     private final CollectorProperties properties;
     private final RestClient ontongYouthRestClient;
+
+    public OntongYouthClient(
+            CollectorProperties properties,
+            @Qualifier("ontongYouthRestClient") RestClient ontongYouthRestClient
+    ) {
+        this.properties = properties;
+        this.ontongYouthRestClient = ontongYouthRestClient;
+    }
 
     public List<JsonNode> fetchAll() {
         List<JsonNode> result = new ArrayList<>();

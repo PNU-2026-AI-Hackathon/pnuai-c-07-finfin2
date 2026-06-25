@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS product (
                          product_code VARCHAR(100),
                          product_name VARCHAR(200) NOT NULL,
                          content TEXT,
+                         content_summary TEXT,
                          created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                          updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -78,6 +79,32 @@ CREATE TABLE IF NOT EXISTS product_property_keyword (
                                  id BIGSERIAL PRIMARY KEY,
                                  product_property_id BIGINT NOT NULL REFERENCES product_properties(id) ON DELETE CASCADE,
                                  keyword_code VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS llm_enrichment_cache (
+                                  id BIGSERIAL PRIMARY KEY,
+                                  source VARCHAR(30) NOT NULL,
+                                  external_id VARCHAR(150) NOT NULL,
+                                  content_hash VARCHAR(64) NOT NULL,
+                                  provider VARCHAR(30) NOT NULL,
+                                  model VARCHAR(100) NOT NULL,
+                                  prompt_version INT NOT NULL,
+                                  schema_version INT NOT NULL,
+                                  request_hash VARCHAR(64) NOT NULL,
+                                  status VARCHAR(20) NOT NULL,
+                                  response_json TEXT,
+                                  error_message TEXT,
+                                  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                                  CONSTRAINT uk_llm_enrichment_cache_key UNIQUE (
+                                      source,
+                                      external_id,
+                                      content_hash,
+                                      provider,
+                                      model,
+                                      prompt_version,
+                                      schema_version
+                                  )
 );
 
 -- SELECT setval(pg_get_serial_sequence('product_raw', 'id'), COALESCE((SELECT MAX(id) FROM product_raw), 1), (SELECT MAX(id) FROM product_raw) IS NOT NULL);

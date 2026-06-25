@@ -27,6 +27,22 @@ public interface ProductRawRepository extends JpaRepository<ProductRaw, Long> {
                     r.normalizedAt is null
                     or r.normalizerVersion is null
                     or r.normalizerVersion < :normalizerVersion
+                    or (
+                        :llmEnrichmentEnabled = true
+                        and r.source = apptive.fin.apicollector.Source.FSS
+                        and not exists (
+                            select c.id
+                            from apptive.fin.apicollector.llm.LlmEnrichmentCache c
+                            where c.source = r.source
+                              and c.externalId = r.externalId
+                              and c.contentHash = r.contentHash
+                              and c.provider = :llmProvider
+                              and c.model = :llmModel
+                              and c.promptVersion = :llmPromptVersion
+                              and c.schemaVersion = :llmSchemaVersion
+                              and c.status = apptive.fin.apicollector.llm.LlmEnrichmentCacheStatus.SUCCESS
+                        )
+                    )
                 )
             order by r.id asc
     """)
@@ -34,6 +50,11 @@ public interface ProductRawRepository extends JpaRepository<ProductRaw, Long> {
             @Param("sources") Collection<Source> sources,
             @Param("lastSeenId") Long lastSeenId,
             @Param("normalizerVersion") int normalizerVersion,
+            @Param("llmEnrichmentEnabled") boolean llmEnrichmentEnabled,
+            @Param("llmProvider") String llmProvider,
+            @Param("llmModel") String llmModel,
+            @Param("llmPromptVersion") int llmPromptVersion,
+            @Param("llmSchemaVersion") int llmSchemaVersion,
             Pageable pageable
     );
 

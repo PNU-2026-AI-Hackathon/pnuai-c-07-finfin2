@@ -24,9 +24,9 @@ spring:
 
 collector:
   enabled: true
-  source: ALL
-  mode: normalize_only
-  normalizer-version: 11
+  source: FSS
+  mode: SYNC
+  normalizer-version: 13
   reader-page-size : 500
   unseen-disable-period : 1
 
@@ -40,3 +40,11 @@ collector:
     api-key: ${FSS_API_KEY:}
     page-size : 100
 
+  llm:
+    enabled: ${LLM_ENABLED:false}
+    provider: GEMINI
+    model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
+    prompt-version: 1
+    schema-version: 2
+    base-url: https://generativelanguage.googleapis.com
+    api-key: ${GEMINI_API_KEY:}

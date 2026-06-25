@@ -2,6 +2,7 @@ package apptive.fin.apicollector.batch;
 
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
+import apptive.fin.apicollector.normalize.enrich.ProductDraftEnricher;
 import apptive.fin.apicollector.normalize.normalizer.ProductNormalizer;
 import apptive.fin.apicollector.raw.ProductRaw;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import java.util.Map;
 public class RawProductItemProcessor implements ItemProcessor<ProductRaw, ProductDraft> {
 
     private final List<ProductNormalizer> normalizers;
+    private final List<ProductDraftEnricher> enrichers;
     private Map<Source, ProductNormalizer> normalizerBySource;
 
     @Override
@@ -27,7 +29,13 @@ public class RawProductItemProcessor implements ItemProcessor<ProductRaw, Produc
                     .formatted(item.getId(), item.getSource()));
         }
 
-        return normalizer.normalize(item);
+        ProductDraft draft = normalizer.normalize(item);
+        for (ProductDraftEnricher enricher : enrichers) {
+            if (enricher.supports(item.getSource())) {
+                draft = enricher.enrich(item, draft);
+            }
+        }
+        return draft;
     }
 
     private Map<Source, ProductNormalizer> normalizerBySource() {

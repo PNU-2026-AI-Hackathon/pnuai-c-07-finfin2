@@ -46,6 +46,9 @@ public class Product extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String content;
 
+    @Column(columnDefinition = "TEXT")
+    private String contentSummary;
+
     @BatchSize(size = 100)
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<ProductProperty> properties = new ArrayList<>();
