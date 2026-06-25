@@ -114,7 +114,7 @@ export default function ProductList() {
   ];
 
   const handleTabClick = (tabName) => {
-    if (tabName === "내가 달성 가능한 금리 순" && !isLoggedIn) {
+    if (tabName === "내가 받을 수 있는 금리 순" && !isLoggedIn) {
       setShowLoginModal(true);
       return;
     }
@@ -173,9 +173,9 @@ export default function ProductList() {
               나에게 맞는 순
             </button>
             <button
-              onClick={() => handleTabClick("내가 달성 가능한 금리 순")}
+              onClick={() => handleTabClick("내가 받을 수 있는 금리 순")}
               className={`px-3 h-8 flex items-center justify-center gap-1.5 text-[15px] rounded-tr-sm transition-all border-[2px] ${
-                activeTab === "내가 달성 가능한 금리 순"
+                activeTab === "내가 받을 수 있는 금리 순"
                   ? "bg-[#03BFA5] text-white border-[#03BFA5]"
                   : "text-[#03BFA5] bg-white border-[#03BFA5]"
               }`}
@@ -186,13 +186,13 @@ export default function ProductList() {
                   <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                 </svg>
               )}
-              내가 달성 가능한 금리 순
+              내가 받을 수 있는 금리 순
             </button>
           </div>
           
           <div className="flex items-center gap-1 pb-1.5">
             <span className="text-[15px] text-[#03BFA5] tracking-tight">
-              {activeTab === "나에게 맞는 순" ? "적합도란?" : "달성 가능 금리란?"}
+              {activeTab === "나에게 맞는 순" ? "적합도란?" : "받을 수 있는 금리란?"}
             </span>
             
             <InfoIcon 
@@ -230,7 +230,7 @@ export default function ProductList() {
               {isLoggedIn ? (
                 <><div className="w-[16px] h-[16px] rounded-full bg-[#03BFA5] text-white flex items-center justify-center text-[11px] font-bold">✓</div><span>총 160개 상품 중 자격요건 미충족 상품 23개가 제외되었어요.</span></>
               ) : (
-                <><div className="w-[16px] h-[16px] rounded-full bg-[#03BFA5] text-white flex items-center justify-center text-[12px] font-bold">i</div><span>로그인하면 자격요건 필터링 결과와 내가 달성 가능한 금리를 확인할 수 있어요.</span></>
+                <><div className="w-[16px] h-[16px] rounded-full bg-[#03BFA5] text-white flex items-center justify-center text-[12px] font-bold">i</div><span>로그인하면 자격요건 필터링 결과와 내가 받을 수 있는 금리를 확인할 수 있어요.</span></>
               )}
             </div>
           </div>

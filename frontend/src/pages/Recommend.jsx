@@ -9,12 +9,23 @@ import {
   StepHousing,
   StepEmployment,
   StepTransaction,
+  LoadingScreen,
 } from "../components/RecommendSteps";
 import { useState } from "react";
 
 export default function Recommend() {
   const { step, formData, setFormData, cats, loading, go, handleSubmit } = useRecommendForm();
   const [isOpen, setIsOpen] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+  const startAnalysis = () => {
+    setIsOpen(false);
+    setIsAnalyzing(true);
+  };
+
+  const finishAnalysis = async () => {
+    await handleSubmit();
+  };
 
   const steps = [
     <StepSavingPlan      data={formData} setData={setFormData} cats={cats} onNext={go(1)} />,
@@ -25,33 +36,45 @@ export default function Recommend() {
     <StepHouseholdIncome data={formData} setData={setFormData} cats={cats} onPrev={go(4)} onNext={go(6)} />,
     <StepHousing         data={formData} setData={setFormData}             onPrev={go(5)} onNext={go(7)} />,
     <StepEmployment      data={formData} setData={setFormData}             onPrev={go(6)} onNext={go(8)} />,
-    <StepTransaction     data={formData} setData={setFormData} cats={cats} onPrev={go(7)} onSubmit={handleSubmit} />
+    <StepTransaction     data={formData} setData={setFormData} cats={cats} onPrev={go(7)} onSubmit={startAnalysis} />
   ];
 
   return (
     <div className="min-h-screen bg-teal-50/40 flex flex-col">
-      <div className="flex-1 flex flex-col items-center px-4 pt-16 pb-80">
+      {isAnalyzing && <LoadingScreen onAnimationComplete={finishAnalysis} />}
+
+      <div className={`flex-1 flex flex-col items-center px-4 pb-80 ${isAnalyzing ? "pt-[182px]" : "pt-16"}`}>
 
         {/* 타이틀 */}
-        <div className="bg-linear-to-b from-[#EFFFFD] to-[#FFFFFF] text-center mb-8">
+        <div className={`bg-linear-to-b from-[#EFFFFD] to-[#FFFFFF] text-center ${isAnalyzing ? "mb-[316px]" : "mb-8"}`}>
           <h1 className="text-[40px] font-bold text-[#4B4B4B] font-gmarket">
-            내게 딱 맞는 <span className="text-[#03BFA5]">금융상품,</span><br />
-            <span className="text-[#03BFA5]">Y-Fin</span>이 찾아줘요
+            내게 딱 맞는 <span className="text-[#03BFA5]">금융상품,</span>
+            {!isAnalyzing && (
+              <>
+                <br />
+                <span className="text-[#03BFA5]">Y-Fin</span>이 찾아줘요
+              </>
+            )}
           </h1>
-          <p className="text-[15px] text-[#A5A5A5] mt-6 leading-relaxed tracking-[-0.01em] font-gmarket">
-            수백 개 은행 상품을 일일이 비교할 필요 없이, 키워드만 선택하면<br />
-            최적의 상품을 찾을 수 있어요.
-          </p>
+          {!isAnalyzing && (
+            <p className="text-[15px] text-[#A5A5A5] mt-6 leading-relaxed tracking-[-0.01em] font-gmarket">
+              수백 개 은행 상품을 일일이 비교할 필요 없이, 키워드만 선택하면<br />
+              최적의 상품을 찾을 수 있어요.
+            </p>
+          )}
         </div>
 
         {/* 검색바 + 폼 */}
-        <div className="w-full max-w-260 bg-white rounded-4xl shadow-xl">
+        <div className={`w-full bg-white rounded-4xl shadow-xl ${isAnalyzing ? "max-w-[1200px]" : "max-w-260"}`}>
 
           {/* 검색바 */}
           <button
             type="button"
             onClick={() => setIsOpen((prev) => !prev)}
-            className={`w-full flex items-center justify-between px-6 py-5 hover:bg-gray-50 transition-colors rounded-full border  ${
+            disabled={isAnalyzing}
+            className={`w-full flex items-center justify-between px-6 hover:bg-gray-50 transition-colors rounded-full border ${
+              isAnalyzing ? "py-[25px]" : "py-5"
+            } ${
               isOpen ? "border-transparent" : "border-[#03BFA5]"
             }`}
           >

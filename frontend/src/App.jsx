@@ -9,6 +9,14 @@ import AuthGuard from './routes/AuthGuard';
 import Recommend from './pages/Recommend';
 import ProductList from './pages/ProductList';
 
+function RecommendRoute() {
+  const isMockMode = import.meta.env.DEV
+    && new URLSearchParams(window.location.search).get("mock") === "true";
+
+  if (isMockMode) return <Recommend />;
+  return <AuthGuard><Recommend /></AuthGuard>;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -16,7 +24,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/introduce" element={<Introduce />} />
-        <Route path="/recommend" element={<AuthGuard><Recommend /></AuthGuard>} />
+        <Route path="/recommend" element={<RecommendRoute />} />
         <Route path="/products" element={<ProductList/>}/>
         
         <Route

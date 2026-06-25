@@ -34,7 +34,7 @@ export function TopCard({ rank, title, subtitle, baseRate, maxRate, myRate, tags
         <div className={`w-full py-2 rounded-full border text-center text-[12px] font-bold ${
           isLoggedIn ? 'border-[#03BFA5] text-[#03BFA5] bg-[#EFFFFD]' : 'border-gray-300 text-gray-400 bg-white'
         }`}>
-          내가 달성 가능한 금리 <span className="ml-1 whitespace-nowrap">{isLoggedIn ? `연 ${myRate}%` : '연 ??? %'}</span>
+          내가 받을 수 있는 금리 <span className="ml-1 whitespace-nowrap">{isLoggedIn ? `연 ${myRate}%` : '연 ??? %'}</span>
         </div>
       </div>
     </div>
@@ -72,7 +72,7 @@ export function ListItem({ title, subtitle, baseRate, maxRate, myRate, tags, isL
         <div className={`w-[160px] sm:w-[190px] py-2 rounded-full border text-center text-[13px] font-bold shrink-0 ${
           isLoggedIn ? 'border-[#03BFA5] text-[#03BFA5] bg-[#F2FBF9]' : 'border-gray-300 text-gray-400 bg-white'
         }`}>
-          내가 달성 가능한 금리 <span className="ml-1 whitespace-nowrap">{isLoggedIn ? `연 ${myRate}%` : '연 ??? %'}</span>
+          내가 받을 수 있는 금리 <span className="ml-1 whitespace-nowrap">{isLoggedIn ? `연 ${myRate}%` : '연 ??? %'}</span>
         </div>
       </div>
     </div>
