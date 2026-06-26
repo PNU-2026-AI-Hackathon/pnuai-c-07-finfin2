@@ -36,6 +36,8 @@ public record CollectorProperties(
             String model,
             int promptVersion,
             int schemaVersion,
+            int chunkSize,
+            int maxConcurrency,
             String baseUrl,
             String apiKey
     ) {}

@@ -26,7 +26,7 @@ collector:
   enabled: true
   source: FSS
   mode: SYNC
-  normalizer-version: 14
+  normalizer-version: 15
   reader-page-size : 500
   unseen-disable-period : 1
 
@@ -46,5 +46,7 @@ collector:
     model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
     prompt-version: 1
     schema-version: 3
+    chunk-size: ${LLM_CHUNK_SIZE:10}
+    max-concurrency: ${LLM_MAX_CONCURRENCY:3}
     base-url: https://generativelanguage.googleapis.com
     api-key: ${GEMINI_API_KEY:}

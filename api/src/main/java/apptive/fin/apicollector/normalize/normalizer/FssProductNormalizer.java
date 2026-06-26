@@ -108,7 +108,7 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                     .baseRate(decimal(option, "intr_rate"))
                     .maxRate(decimal(option, "intr_rate2"))
                     .maxMonthlyLimit(maxMonthlyLimit)
-                    .minTenureMonths(integer(option, "save_trm"))
+//                    .minTenureMonths(integer(option, "save_trm"))
                     .requiresHomeless(false)
                     .requiresHouseholder(false)
                     .keywords(keywords)

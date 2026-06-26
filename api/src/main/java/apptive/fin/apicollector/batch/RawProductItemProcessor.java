@@ -19,7 +19,7 @@ public class RawProductItemProcessor implements ItemProcessor<ProductRaw, Produc
 
     private final List<ProductNormalizer> normalizers;
     private final List<ProductDraftEnricher> enrichers;
-    private Map<Source, ProductNormalizer> normalizerBySource;
+    private volatile Map<Source, ProductNormalizer> normalizerBySource;
 
     @Override
     public ProductDraft process(ProductRaw item) {
@@ -39,15 +39,26 @@ public class RawProductItemProcessor implements ItemProcessor<ProductRaw, Produc
     }
 
     private Map<Source, ProductNormalizer> normalizerBySource() {
-        if (normalizerBySource == null) {
-            Map<Source, ProductNormalizer> result = new EnumMap<>(Source.class);
-            for (ProductNormalizer normalizer : normalizers) {
-                result.put(normalizer.source(), normalizer);
+        Map<Source, ProductNormalizer> result = normalizerBySource;
+        if (result == null) {
+            synchronized (this) {
+                result = normalizerBySource;
+                if (result == null) {
+                    result = buildNormalizerBySource();
+                    normalizerBySource = result;
+                }
             }
-            normalizerBySource = Map.copyOf(result);
         }
 
-        return normalizerBySource;
+        return result;
+    }
+
+    private Map<Source, ProductNormalizer> buildNormalizerBySource() {
+        Map<Source, ProductNormalizer> result = new EnumMap<>(Source.class);
+        for (ProductNormalizer normalizer : normalizers) {
+            result.put(normalizer.source(), normalizer);
+        }
+        return Map.copyOf(result);
     }
 
 }

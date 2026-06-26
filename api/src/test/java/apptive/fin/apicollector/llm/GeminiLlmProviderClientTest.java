@@ -150,7 +150,7 @@ class GeminiLlmProviderClientTest {
                 7,
                 new CollectorProperties.OntongYouth("http://localhost", "key", 100),
                 new CollectorProperties.Fss("http://localhost", "key", 100),
-                new CollectorProperties.Llm(true, "GEMINI", "gemini-test", 1, 1, "http://localhost", "key")
+                new CollectorProperties.Llm(true, "GEMINI", "gemini-test", 1, 1, 10, 3, "http://localhost", "key")
         );
     }
 }

@@ -130,7 +130,7 @@ class OntongYouthProductNormalizerTest {
                 7,
                 new CollectorProperties.OntongYouth("http://localhost", "key", 100),
                 new CollectorProperties.Fss("http://localhost", "key", 100),
-                new CollectorProperties.Llm(false, "GEMINI", "gemini-test", 1, 1, "http://localhost", "")
+                new CollectorProperties.Llm(false, "GEMINI", "gemini-test", 1, 1, 10, 3, "http://localhost", "")
         );
     }
 
