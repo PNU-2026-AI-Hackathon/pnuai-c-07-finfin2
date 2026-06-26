@@ -27,6 +27,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class MatchScoreServiceTest {
 
+    private static final String KB_PROVIDER_CODE = "0010927";
+
     @Mock
     private ResolveKeywordService resolveKeywordService;
 
@@ -538,6 +540,52 @@ class MatchScoreServiceTest {
         ProductMatchDto result = matchScoreService.score(
                 product,
                 createRequest(300_000L, List.of("SHINHAN"), List.of()),
+                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                true
+        );
+
+        assertThat(result.bankCondScore()).isZero();
+    }
+
+    @Test
+    void 거래이력은_provider_code로만_매칭된다() {
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        ProductProperty property = createProperty(
+                10L,
+                "국민은행",
+                500_000L,
+                12,
+                KeywordValueEnum.BANK_FIRST_TRANSACTION
+        );
+        setProviderCode(property, KB_PROVIDER_CODE);
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                createRequest(300_000L, List.of(KB_PROVIDER_CODE), List.of()),
+                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                true
+        );
+
+        assertThat(result.bankCondScore()).isGreaterThan(0.0);
+    }
+
+    @Test
+    void 거래이력은_provider_별칭으로_매칭되지_않는다() {
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        ProductProperty property = createProperty(
+                10L,
+                "국민은행",
+                500_000L,
+                12,
+                KeywordValueEnum.BANK_FIRST_TRANSACTION
+        );
+        setProviderCode(property, KB_PROVIDER_CODE);
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                createRequest(300_000L, List.of("KB"), List.of()),
                 new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
                 true
         );
