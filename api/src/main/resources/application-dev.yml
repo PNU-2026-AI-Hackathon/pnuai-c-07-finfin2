@@ -45,8 +45,9 @@ collector:
     provider: GEMINI
     model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
     prompt-version: 1
-    schema-version: 3
+    schema-version: 6
     chunk-size: ${LLM_CHUNK_SIZE:10}
     max-concurrency: ${LLM_MAX_CONCURRENCY:3}
+    temperature: ${LLM_TEMPERATURE:0.1}
     base-url: https://generativelanguage.googleapis.com
     api-key: ${GEMINI_API_KEY:}

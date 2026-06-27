@@ -38,6 +38,7 @@ public record CollectorProperties(
             int schemaVersion,
             int chunkSize,
             int maxConcurrency,
+            Double temperature,
             String baseUrl,
             String apiKey
     ) {}

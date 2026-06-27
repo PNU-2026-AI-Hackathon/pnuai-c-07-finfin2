@@ -199,6 +199,7 @@ class FssLlmProductDraftEnricherTest {
                         1,
                         10,
                         3,
+                        0.1,
                         "http://localhost",
                         llmEnabled ? "key" : ""
                 )

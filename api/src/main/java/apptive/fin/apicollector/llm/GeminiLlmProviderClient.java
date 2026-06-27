@@ -7,6 +7,7 @@ import apptive.fin.apicollector.product.ContributionType;
 import apptive.fin.apicollector.product.ExtractionConfidence;
 import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.product.RequiredKeywordEffect;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -19,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 @Component
 public class GeminiLlmProviderClient implements LlmProviderClient {
 
@@ -60,9 +62,12 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         body.put("model", request.model());
         body.put("input", request.prompt());
 
-        ObjectNode generationConfig = objectMapper.createObjectNode();
-        generationConfig.put("temperature", 0.1);
-        body.set("generation_config", generationConfig);
+        Double temperature = properties.llm().temperature();
+        if (temperature != null) {
+            ObjectNode generationConfig = objectMapper.createObjectNode();
+            generationConfig.put("temperature", temperature);
+            body.set("generation_config", generationConfig);
+        }
 
         ObjectNode responseFormat = objectMapper.createObjectNode();
         responseFormat.put("type", "text");
@@ -141,7 +146,7 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         ObjectNode item = objectMapper.createObjectNode();
         item.put("type", "object");
         ObjectNode properties = objectMapper.createObjectNode();
-        properties.set("keywordCode", keywordEnumSchema("STATUS_* 키워드만 허용"));
+        properties.set("keywordCode", keywordEnumSchema("STATUS_* 키워드만 허용", requiredKeywordEnumValues()));
         properties.set("effect", enumSchema("필수 또는 제외 조건", "REQUIRE", "EXCLUDE"));
         properties.set("confidence", enumSchema("추출 신뢰도", "HIGH", "MEDIUM", "LOW"));
         item.set("properties", properties);
@@ -153,12 +158,27 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
     private ObjectNode preferentialRatesSchema() {
         ObjectNode schema = objectMapper.createObjectNode();
         schema.put("type", "array");
-        schema.put("description", "조건별 명시 가산 우대금리. 총합/최고우대금리만 있으면 빈 배열");
+        schema.put("description", """
+                조건별 명시 가산 우대금리. 총합/최고우대금리만 있으면 빈 배열.
+                제공된 BANK_* 키워드로 정확히 표현할 수 없는 우대조건은 제외한다.
+                요구불평잔, 평균잔액, 예금/적금 보유, 특정 상품 만기/해지 고객, 추천/쿠폰/이벤트 조건은 제외한다.
+                """);
 
         ObjectNode item = objectMapper.createObjectNode();
         item.put("type", "object");
         ObjectNode properties = objectMapper.createObjectNode();
-        properties.set("keywordCode", keywordEnumSchema("우대금리 조건 키워드"));
+        properties.set("keywordCode", keywordEnumSchema("""
+                우대금리 조건 키워드.
+                BANK_CARD_USAGE=카드 보유/사용/결제실적,
+                BANK_SALARY_TRANSFER=급여이체,
+                BANK_AUTO_TRANSFER=자동이체,
+                BANK_MARKETING=마케팅/개인정보 동의,
+                BANK_FIRST_TRANSACTION=첫거래/최초거래/신규고객,
+                BANK_REDEPOSIT=재예치/재가입,
+                BANK_ONLINE_JOIN=인터넷/모바일/비대면 가입,
+                BANK_AGE=나이/연령 조건.
+                의미가 정확히 맞지 않으면 항목을 만들지 않는다.
+                """, preferentialRateKeywordEnumValues()));
         properties.set("rate", numberSchema("가산 우대금리 percentage point"));
         properties.set("description", stringSchema("원문 근거 요약"));
         properties.set("minAge", integerSchema("나이 우대 최소 나이. 없으면 null"));
@@ -177,10 +197,10 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         return schema;
     }
 
-    private ObjectNode keywordEnumSchema(String description) {
+    private ObjectNode keywordEnumSchema(String description, ArrayNode values) {
         ObjectNode schema = objectMapper.createObjectNode();
         schema.put("type", "string");
-        schema.set("enum", keywordEnumValues());
+        schema.set("enum", values);
         schema.put("description", description);
         return schema;
     }
@@ -220,7 +240,7 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
 
         ObjectNode items = objectMapper.createObjectNode();
         items.put("type", "string");
-        items.set("enum", keywordEnumValues());
+        items.set("enum", enrichmentKeywordEnumValues());
         schema.set("items", items);
         return schema;
     }
@@ -239,10 +259,32 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         return array;
     }
 
-    private ArrayNode keywordEnumValues() {
+    private ArrayNode enrichmentKeywordEnumValues() {
         ArrayNode array = objectMapper.createArrayNode();
         for (KeywordValueEnum keyword : KeywordValueEnum.values()) {
-            array.add(keyword.name());
+            if (!keyword.name().startsWith("TERM_")) {
+                array.add(keyword.name());
+            }
+        }
+        return array;
+    }
+
+    private ArrayNode requiredKeywordEnumValues() {
+        ArrayNode array = objectMapper.createArrayNode();
+        for (KeywordValueEnum keyword : KeywordValueEnum.values()) {
+            if (isRequiredKeyword(keyword)) {
+                array.add(keyword.name());
+            }
+        }
+        return array;
+    }
+
+    private ArrayNode preferentialRateKeywordEnumValues() {
+        ArrayNode array = objectMapper.createArrayNode();
+        for (KeywordValueEnum keyword : KeywordValueEnum.values()) {
+            if (isPreferentialRateKeyword(keyword)) {
+                array.add(keyword.name());
+            }
         }
         return array;
     }
@@ -252,7 +294,7 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         validateResponseShape(enrichmentNode);
         return new LlmProductEnrichment(
                 text(enrichmentNode, "summaryContent"),
-                stringList(enrichmentNode.path("keywords")),
+                enrichmentKeywords(enrichmentNode.path("keywords")),
                 longValue(enrichmentNode, "minMonthlyLimit"),
                 longValue(enrichmentNode, "maxMonthlyLimit"),
                 integer(enrichmentNode, "minAge"),
@@ -388,6 +430,24 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         return result;
     }
 
+    private List<String> enrichmentKeywords(JsonNode node) {
+        List<String> values = stringList(node);
+        if (values.isEmpty()) {
+            return values;
+        }
+
+        List<String> result = new ArrayList<>();
+        for (String value : values) {
+            KeywordValueEnum keyword = KeywordValueEnum.from(value);
+            if (keyword == null || keyword.name().startsWith("TERM_")) {
+                log.debug("Dropping invalid Gemini keyword. keyword={}", value);
+                continue;
+            }
+            result.add(keyword.name());
+        }
+        return List.copyOf(result);
+    }
+
     private List<RequiredKeywordDraft> requiredKeywords(JsonNode node) {
         if (node == null || !node.isArray()) {
             return List.of();
@@ -398,8 +458,9 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
             KeywordValueEnum keyword = keyword(item, "keywordCode");
             RequiredKeywordEffect effect = enumValue(RequiredKeywordEffect.class, text(item, "effect"));
             ExtractionConfidence confidence = enumValue(ExtractionConfidence.class, text(item, "confidence"));
-            if (keyword == null || effect == null || confidence == null) {
-                throw new IllegalStateException("Gemini response requiredKeywords item is invalid. response=" + preview(item));
+            if (!isRequiredKeyword(keyword) || effect == null || confidence == null) {
+                log.debug("Dropping invalid Gemini requiredKeywords item. response={}", preview(item));
+                continue;
             }
             result.add(RequiredKeywordDraft.builder()
                     .keywordCode(keyword)
@@ -419,18 +480,74 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         for (JsonNode item : node) {
             KeywordValueEnum keyword = keyword(item, "keywordCode");
             BigDecimal rate = decimal(item, "rate");
-            if (keyword == null || rate == null) {
-                throw new IllegalStateException("Gemini response preferentialRates item is invalid. response=" + preview(item));
+            Integer minAge = integer(item, "minAge");
+            Integer maxAge = integer(item, "maxAge");
+            String description = text(item, "description");
+            if (!isPreferentialRateKeyword(keyword) || rate == null) {
+                log.debug("Dropping invalid Gemini preferentialRates item. response={}", preview(item));
+                continue;
+            }
+            if (minAge != null && maxAge != null && maxAge < minAge) {
+                log.debug("Dropping Gemini preferentialRates item with invalid age range. response={}", preview(item));
+                continue;
+            }
+            if (!matchesPreferentialRateKeyword(keyword, description, minAge, maxAge)) {
+                log.debug("Dropping Gemini preferentialRates item with unsupported condition. response={}", preview(item));
+                continue;
             }
             result.add(PreferentialRateDraft.builder()
                     .keywordCode(keyword)
                     .rate(rate)
-                    .description(text(item, "description"))
-                    .minAge(integer(item, "minAge"))
-                    .maxAge(integer(item, "maxAge"))
+                    .description(description)
+                    .minAge(minAge)
+                    .maxAge(maxAge)
                     .build());
         }
         return List.copyOf(result);
+    }
+
+    private boolean isRequiredKeyword(KeywordValueEnum keyword) {
+        return keyword != null && keyword.name().startsWith("STATUS_");
+    }
+
+    private boolean isPreferentialRateKeyword(KeywordValueEnum keyword) {
+        return keyword != null && keyword.name().startsWith("BANK_");
+    }
+
+    private boolean matchesPreferentialRateKeyword(
+            KeywordValueEnum keyword,
+            String description,
+            Integer minAge,
+            Integer maxAge
+    ) {
+        return switch (keyword) {
+            case BANK_SALARY_TRANSFER -> containsAny(description, "급여", "월급", "salary");
+            case BANK_CARD_USAGE -> containsAny(description, "카드", "체크카드", "신용카드", "결제실적", "전월결제", "card", "payment");
+            case BANK_AUTO_TRANSFER -> containsAny(description, "자동이체", "자동 이체");
+            case BANK_MARKETING -> containsAny(description, "마케팅", "상품서비스", "개인정보", "개인(신용)정보", "수집이용", "동의");
+            case BANK_FIRST_TRANSACTION -> containsAny(description, "첫거래", "최초거래", "신규고객", "신규 고객", "첫 예금거래", "입출금통장 최초");
+            case BANK_REDEPOSIT -> containsAny(description, "재예치", "재가입") && !hasAmountOrBalanceCondition(description);
+            case BANK_ONLINE_JOIN -> containsAny(description, "인터넷 가입", "스마트뱅킹 가입", "비대면 가입", "모바일 가입", "온라인 가입", "online join", "mobile join");
+            case BANK_AGE -> minAge != null || maxAge != null || containsAny(description, "나이", "연령");
+            default -> false;
+        };
+    }
+
+    private boolean containsAny(String value, String... tokens) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String normalized = value.toLowerCase();
+        for (String token : tokens) {
+            if (normalized.contains(token.toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasAmountOrBalanceCondition(String value) {
+        return containsAny(value, "금액", "잔액", "평잔", "평균잔액", "요구불", "만원", "백만원", "억원");
     }
 
     private KeywordValueEnum keyword(JsonNode node, String fieldName) {
