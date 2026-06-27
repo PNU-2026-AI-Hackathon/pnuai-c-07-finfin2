@@ -217,6 +217,28 @@ class GeminiLlmProviderClientTest {
     }
 
     @Test
+    void dropsLowAndMediumConfidenceRequiredKeywords() {
+        LlmProductEnrichment result = client.parseResponse(baseResponse()
+                .set("requiredKeywords", objectMapper.createArrayNode()
+                        .add(objectMapper.createObjectNode()
+                                .put("keywordCode", "STATUS_UNEMPLOYED")
+                                .put("effect", "REQUIRE")
+                                .put("confidence", "LOW"))
+                        .add(objectMapper.createObjectNode()
+                                .put("keywordCode", "STATUS_PART_TIME")
+                                .put("effect", "REQUIRE")
+                                .put("confidence", "MEDIUM"))
+                        .add(objectMapper.createObjectNode()
+                                .put("keywordCode", "STATUS_MILITARY")
+                                .put("effect", "REQUIRE")
+                                .put("confidence", "HIGH"))));
+
+        assertThat(result.requiredKeywords())
+                .extracting(RequiredKeywordDraft::keywordCode)
+                .containsExactly(KeywordValueEnum.STATUS_MILITARY);
+    }
+
+    @Test
     void dropsFittedPreferentialRateKeywordsWhenConditionDoesNotMatchKeywordMeaning() {
         LlmProductEnrichment result = client.parseResponse(baseResponse()
                 .set("preferentialRates", objectMapper.createArrayNode()

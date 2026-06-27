@@ -92,7 +92,7 @@ class FssLlmProductDraftEnricherTest {
                 objectMapper
         );
 
-        ProductDraft result = enricher.enrich(raw(), draft());
+        ProductDraft result = enricher.enrich(raw("중소기업 재직 청년만 가입 가능", "월 1만원 이상 가입"), draft());
         ProductPropertyDraft property = result.properties().getFirst();
 
         assertThat(result.productName()).isEqualTo("청년 적금");
@@ -123,6 +123,124 @@ class FssLlmProductDraftEnricherTest {
     }
 
     @Test
+    void dropsFittedRequiredKeywordsWhenEligibilityTextDoesNotExplicitlyMatch() {
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(
+                        RequiredKeywordDraft.builder()
+                                .keywordCode(KeywordValueEnum.STATUS_UNEMPLOYED)
+                                .effect(RequiredKeywordEffect.REQUIRE)
+                                .confidence(ExtractionConfidence.LOW)
+                                .build(),
+                        RequiredKeywordDraft.builder()
+                                .keywordCode(KeywordValueEnum.STATUS_PART_TIME)
+                                .effect(RequiredKeywordEffect.REQUIRE)
+                                .confidence(ExtractionConfidence.HIGH)
+                                .build(),
+                        RequiredKeywordDraft.builder()
+                                .keywordCode(KeywordValueEnum.STATUS_SME_WORKER)
+                                .effect(RequiredKeywordEffect.EXCLUDE)
+                                .confidence(ExtractionConfidence.HIGH)
+                                .build()
+                ),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductDraft result = enricher.enrich(raw("만 17세 이상 실명의 개인 및 개인사업자", "가입금액: 1천원 이상"), draft());
+
+        assertThat(result.properties().getFirst().requiredKeywords()).isEmpty();
+    }
+
+    @Test
+    void keepsExplicitRequiredAndExcludedStatusKeywords() {
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(
+                        RequiredKeywordDraft.builder()
+                                .keywordCode(KeywordValueEnum.STATUS_SME_WORKER)
+                                .effect(RequiredKeywordEffect.REQUIRE)
+                                .confidence(ExtractionConfidence.HIGH)
+                                .build(),
+                        RequiredKeywordDraft.builder()
+                                .keywordCode(KeywordValueEnum.STATUS_MILITARY)
+                                .effect(RequiredKeywordEffect.EXCLUDE)
+                                .confidence(ExtractionConfidence.HIGH)
+                                .build()
+                ),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductDraft result = enricher.enrich(raw(
+                "중소기업 재직 청년만 가입 가능",
+                "군인은 가입 제외"
+        ), draft());
+
+        assertThat(result.properties().getFirst().requiredKeywords())
+                .extracting(RequiredKeywordDraft::keywordCode)
+                .containsExactlyInAnyOrder(KeywordValueEnum.STATUS_SME_WORKER, KeywordValueEnum.STATUS_MILITARY);
+    }
+
+    @Test
     void fallsBackToOriginalDraftWhenProviderFails() {
         LlmProviderClient providerClient = mock(LlmProviderClient.class);
         LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
@@ -147,16 +265,20 @@ class FssLlmProductDraftEnricherTest {
     }
 
     private ProductRaw raw() {
+        return raw("실명의 개인", "월 1만원 이상 가입");
+    }
+
+    private ProductRaw raw(String joinMember, String etcNote) {
         return new ProductRaw(Source.FSS, "FSS:SAVING:001:ABC", "hash", """
                 {
                   "source": "FSS",
                   "base": {
                     "fin_prdt_nm": "청년 적금",
-                    "join_member": "실명의 개인",
-                    "etc_note": "월 1만원 이상 가입"
+                    "join_member": "%s",
+                    "etc_note": "%s"
                   }
                 }
-                """, ProductType.SAVING);
+                """.formatted(joinMember, etcNote), ProductType.SAVING);
     }
 
     private ProductDraft draft() {

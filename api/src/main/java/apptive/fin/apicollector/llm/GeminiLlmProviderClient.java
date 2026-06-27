@@ -462,6 +462,10 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
                 log.debug("Dropping invalid Gemini requiredKeywords item. response={}", preview(item));
                 continue;
             }
+            if (confidence != ExtractionConfidence.HIGH) {
+                log.debug("Dropping low-confidence Gemini requiredKeywords item. response={}", preview(item));
+                continue;
+            }
             result.add(RequiredKeywordDraft.builder()
                     .keywordCode(keyword)
                     .effect(effect)
