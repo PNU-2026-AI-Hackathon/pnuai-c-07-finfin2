@@ -60,6 +60,10 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         body.put("model", request.model());
         body.put("input", request.prompt());
 
+        ObjectNode generationConfig = objectMapper.createObjectNode();
+        generationConfig.put("temperature", 0.1);
+        body.set("generation_config", generationConfig);
+
         ObjectNode responseFormat = objectMapper.createObjectNode();
         responseFormat.put("type", "text");
         responseFormat.put("mime_type", "application/json");
