@@ -1,4 +1,4 @@
-# FIN
+# Y-FIN.
 청년들의 금융(Finance) 고민을 끝(Finish)내다.
 
 ---
@@ -46,13 +46,15 @@
 | 카테고리 목록 조회 | GET    | `/api/categories` |
 
 ### /search
-| 기능 | Method | API Path |
-|------|--------|----------|
-| 동적 폼 조회 | POST | `/search/dynamic-form` |
-| 맞춤 상품 추천 | POST | `/search/products` |
+| 기능       | Method | API Path |
+|----------|--------|----------|
+| 동적 폼 조회  | POST   | `/search/dynamic-form` |
+| 맞춤 상품 추천 | POST   | `/search/products` |
+| 상품명 검색   | GET    | `/search/products` |
+
 
 ## 4. 개발현황
-Update : 2026/05/04
+Update : 2026/06/29
 
 | 도메인       | 진행상황 | 비고 |
 | -------- | ------ | -------- |
