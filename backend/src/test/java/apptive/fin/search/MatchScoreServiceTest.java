@@ -9,6 +9,8 @@ import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.entity.ProductSource;
 import apptive.fin.search.entity.Provider;
+import apptive.fin.search.provider.BankDisplayRegistry;
+import apptive.fin.search.provider.ProviderDisplayResolver;
 import apptive.fin.search.service.MatchScoreService;
 import apptive.fin.search.service.ResolveKeywordService;
 import org.junit.jupiter.api.Test;
@@ -32,9 +34,12 @@ class MatchScoreServiceTest {
     @Mock
     private ResolveKeywordService resolveKeywordService;
 
+    private final ProviderDisplayResolver providerDisplayResolver =
+            new ProviderDisplayResolver(new BankDisplayRegistry());
+
     @Test
     void 월저축목표가_null이어도_예외없이_저축액점수를_제외한다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         Product product = new Product();
         ProductSource source = new ProductSource();
         Provider provider = new Provider();
@@ -71,7 +76,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 옵션이_여러개이면_최고점수_옵션_하나만_반환한다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         Product product = new Product();
         ProductSource source = new ProductSource();
 
@@ -123,7 +128,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 신분을_선택하지_않으면_신분_배점을_은행상품_유효항목에_재배분한다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         Product product = createProduct("FSS", createProperty(
                 10L,
                 "test-bank",
@@ -151,7 +156,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 은행상품에_해당하지_않는_혜택은_제외하고_배점을_재배분한다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         Product product = createProduct("FSS", createProperty(
                 10L,
                 "test-bank",
@@ -183,7 +188,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 신분_기간_혜택을_선택하지_않으면_은행조건과_납입에_비례_재배분한다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         Product product = createProduct("FSS", createProperty(
                 10L,
                 "test-bank",
@@ -214,7 +219,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 은행상품은_기간이_인접구간이면_기간점수를_절반만_부여한다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         Product product = createProduct("FSS", createProperty(
                 10L,
                 "test-bank",
@@ -243,7 +248,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 은행상품은_희망납입액이_한도를_초과하면_비율만큼_납입점수를_감점한다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         Product product = createProduct("FSS", createProperty(
                 10L,
                 "test-bank",
@@ -272,7 +277,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 은행상품은_은행조건_여러개중_일치한_비율만큼_점수를_부여한다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         Product product = createProduct("FSS", createProperty(
                 10L,
                 "test-bank",
@@ -301,7 +306,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 정부상품은_은행조건을_제외하고_배점을_재배분한다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         Product product = createProduct("ONTONG", createProperty(
                 10L,
                 "policy-provider",
@@ -331,7 +336,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 정부상품은_MVP_배점을_사용하고_은행조건을_무시한다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         Product product = createProduct("ONTONG", createProperty(
                 10L,
                 "policy-provider",
@@ -364,7 +369,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 정부상품은_일반_신분_키워드가_일치하면_신분점수를_절반만_부여한다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         Product product = createProduct("ONTONG", createProperty(
                 10L,
                 "policy-provider",
@@ -392,7 +397,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 은행상품은_모든_선택항목이_일치하면_MVP_배점을_그대로_사용한다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         Product product = createProduct("FSS", createProperty(
                 10L,
                 "test-bank",
@@ -425,7 +430,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 정부상품은_은행_제공기관이어도_은행조건_점수를_반영하지_않는다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         ProductProperty property = createProperty(
                 10L,
                 "KB",
@@ -457,7 +462,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 거래이력_반영이_켜져_있으면_탭A에_첫거래_조건을_반영한다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         ProductProperty property = createProperty(
                 10L,
                 "KB",
@@ -480,7 +485,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 거래이력_반영이_켜져_있으면_탭A에_재예치_조건을_반영한다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         ProductProperty property = createProperty(
                 10L,
                 "KB",
@@ -503,7 +508,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 거래이력_반영이_꺼져_있으면_탭A에_첫거래_조건을_반영하지_않는다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         ProductProperty property = createProperty(
                 10L,
                 "KB",
@@ -526,7 +531,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 첫거래_거래이력은_선택한_은행에만_매칭된다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         ProductProperty property = createProperty(
                 10L,
                 "KB",
@@ -549,7 +554,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 거래이력은_provider_code로만_매칭된다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         ProductProperty property = createProperty(
                 10L,
                 "국민은행",
@@ -572,7 +577,7 @@ class MatchScoreServiceTest {
 
     @Test
     void 거래이력은_provider_별칭으로_매칭되지_않는다() {
-        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService, providerDisplayResolver);
         ProductProperty property = createProperty(
                 10L,
                 "국민은행",

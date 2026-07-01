@@ -9,6 +9,8 @@ import apptive.fin.search.entity.ProductPreferentialRate;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.entity.ProductSource;
 import apptive.fin.search.entity.Provider;
+import apptive.fin.search.provider.BankDisplayRegistry;
+import apptive.fin.search.provider.ProviderDisplayResolver;
 import apptive.fin.search.service.RateCalculatorService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -25,7 +27,8 @@ class RateCalculatorServiceTest {
     private static final String KB_PROVIDER_CODE = "0010927";
     private static final String SHINHAN_PROVIDER_CODE = "0011625";
 
-    private final RateCalculatorService rateCalculatorService = new RateCalculatorService();
+    private final RateCalculatorService rateCalculatorService =
+            new RateCalculatorService(new ProviderDisplayResolver(new BankDisplayRegistry()));
 
     @Test
     void 은행상품은_적용되는_우대금리가_없으면_기본금리를_사용한다() {
