@@ -70,7 +70,7 @@ class FssProductNormalizerTest {
         assertThat(draft.properties().get(1).baseRate()).isEqualByComparingTo("3.5");
         assertThat(draft.properties().get(1).maxRate()).isEqualByComparingTo("4.5");
         assertThat(draft.properties().get(1).maxMonthlyLimit()).isEqualTo(300_000L);
-        assertThat(draft.properties().get(1).minTenureMonths()).isEqualTo(24);
+        assertThat(draft.properties().get(1).minTenureMonths()).isNull();
         assertThat(draft.shouldSaveProduct()).isTrue();
     }
 
@@ -156,7 +156,7 @@ class FssProductNormalizerTest {
                 7,
                 new CollectorProperties.OntongYouth("http://localhost", "key", 100),
                 new CollectorProperties.Fss("http://localhost", "key", 100),
-                new CollectorProperties.Llm(false, "GEMINI", "gemini-test", 1, 1, 10, 3, "http://localhost", "")
+                new CollectorProperties.Llm(false, "GEMINI", "gemini-test", 1, 1, 10, 3, 0.1, "http://localhost", "")
         );
     }
 
