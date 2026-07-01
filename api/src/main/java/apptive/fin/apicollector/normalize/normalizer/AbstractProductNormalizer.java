@@ -156,6 +156,10 @@ public abstract class AbstractProductNormalizer {
         addIfContains(keywords, joined, KeywordValueEnum.BANK_FIRST_TRANSACTION, "최초", "첫거래");
         addIfContains(keywords, joined, KeywordValueEnum.BANK_SALARY_TRANSFER, "급여");
         addIfContains(keywords, joined, KeywordValueEnum.BANK_CARD_USAGE, "카드");
+        addIfContains(keywords, joined, KeywordValueEnum.BANK_AUTO_TRANSFER, "자동이체");
+        addIfContains(keywords, joined, KeywordValueEnum.BANK_MARKETING, "마케팅", "상품서비스", "개인정보");
+        addIfContains(keywords, joined, KeywordValueEnum.BANK_REDEPOSIT, "재예치", "재가입");
+        addIfContains(keywords, joined, KeywordValueEnum.BANK_ONLINE_JOIN, "인터넷", "스마트폰", "모바일", "비대면");
 
         return List.copyOf(keywords);
     }

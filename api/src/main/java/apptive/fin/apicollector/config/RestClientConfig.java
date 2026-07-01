@@ -24,4 +24,11 @@ public class RestClientConfig {
                 .baseUrl(collectorProperties.fss().baseUrl())
                 .build();
     }
+
+    @Bean
+    public RestClient geminiRestClient() {
+        return RestClient.builder()
+                .baseUrl(collectorProperties.llm().baseUrl())
+                .build();
+    }
 }

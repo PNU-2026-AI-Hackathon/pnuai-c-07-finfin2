@@ -4,6 +4,9 @@ import apptive.fin.apicollector.Mode;
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.config.CollectorProperties;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
+import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
+import apptive.fin.apicollector.normalize.extractor.FssPreferentialRateExtractor;
+import apptive.fin.apicollector.normalize.extractor.FssRequiredKeywordExtractor;
 import apptive.fin.apicollector.normalize.extractor.KeywordExtractor;
 import apptive.fin.apicollector.normalize.extractor.keywords.BankKeywordRecognizer;
 import apptive.fin.apicollector.normalize.extractor.keywords.BenefitKeywordRecognizer;
@@ -28,7 +31,9 @@ class FssProductNormalizerTest {
     private final FssProductNormalizer normalizer = new FssProductNormalizer(
             objectMapper,
             properties(),
-            keywordExtractor()
+            keywordExtractor(),
+            new FssPreferentialRateExtractor(),
+            new FssRequiredKeywordExtractor()
     );
 
     @Test
@@ -65,7 +70,7 @@ class FssProductNormalizerTest {
         assertThat(draft.properties().get(1).baseRate()).isEqualByComparingTo("3.5");
         assertThat(draft.properties().get(1).maxRate()).isEqualByComparingTo("4.5");
         assertThat(draft.properties().get(1).maxMonthlyLimit()).isEqualTo(300_000L);
-        assertThat(draft.properties().get(1).minTenureMonths()).isEqualTo(24);
+        assertThat(draft.properties().get(1).minTenureMonths()).isNull();
         assertThat(draft.shouldSaveProduct()).isTrue();
     }
 
@@ -102,6 +107,45 @@ class FssProductNormalizerTest {
                 );
     }
 
+    @Test
+    void extractsPreferentialRatesAndRequiredKeywordsFromFssText() {
+        ProductRaw raw = new ProductRaw(Source.FSS, "FSS:SAVING:003:GHI", "hash", """
+                {
+                  "source": "FSS",
+                  "productType": "SAVING",
+                  "financialGroupName": "은행",
+                  "base": {
+                    "fin_co_no": "003",
+                    "kor_co_nm": "테스트은행",
+                    "fin_prdt_nm": "중소기업 우대 적금",
+                    "join_way": "스마트폰",
+                    "spcl_cnd": "최고우대금리 1.0%p\\n급여이체 실적 : 0.5%p\\n카드 사용 : 0.3%p\\n마케팅 동의 : 0.1%p",
+                    "join_member": "중소기업 재직 근로자",
+                    "max_limit": 500000
+                  },
+                  "options": [
+                    {"intr_rate_type": "S", "intr_rate_type_nm": "단리", "save_trm": "12", "intr_rate": 3.0, "intr_rate2": 4.0}
+                  ]
+                }
+                """, ProductType.SAVING);
+
+        ProductDraft draft = normalizer.normalize(raw);
+        ProductPropertyDraft property = draft.properties().getFirst();
+
+        assertThat(property.preferentialRates())
+                .extracting(rate -> rate.keywordCode())
+                .containsExactlyInAnyOrder(
+                        KeywordValueEnum.BANK_SALARY_TRANSFER,
+                        KeywordValueEnum.BANK_CARD_USAGE,
+                        KeywordValueEnum.BANK_MARKETING
+                );
+        assertThat(property.preferentialRates())
+                .allSatisfy(rate -> assertThat(rate.rate()).isPositive());
+        assertThat(property.requiredKeywords())
+                .extracting(required -> required.keywordCode())
+                .containsExactly(KeywordValueEnum.STATUS_SME_WORKER);
+    }
+
     private CollectorProperties properties() {
         return new CollectorProperties(
                 true,
@@ -111,7 +155,8 @@ class FssProductNormalizerTest {
                 500,
                 7,
                 new CollectorProperties.OntongYouth("http://localhost", "key", 100),
-                new CollectorProperties.Fss("http://localhost", "key", 100)
+                new CollectorProperties.Fss("http://localhost", "key", 100),
+                new CollectorProperties.Llm(false, "GEMINI", "gemini-test", 1, 1, 10, 3, 0.1, "http://localhost", "")
         );
     }
 

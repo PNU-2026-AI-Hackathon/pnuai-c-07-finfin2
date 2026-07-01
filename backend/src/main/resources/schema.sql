@@ -111,6 +111,7 @@ CREATE TABLE product (
     product_code VARCHAR(100),
     product_name VARCHAR(200) NOT NULL,
     content TEXT,
+    content_summary TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

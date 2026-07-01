@@ -2,7 +2,7 @@ package apptive.fin.apicollector.client.fss;
 
 
 import apptive.fin.apicollector.config.CollectorProperties;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-@RequiredArgsConstructor
 public class FssClient {
 
     private static final String DEPOSIT_PATH = "/finlifeapi/depositProductsSearch.json";
@@ -26,6 +25,16 @@ public class FssClient {
     private final CollectorProperties properties;
     private final RestClient fssRestClient;
     private final ObjectMapper objectMapper;
+
+    public FssClient(
+            CollectorProperties properties,
+            @Qualifier("fssRestClient") RestClient fssRestClient,
+            ObjectMapper objectMapper
+    ) {
+        this.properties = properties;
+        this.fssRestClient = fssRestClient;
+        this.objectMapper = objectMapper;
+    }
 
     public List<FssRawProduct> fetchAll() {
         List<FssRawProduct> result = new ArrayList<>();

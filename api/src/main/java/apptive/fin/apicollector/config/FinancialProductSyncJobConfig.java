@@ -1,5 +1,7 @@
 package apptive.fin.apicollector.config;
 
+import apptive.fin.apicollector.batch.AsyncProductItemProcessor;
+import apptive.fin.apicollector.batch.AsyncProductItemWriter;
 import apptive.fin.apicollector.batch.RawProductItemReader;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.raw.ProductRaw;
@@ -19,6 +21,11 @@ import org.springframework.batch.infrastructure.item.ItemWriter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
+
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Configuration
 @RequiredArgsConstructor
@@ -123,8 +130,20 @@ public class FinancialProductSyncJobConfig {
             PlatformTransactionManager transactionManager,
             RawProductItemReader fssRawProductItemReader,
             ItemProcessor<ProductRaw, ProductDraft> rawProductItemProcessor,
-            ItemWriter<ProductDraft> productDraftItemWriter
+            ItemWriter<ProductDraft> productDraftItemWriter,
+            CollectorProperties properties,
+            ExecutorService fssLlmExecutor
     ) {
+        if (llmEnabled(properties)) {
+            return new StepBuilder("normalizeFssRawProductStep", jobRepository)
+                    .<ProductRaw, CompletableFuture<ProductDraft>>chunk(llmChunkSize(properties))
+                    .reader(fssRawProductItemReader)
+                    .processor(new AsyncProductItemProcessor(rawProductItemProcessor, fssLlmExecutor))
+                    .writer(new AsyncProductItemWriter(productDraftItemWriter))
+                    .transactionManager(transactionManager)
+                    .build();
+        }
+
         return new StepBuilder("normalizeFssRawProductStep", jobRepository)
                 .<ProductRaw, ProductDraft>chunk(100)
                 .reader(fssRawProductItemReader)
@@ -132,6 +151,17 @@ public class FinancialProductSyncJobConfig {
                 .writer(productDraftItemWriter)
                 .transactionManager(transactionManager)
                 .build();
+    }
+
+    @Bean(destroyMethod = "shutdown")
+    public ExecutorService fssLlmExecutor(CollectorProperties properties) {
+        AtomicInteger threadNumber = new AtomicInteger(1);
+        return Executors.newFixedThreadPool(llmMaxConcurrency(properties), runnable -> {
+            Thread thread = new Thread(runnable);
+            thread.setName("fss-llm-" + threadNumber.getAndIncrement());
+            thread.setDaemon(true);
+            return thread;
+        });
     }
 
     @Bean
@@ -171,6 +201,21 @@ public class FinancialProductSyncJobConfig {
         return new StepBuilder("addHighInterestStep", jobRepository)
                 .tasklet(addHighInterest, transactionManager)
                 .build();
+    }
+
+    private boolean llmEnabled(CollectorProperties properties) {
+        return properties.llm() != null && properties.llm().enabled();
+    }
+
+    private int llmChunkSize(CollectorProperties properties) {
+        return Math.max(1, properties.llm().chunkSize());
+    }
+
+    private int llmMaxConcurrency(CollectorProperties properties) {
+        if (properties.llm() == null) {
+            return 1;
+        }
+        return Math.max(1, properties.llm().maxConcurrency());
     }
 
 }

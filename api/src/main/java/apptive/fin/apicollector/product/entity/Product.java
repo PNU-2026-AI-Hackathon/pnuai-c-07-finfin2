@@ -49,6 +49,9 @@ public class Product extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String content;
 
+    @Column(columnDefinition = "TEXT")
+    private String contentSummary;
+
     @BatchSize(size = 100)
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ProductProperty> properties = new ArrayList<>();
@@ -78,6 +81,7 @@ public class Product extends BaseTimeEntity {
         this.type = draft.type();
         this.productName = draft.productName();
         this.content = draft.content();
+        this.contentSummary = draft.contentSummary();
     }
 
     public void replaceProperties(

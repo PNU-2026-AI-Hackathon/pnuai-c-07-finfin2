@@ -108,7 +108,8 @@ class DeactivateMissingProductTaskletTest {
                 100,
                 unseenDisablePeriod,
                 null,
-                null
+                null,
+                new CollectorProperties.Llm(false, "GEMINI", "gemini-test", 1, 1, 10, 3, 0.1, "http://localhost", "")
         );
     }
 }

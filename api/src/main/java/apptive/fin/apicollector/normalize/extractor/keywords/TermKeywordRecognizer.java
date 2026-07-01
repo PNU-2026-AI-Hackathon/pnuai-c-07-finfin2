@@ -25,7 +25,7 @@ public class TermKeywordRecognizer implements KeywordRecognizer {
             keywords.add(KeywordValueEnum.TERM_2_TO_3_YEARS);
         }
         else {
-            keywords.add(KeywordValueEnum.TERM_OVER_5_YEARS);
+            keywords.add(KeywordValueEnum.TERM_OVER_3_YEARS);
         }
 
         return keywords.stream().toList();

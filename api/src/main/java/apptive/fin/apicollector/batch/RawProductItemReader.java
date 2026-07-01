@@ -40,6 +40,11 @@ public class RawProductItemReader implements ItemReader<ProductRaw> {
                     List.of(source),
                     lastSeenId,
                     properties.normalizerVersion(),
+                    llmEnrichmentEnabled(),
+                    llmProvider(),
+                    llmModel(),
+                    llmPromptVersion(),
+                    llmSchemaVersion(),
                     PageRequest.of(0, properties.readerPageSize())
             );
 
@@ -59,5 +64,28 @@ public class RawProductItemReader implements ItemReader<ProductRaw> {
         lastSeenId = item.getId();
 
         return item;
+    }
+
+    private boolean llmEnrichmentEnabled() {
+        return properties.llm() != null
+                && properties.llm().enabled()
+                && properties.llm().apiKey() != null
+                && !properties.llm().apiKey().isBlank();
+    }
+
+    private String llmProvider() {
+        return properties.llm() == null ? "" : properties.llm().provider();
+    }
+
+    private String llmModel() {
+        return properties.llm() == null ? "" : properties.llm().model();
+    }
+
+    private int llmPromptVersion() {
+        return properties.llm() == null ? 0 : properties.llm().promptVersion();
+    }
+
+    private int llmSchemaVersion() {
+        return properties.llm() == null ? 0 : properties.llm().schemaVersion();
     }
 }

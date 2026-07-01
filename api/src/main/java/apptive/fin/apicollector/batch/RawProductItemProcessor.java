@@ -2,6 +2,7 @@ package apptive.fin.apicollector.batch;
 
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
+import apptive.fin.apicollector.normalize.enrich.ProductDraftEnricher;
 import apptive.fin.apicollector.normalize.normalizer.ProductNormalizer;
 import apptive.fin.apicollector.raw.ProductRaw;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +18,8 @@ import java.util.Map;
 public class RawProductItemProcessor implements ItemProcessor<ProductRaw, ProductDraft> {
 
     private final List<ProductNormalizer> normalizers;
-    private Map<Source, ProductNormalizer> normalizerBySource;
+    private final List<ProductDraftEnricher> enrichers;
+    private volatile Map<Source, ProductNormalizer> normalizerBySource;
 
     @Override
     public ProductDraft process(ProductRaw item) {
@@ -27,19 +29,36 @@ public class RawProductItemProcessor implements ItemProcessor<ProductRaw, Produc
                     .formatted(item.getId(), item.getSource()));
         }
 
-        return normalizer.normalize(item);
+        ProductDraft draft = normalizer.normalize(item);
+        for (ProductDraftEnricher enricher : enrichers) {
+            if (enricher.supports(item.getSource())) {
+                draft = enricher.enrich(item, draft);
+            }
+        }
+        return draft;
     }
 
     private Map<Source, ProductNormalizer> normalizerBySource() {
-        if (normalizerBySource == null) {
-            Map<Source, ProductNormalizer> result = new EnumMap<>(Source.class);
-            for (ProductNormalizer normalizer : normalizers) {
-                result.put(normalizer.source(), normalizer);
+        Map<Source, ProductNormalizer> result = normalizerBySource;
+        if (result == null) {
+            synchronized (this) {
+                result = normalizerBySource;
+                if (result == null) {
+                    result = buildNormalizerBySource();
+                    normalizerBySource = result;
+                }
             }
-            normalizerBySource = Map.copyOf(result);
         }
 
-        return normalizerBySource;
+        return result;
+    }
+
+    private Map<Source, ProductNormalizer> buildNormalizerBySource() {
+        Map<Source, ProductNormalizer> result = new EnumMap<>(Source.class);
+        for (ProductNormalizer normalizer : normalizers) {
+            result.put(normalizer.source(), normalizer);
+        }
+        return Map.copyOf(result);
     }
 
 }

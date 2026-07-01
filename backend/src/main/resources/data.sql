@@ -1,4 +1,4 @@
-INSERT INTO median_incomes (year, household_size, earn_percent, monthly_income) VALUES
+﻿INSERT INTO median_incomes (year, household_size, earn_percent, monthly_income) VALUES
 (2026, 1, 60, 154),
 (2026, 1, 80, 205),
 (2026, 1, 100, 256),
@@ -190,6 +190,21 @@ INSERT INTO product_properties (
 
 INSERT INTO product_property_keyword (product_property_id, keyword_code)
 SELECT pp.id, 'BENEFIT_GOV_SUBSIDY' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.source_id = (SELECT id FROM product_source WHERE code = 'ONTONG') AND p.type = 'POLICY'
+UNION ALL SELECT pp.id, 'REGION_BUSAN' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code = 'GOV005'
+UNION ALL SELECT pp.id, 'REGION_GYEONGGI' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code = 'GOV006'
+UNION ALL SELECT pp.id, 'REGION_INCHEON' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code IN ('GOV007', 'GOV008')
+UNION ALL SELECT pp.id, 'REGION_GANGWON' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code IN ('GOV009', 'GOV013')
+UNION ALL SELECT pp.id, 'REGION_GWANGJU' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code = 'GOV010'
+UNION ALL SELECT pp.id, 'REGION_JEONNAM' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code = 'GOV011'
+UNION ALL SELECT pp.id, 'REGION_GYEONGNAM' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code IN ('GOV012', 'GOV018')
+UNION ALL SELECT pp.id, 'REGION_JEONBUK' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code = 'GOV014'
+UNION ALL SELECT pp.id, 'REGION_DAEGU' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code = 'GOV015'
+UNION ALL SELECT pp.id, 'REGION_SEJONG' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code = 'GOV016'
+UNION ALL SELECT pp.id, 'REGION_GYEONGBUK' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code = 'GOV017'
+UNION ALL SELECT pp.id, 'STATUS_SME_WORKER' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code IN ('GOV013', 'GOV017', 'GOV018')
+UNION ALL SELECT pp.id, 'STATUS_SME_WORKER' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code = 'GOV004' AND pp.gov_matching_ratio = 0.1200;
+
+
 UNION ALL SELECT pp.id, 'REGION_BUSAN' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code = 'POLICY003'
 UNION ALL SELECT pp.id, 'REGION_GYEONGGI' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code = 'POLICY004'
 UNION ALL SELECT pp.id, 'REGION_INCHEON' FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code IN ('POLICY005', 'POLICY006')

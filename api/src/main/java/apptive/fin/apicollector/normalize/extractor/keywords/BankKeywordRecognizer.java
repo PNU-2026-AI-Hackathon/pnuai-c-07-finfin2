@@ -26,6 +26,18 @@ public class BankKeywordRecognizer implements KeywordRecognizer {
         addIfContains(keywords, content, KeywordValueEnum.BANK_FIRST_TRANSACTION,
                 "첫거래", "최초거래", "신규고객", "첫고객"
         );
+        addIfContains(keywords, content, KeywordValueEnum.BANK_AUTO_TRANSFER,
+                "자동이체", "자동.*이체"
+        );
+        addIfContains(keywords, content, KeywordValueEnum.BANK_MARKETING,
+                "마케팅", "상품서비스.*안내", "개인\\(?신용\\)?정보.*동의", "정보.*수집.*동의"
+        );
+        addIfContains(keywords, content, KeywordValueEnum.BANK_REDEPOSIT,
+                "재예치", "재가입"
+        );
+        addIfContains(keywords, content, KeywordValueEnum.BANK_ONLINE_JOIN,
+                "인터넷", "스마트폰", "비대면", "모바일"
+        );
 
         return keywords.stream().toList();
     }

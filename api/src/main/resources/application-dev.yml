@@ -21,12 +21,15 @@ spring:
     jdbc:
       initialize-schema: always
 
+logging:
+  level:
+    root: INFO
 
 collector:
   enabled: true
-  source: ALL
-  mode: normalize_only
-  normalizer-version: 11
+  source: FSS
+  mode: SYNC
+  normalizer-version: 15
   reader-page-size : 500
   unseen-disable-period : 1
 
@@ -40,3 +43,14 @@ collector:
     api-key: ${FSS_API_KEY:}
     page-size : 100
 
+  llm:
+    enabled: ${LLM_ENABLED:false}
+    provider: GEMINI
+    model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
+    prompt-version: 2
+    schema-version: 7
+    chunk-size: ${LLM_CHUNK_SIZE:10}
+    max-concurrency: ${LLM_MAX_CONCURRENCY:3}
+    temperature: ${LLM_TEMPERATURE:0.1}
+    base-url: https://generativelanguage.googleapis.com
+    api-key: ${GEMINI_API_KEY:}

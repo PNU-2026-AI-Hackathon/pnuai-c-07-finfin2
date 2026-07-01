@@ -21,8 +21,8 @@ INSERT INTO product_properties (
     min_tenure_months, requires_homeless, requires_householder,
     is_joinable, intr_rate_type, save_trm
 ) VALUES
-((SELECT id FROM product WHERE product_code = 'TEST_COMMON'), (SELECT id FROM provider WHERE code = 'TEST_BANK'), 3.00, 3.50, 10, 100, 19, 34, false, NULL, NULL, false, false, true, 'SINGLE_INTEREST', 12),
+((SELECT id FROM product WHERE product_code = 'TEST_COMMON'), (SELECT id FROM provider WHERE code = 'TEST_BANK'), 3.00, 3.50, 10, 100, 19, 34, false, NULL, 12, false, false, true, 'SINGLE_INTEREST', 12),
 ((SELECT id FROM product WHERE product_code = 'TEST_TENURE_REQUIRED'), (SELECT id FROM provider WHERE code = 'TEST_GOV'), 4.00, 4.00, 10, 100, 19, 34, false, NULL, 6, false, false, true, NULL, NULL),
 ((SELECT id FROM product WHERE product_code = 'TEST_HOMELESS_ONLY'), (SELECT id FROM provider WHERE code = 'TEST_GOV'), 4.50, 6.00, 10, 100, 19, 34, false, NULL, NULL, true, false, true, NULL, NULL),
-((SELECT id FROM product WHERE product_code = 'TEST_YOUTH_PREFERENTIAL'), (SELECT id FROM provider WHERE code = 'TEST_BANK'), 3.80, 4.50, 10, 100, 19, 29, false, NULL, NULL, false, false, true, 'SINGLE_INTEREST', 12),
+((SELECT id FROM product WHERE product_code = 'TEST_YOUTH_PREFERENTIAL'), (SELECT id FROM provider WHERE code = 'TEST_BANK'), 3.80, 4.50, 10, 100, 19, 29, false, NULL, 12, false, false, true, 'SINGLE_INTEREST', 12),
 ((SELECT id FROM product WHERE product_code = 'TEST_MILITARY_EXTENSION'), (SELECT id FROM provider WHERE code = 'TEST_GOV'), 4.00, 4.00, 10, 100, 19, 34, true, 39, NULL, false, false, true, NULL, NULL);
