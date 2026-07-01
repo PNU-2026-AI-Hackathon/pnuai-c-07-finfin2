@@ -52,6 +52,14 @@ public class SecurityConfig {
                                 .requestMatchers("/auth/**").permitAll()
                                 .requestMatchers("/search/**").permitAll()
                                 .requestMatchers(HttpMethod.POST, "/users").permitAll()
+                                // swagger용 루트
+                                .requestMatchers(
+                                        "/swagger-ui/**",
+                                        "/swagger-ui.html",
+                                        "/v3/api-docs/**",
+                                        "/swagger-resources/**",
+                                        "/webjars/**"
+                                ).permitAll()
                                 //.anyRequest().permitAll()
                                 .anyRequest().authenticated()
                 )
