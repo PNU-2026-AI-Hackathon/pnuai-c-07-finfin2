@@ -1,4 +1,4 @@
-package apptive.fin.search.provider;
+package apptive.fin.provider;
 
 public record BankDisplayInfo(
         String code,

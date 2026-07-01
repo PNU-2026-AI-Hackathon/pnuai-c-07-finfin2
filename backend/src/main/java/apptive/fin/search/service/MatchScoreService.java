@@ -8,7 +8,7 @@ import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
-import apptive.fin.search.provider.ProviderDisplayResolver;
+import apptive.fin.provider.service.ProviderDisplayResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

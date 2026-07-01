@@ -1,10 +1,11 @@
-package apptive.fin.search.provider;
+package apptive.fin.provider.service;
 
-import apptive.fin.search.entity.Provider;
+import apptive.fin.provider.BankDisplayRegistry;
+import apptive.fin.provider.entity.Provider;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
-@Component
+@Service
 @RequiredArgsConstructor
 public class ProviderDisplayResolver {
 

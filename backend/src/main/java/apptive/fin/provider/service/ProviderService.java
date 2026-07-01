@@ -1,8 +1,8 @@
-package apptive.fin.search.service;
+package apptive.fin.provider.service;
 
-import apptive.fin.search.dto.BankProviderDto;
-import apptive.fin.search.provider.BankDisplayRegistry;
-import apptive.fin.search.repository.ProviderRepository;
+import apptive.fin.provider.BankDisplayRegistry;
+import apptive.fin.provider.dto.BankProviderDto;
+import apptive.fin.provider.repository.ProviderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

@@ -1,4 +1,4 @@
-package apptive.fin.search.dto;
+package apptive.fin.provider.dto;
 
 public record BankProviderDto(
         String code,

@@ -8,7 +8,7 @@ import apptive.fin.search.dto.*;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
-import apptive.fin.search.provider.ProviderDisplayResolver;
+import apptive.fin.provider.service.ProviderDisplayResolver;
 import apptive.fin.search.repository.ProductRepository;
 
 import apptive.fin.search.SearchErrorCode;

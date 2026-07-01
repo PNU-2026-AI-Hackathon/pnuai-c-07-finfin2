@@ -1,5 +1,6 @@
-package apptive.fin.search.entity;
+package apptive.fin.provider.entity;
 
+import apptive.fin.search.entity.ProductSource;
 import jakarta.persistence.*;
 import lombok.Getter;
 

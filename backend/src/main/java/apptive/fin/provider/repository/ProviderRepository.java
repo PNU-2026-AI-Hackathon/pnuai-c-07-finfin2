@@ -1,6 +1,6 @@
-package apptive.fin.search.repository;
+package apptive.fin.provider.repository;
 
-import apptive.fin.search.entity.Provider;
+import apptive.fin.provider.entity.Provider;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;

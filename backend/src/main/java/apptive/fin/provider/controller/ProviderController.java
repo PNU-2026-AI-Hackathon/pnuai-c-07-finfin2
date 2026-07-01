@@ -1,7 +1,7 @@
-package apptive.fin.search.controller;
+package apptive.fin.provider.controller;
 
-import apptive.fin.search.dto.BankProviderDto;
-import apptive.fin.search.service.ProviderService;
+import apptive.fin.provider.dto.BankProviderDto;
+import apptive.fin.provider.service.ProviderService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

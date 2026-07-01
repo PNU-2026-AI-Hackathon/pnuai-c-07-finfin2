@@ -1,10 +1,9 @@
-package apptive.fin.search;
+package apptive.fin.provider;
 
-import apptive.fin.search.dto.BankProviderDto;
-import apptive.fin.search.entity.Provider;
-import apptive.fin.search.provider.BankDisplayRegistry;
-import apptive.fin.search.repository.ProviderRepository;
-import apptive.fin.search.service.ProviderService;
+import apptive.fin.provider.dto.BankProviderDto;
+import apptive.fin.provider.entity.Provider;
+import apptive.fin.provider.repository.ProviderRepository;
+import apptive.fin.provider.service.ProviderService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

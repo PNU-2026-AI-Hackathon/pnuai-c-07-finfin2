@@ -1,4 +1,4 @@
-package apptive.fin.search.provider;
+package apptive.fin.provider;
 
 import org.springframework.stereotype.Component;
 
