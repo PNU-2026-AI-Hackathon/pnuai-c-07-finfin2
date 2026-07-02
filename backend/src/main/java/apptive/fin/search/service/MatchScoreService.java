@@ -8,7 +8,6 @@ import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
-import apptive.fin.provider.service.ProviderDisplayResolver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -24,7 +23,6 @@ import static apptive.fin.search.KeywordValueEnum.*;
 public class MatchScoreService {
 
     private final ResolveKeywordService resolveKeywordService;
-    private final ProviderDisplayResolver providerDisplayResolver;
 
     public ProductMatchDto score(Product p, SearchRequestDto request) {
         return score(p, request, resolveKeywordService.resolveKeywords(request.options()));
@@ -375,7 +373,9 @@ public class MatchScoreService {
     }
 
     private String providerName(ProductProperty property) {
-        return property != null ? providerDisplayResolver.resolveName(property.getProvider()) : null;
+        return property != null && property.getProvider() != null
+                ? property.getProvider().getName()
+                : null;
     }
 
     private record ProductPropertyScore(

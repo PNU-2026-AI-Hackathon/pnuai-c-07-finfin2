@@ -36,23 +36,23 @@ INSERT INTO public.provider (id, source_id, code, name) VALUES (12, 2, 'SEJONG',
 INSERT INTO public.provider (id, source_id, code, name) VALUES (13, 2, 'GYEONGBUK', '경상북도');
 INSERT INTO public.provider (id, source_id, code, name) VALUES (14, 2, 'HAMAN', '함안군');
 INSERT INTO public.provider (id, source_id, code, name) VALUES (15, 1, '0010001', '우리은행');
-INSERT INTO public.provider (id, source_id, code, name) VALUES (16, 1, '0010002', '한국스탠다드차타드은행');
-INSERT INTO public.provider (id, source_id, code, name) VALUES (17, 1, '0010016', '아이엠뱅크');
+INSERT INTO public.provider (id, source_id, code, name) VALUES (16, 1, '0010002', 'SC제일은행');
+INSERT INTO public.provider (id, source_id, code, name) VALUES (17, 1, '0010016', 'iM뱅크');
 INSERT INTO public.provider (id, source_id, code, name) VALUES (18, 1, '0010017', '부산은행');
 INSERT INTO public.provider (id, source_id, code, name) VALUES (19, 1, '0010019', '광주은행');
 INSERT INTO public.provider (id, source_id, code, name) VALUES (20, 1, '0010020', '제주은행');
 INSERT INTO public.provider (id, source_id, code, name) VALUES (21, 1, '0010022', '전북은행');
 INSERT INTO public.provider (id, source_id, code, name) VALUES (22, 1, '0010024', '경남은행');
-INSERT INTO public.provider (id, source_id, code, name) VALUES (23, 1, '0010026', '중소기업은행');
-INSERT INTO public.provider (id, source_id, code, name) VALUES (24, 1, '0010030', '한국산업은행');
-INSERT INTO public.provider (id, source_id, code, name) VALUES (25, 1, '0010927', '국민은행');
+INSERT INTO public.provider (id, source_id, code, name) VALUES (23, 1, '0010026', 'IBK기업은행');
+INSERT INTO public.provider (id, source_id, code, name) VALUES (24, 1, '0010030', 'KDB산업은행');
+INSERT INTO public.provider (id, source_id, code, name) VALUES (25, 1, '0010927', 'KB국민은행');
 INSERT INTO public.provider (id, source_id, code, name) VALUES (26, 1, '0011625', '신한은행');
-INSERT INTO public.provider (id, source_id, code, name) VALUES (27, 1, '0013175', '농협은행주식회사');
-INSERT INTO public.provider (id, source_id, code, name) VALUES (28, 1, '0013909', '주식회사 하나은행');
-INSERT INTO public.provider (id, source_id, code, name) VALUES (29, 1, '0014674', '주식회사 케이뱅크');
-INSERT INTO public.provider (id, source_id, code, name) VALUES (30, 1, '0014807', '수협은행');
-INSERT INTO public.provider (id, source_id, code, name) VALUES (31, 1, '0015130', '주식회사 카카오뱅크');
-INSERT INTO public.provider (id, source_id, code, name) VALUES (32, 1, '0017801', '토스뱅크 주식회사');
+INSERT INTO public.provider (id, source_id, code, name) VALUES (27, 1, '0013175', 'NH농협은행');
+INSERT INTO public.provider (id, source_id, code, name) VALUES (28, 1, '0013909', '하나은행');
+INSERT INTO public.provider (id, source_id, code, name) VALUES (29, 1, '0014674', '케이뱅크');
+INSERT INTO public.provider (id, source_id, code, name) VALUES (30, 1, '0014807', 'Sh수협은행');
+INSERT INTO public.provider (id, source_id, code, name) VALUES (31, 1, '0015130', '카카오뱅크');
+INSERT INTO public.provider (id, source_id, code, name) VALUES (32, 1, '0017801', '토스뱅크');
 
 
 --

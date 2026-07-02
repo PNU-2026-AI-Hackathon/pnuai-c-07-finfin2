@@ -4,11 +4,9 @@ import apptive.fin.search.dto.ProductNameSearchDto;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.entity.ProductSource;
-import apptive.fin.provider.service.ProviderDisplayResolver;
 import apptive.fin.provider.entity.Provider;
 import apptive.fin.search.repository.ProductRepository;
 import apptive.fin.search.service.*;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,7 +21,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,18 +42,6 @@ public class SearchServiceByNameTest {
 
     @Mock
     private ResolveKeywordService resolveKeywordService;
-
-    @Mock
-    private ProviderDisplayResolver providerDisplayResolver;
-
-    @BeforeEach
-    void stubProviderDisplayResolver() {
-        lenient().when(providerDisplayResolver.resolveName(org.mockito.ArgumentMatchers.any()))
-                .thenAnswer(invocation -> {
-                    Provider provider = invocation.getArgument(0);
-                    return provider != null ? provider.getName() : null;
-                });
-    }
 
     // ────────────────────────────────────────────────
     // 헬퍼: ReflectionTestUtils로 엔티티 생성

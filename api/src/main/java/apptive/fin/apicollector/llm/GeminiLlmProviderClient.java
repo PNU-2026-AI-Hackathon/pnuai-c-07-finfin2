@@ -343,67 +343,42 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
     }
 
     private JsonNode parseJsonText(String value, String fieldName) {
+        String json = extractJsonObjectText(value);
         try {
-            return objectMapper.readTree(value);
+            return objectMapper.readTree(json);
         }
         catch (Exception e) {
             throw new IllegalStateException("Failed to parse Gemini " + fieldName, e);
         }
     }
 
+    private String extractJsonObjectText(String value) {
+        String text = value == null ? "" : value.trim();
+        if (text.startsWith("```")) {
+            int firstLineEnd = text.indexOf('\n');
+            int lastFenceStart = text.lastIndexOf("```");
+            if (firstLineEnd >= 0 && lastFenceStart > firstLineEnd) {
+                text = text.substring(firstLineEnd + 1, lastFenceStart).trim();
+            }
+        }
+
+        if (text.startsWith("{") && text.endsWith("}")) {
+            return text;
+        }
+
+        int objectStart = text.indexOf('{');
+        int objectEnd = text.lastIndexOf('}');
+        if (objectStart >= 0 && objectEnd > objectStart) {
+            return text.substring(objectStart, objectEnd + 1).trim();
+        }
+
+        return text;
+    }
+
     private void validateResponseShape(JsonNode node) {
         if (node == null || !node.isObject()) {
             throw new IllegalStateException("Gemini response is not a JSON object. response=" + preview(node));
         }
-        requireField(node, "summaryContent");
-        requireField(node, "keywords");
-        requireField(node, "minMonthlyLimit");
-        requireField(node, "maxMonthlyLimit");
-        requireField(node, "minAge");
-        requireField(node, "maxAge");
-        requireField(node, "earnMaxAmt");
-        requireField(node, "earnPercent");
-        requireField(node, "requiresHomeless");
-        requireField(node, "requiresHouseholder");
-        requireField(node, "govContributionRate");
-        requireField(node, "govContributionType");
-        requireField(node, "govMatchingRatio");
-        requireField(node, "govMonthlyFixedContribution");
-        requireField(node, "govContributionPeriodMonths");
-        requireField(node, "excludeFromRateComparison");
-        requireField(node, "allowsMilitaryAgeExtension");
-        requireField(node, "militaryMaxAge");
-        requireField(node, "requiredKeywords");
-        requireField(node, "preferentialRates");
-
-        if (!node.path("keywords").isArray()) {
-            throw new IllegalStateException("Gemini response keywords must be an array. response=" + preview(node));
-        }
-        if (!node.path("requiredKeywords").isArray()) {
-            throw new IllegalStateException("Gemini response requiredKeywords must be an array. response=" + preview(node));
-        }
-        if (!node.path("preferentialRates").isArray()) {
-            throw new IllegalStateException("Gemini response preferentialRates must be an array. response=" + preview(node));
-        }
-    }
-
-    private void requireField(JsonNode node, String fieldName) {
-        if (!node.has(fieldName)) {
-            throw new IllegalStateException(
-                    "Gemini response is missing field: %s. fields=%s, response=%s"
-                            .formatted(fieldName, fieldNames(node), preview(node))
-            );
-        }
-    }
-
-    private List<String> fieldNames(JsonNode node) {
-        if (node == null || !node.isObject()) {
-            return List.of();
-        }
-
-        List<String> result = new ArrayList<>();
-        result.addAll(node.propertyNames());
-        return result;
     }
 
     private String preview(JsonNode node) {
@@ -487,7 +462,7 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
             Integer minAge = integer(item, "minAge");
             Integer maxAge = integer(item, "maxAge");
             String description = text(item, "description");
-            if (!isPreferentialRateKeyword(keyword) || rate == null) {
+            if (!isPreferentialRateKeyword(keyword) || rate == null || description == null) {
                 log.debug("Dropping invalid Gemini preferentialRates item. response={}", preview(item));
                 continue;
             }
@@ -625,6 +600,6 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
 
     private Boolean bool(JsonNode node, String fieldName) {
         String value = text(node, fieldName);
-        return value == null ? null : Boolean.parseBoolean(value);
+        return value != null && Boolean.parseBoolean(value);
     }
 }

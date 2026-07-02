@@ -9,8 +9,6 @@ import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductPreferentialRate;
 import apptive.fin.search.entity.ProductProperty;
-import apptive.fin.provider.service.ProviderDisplayResolver;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -23,12 +21,9 @@ import java.util.Optional;
 import java.util.Set;
 
 @Service
-@RequiredArgsConstructor
 public class RateCalculatorService {
 
     private static final String ONTONG_SOURCE = "ONTONG";
-
-    private final ProviderDisplayResolver providerDisplayResolver;
 
     public ProductRateDto calculate(Product product, SearchRequestDto request) {
         return calculate(product, request, emptyKeywords());
@@ -322,7 +317,9 @@ public class RateCalculatorService {
     }
 
     private String providerName(ProductProperty property) {
-        return property != null ? providerDisplayResolver.resolveName(property.getProvider()) : null;
+        return property != null && property.getProvider() != null
+                ? property.getProvider().getName()
+                : null;
     }
 
     private record GovYieldScore(ProductProperty property, Double yield) {

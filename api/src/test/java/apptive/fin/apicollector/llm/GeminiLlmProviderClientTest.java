@@ -11,7 +11,6 @@ import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class GeminiLlmProviderClientTest {
 
@@ -109,16 +108,69 @@ class GeminiLlmProviderClientTest {
     }
 
     @Test
-    void rejectsUnexpectedResponseShape() {
-        assertThatThrownBy(() -> client.parseResponse(objectMapper.createObjectNode()
-                .put("unexpected", "value")))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("missing field");
+    void parsesInteractionsStepTextResponseWrappedInMarkdownFence() {
+        String output = """
+                ```json
+                {
+                  "summaryContent": "요약",
+                  "keywords": ["INTEREST_SAVINGS"],
+                  "minMonthlyLimit": null,
+                  "maxMonthlyLimit": 1000000,
+                  "minAge": null,
+                  "maxAge": null,
+                  "earnMaxAmt": null,
+                  "earnPercent": null,
+                  "requiresHomeless": false,
+                  "requiresHouseholder": false,
+                  "govContributionRate": null,
+                  "govContributionType": null,
+                  "govMatchingRatio": null,
+                  "govMonthlyFixedContribution": null,
+                  "govContributionPeriodMonths": null,
+                  "excludeFromRateComparison": false,
+                  "allowsMilitaryAgeExtension": false,
+                  "militaryMaxAge": null,
+                  "requiredKeywords": [],
+                  "preferentialRates": []
+                }
+                ```
+                """;
+
+        LlmProductEnrichment result = client.parseResponse(objectMapper.createObjectNode()
+                .put("id", "v1_test")
+                .put("status", "completed")
+                .set("steps", objectMapper.createArrayNode()
+                        .add(objectMapper.createObjectNode().put("type", "thought"))
+                        .add(objectMapper.createObjectNode()
+                                .set("content", objectMapper.createArrayNode()
+                                        .add(objectMapper.createObjectNode()
+                                                .put("type", "text")
+                                                .put("text", output))))));
+
+        assertThat(result.summaryContent()).isEqualTo("요약");
+        assertThat(result.keywords()).containsExactly("INTEREST_SAVINGS");
+        assertThat(result.maxMonthlyLimit()).isEqualTo(1_000_000L);
     }
 
     @Test
-    void rejectsNonArrayKeywords() {
-        assertThatThrownBy(() -> client.parseResponse(objectMapper.createObjectNode()
+    void parsesPartialResponseWithDefaults() {
+        LlmProductEnrichment result = client.parseResponse(objectMapper.createObjectNode()
+                .put("summaryContent", "partial summary")
+                .put("maxMonthlyLimit", 100000));
+
+        assertThat(result.summaryContent()).isEqualTo("partial summary");
+        assertThat(result.keywords()).isEmpty();
+        assertThat(result.maxMonthlyLimit()).isEqualTo(100_000L);
+        assertThat(result.minAge()).isNull();
+        assertThat(result.requiresHomeless()).isFalse();
+        assertThat(result.excludeFromRateComparison()).isFalse();
+        assertThat(result.requiredKeywords()).isEmpty();
+        assertThat(result.preferentialRates()).isEmpty();
+    }
+
+    @Test
+    void treatsNonArrayCollectionsAsEmpty() {
+        LlmProductEnrichment result = client.parseResponse(objectMapper.createObjectNode()
                 .put("summaryContent", "요약")
                 .put("keywords", "BANK_CARD_USAGE")
                 .putNull("minMonthlyLimit")
@@ -137,10 +189,12 @@ class GeminiLlmProviderClientTest {
                 .put("excludeFromRateComparison", false)
                 .put("allowsMilitaryAgeExtension", false)
                 .putNull("militaryMaxAge")
-                .set("requiredKeywords", objectMapper.createArrayNode())
-                .set("preferentialRates", objectMapper.createArrayNode())))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("keywords must be an array");
+                .put("requiredKeywords", "STATUS_MILITARY")
+                .put("preferentialRates", "BANK_CARD_USAGE"));
+
+        assertThat(result.keywords()).isEmpty();
+        assertThat(result.requiredKeywords()).isEmpty();
+        assertThat(result.preferentialRates()).isEmpty();
     }
 
     @Test
@@ -149,7 +203,10 @@ class GeminiLlmProviderClientTest {
                 .put("summaryContent", "summary")
                 .set("keywords", objectMapper.createArrayNode()
                         .add("BANK_CARD_USAGE")
-                        .add("TERM_AROUND_1_YEAR"))
+                        .add("TERM_AROUND_1_YEAR")
+                        .add("DEPOSIT")
+                        .add("INTERNET")
+                        .add("MOBILE"))
                 .putNull("minMonthlyLimit")
                 .putNull("maxMonthlyLimit")
                 .putNull("minAge")
@@ -192,6 +249,11 @@ class GeminiLlmProviderClientTest {
                                 .put("keywordCode", "BANK_REDEPOSIT")
                                 .putNull("rate")
                                 .put("description", "missing rate")
+                                .putNull("minAge")
+                                .putNull("maxAge"))
+                        .add(objectMapper.createObjectNode()
+                                .put("keywordCode", "BANK_AUTO_TRANSFER")
+                                .put("rate", 0.2)
                                 .putNull("minAge")
                                 .putNull("maxAge"))
                         .add(objectMapper.createObjectNode()

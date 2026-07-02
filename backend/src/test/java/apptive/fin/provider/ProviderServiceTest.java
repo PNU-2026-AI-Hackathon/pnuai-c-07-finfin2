@@ -24,21 +24,21 @@ class ProviderServiceTest {
     private ProviderRepository providerRepository;
 
     @Spy
-    private BankDisplayRegistry bankDisplayRegistry = new BankDisplayRegistry();
+    private BankCategoryRegistry bankCategoryRegistry = new BankCategoryRegistry();
 
     @InjectMocks
     private ProviderService providerService;
 
     @Test
-    void 은행_provider_목록은_정규화된_브랜드명과_카테고리를_반환한다() {
+    void 은행_provider_목록은_저장된_이름과_카테고리를_반환한다() {
         given(providerRepository.findBySource_CodeOrderByNameAsc("FSS"))
-                .willReturn(List.of(provider("0010927", "국민은행"), provider("0011625", "신한은행")));
+                .willReturn(List.of(provider("0010927", "KB국민은행"), provider("0011625", "신한은행")));
 
         List<BankProviderDto> result = providerService.getBankProviders();
 
         assertThat(result).containsExactly(
-                new BankProviderDto("0010927", "KB국민은행", "시중", null),
-                new BankProviderDto("0011625", "신한은행", "시중", null)
+                new BankProviderDto("0010927", "KB국민은행", "시중"),
+                new BankProviderDto("0011625", "신한은행", "시중")
         );
     }
 
@@ -50,7 +50,7 @@ class ProviderServiceTest {
         List<BankProviderDto> result = providerService.getBankProviders();
 
         assertThat(result).containsExactly(
-                new BankProviderDto("9999999", "알수없는은행", "기타", null)
+                new BankProviderDto("9999999", "알수없는은행", "기타")
         );
     }
 

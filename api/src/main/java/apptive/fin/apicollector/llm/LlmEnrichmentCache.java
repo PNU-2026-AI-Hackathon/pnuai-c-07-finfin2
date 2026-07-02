@@ -7,6 +7,9 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.Duration;
+import java.time.Instant;
+
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -68,6 +71,12 @@ public class LlmEnrichmentCache extends BaseTimeEntity {
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
+    @Column(name = "failure_count", nullable = false)
+    private int failureCount;
+
+    @Column(name = "last_failed_at")
+    private Instant lastFailedAt;
+
     private LlmEnrichmentCache(
             Source source,
             String externalId,
@@ -115,6 +124,8 @@ public class LlmEnrichmentCache extends BaseTimeEntity {
         this.status = LlmEnrichmentCacheStatus.SUCCESS;
         this.responseJson = responseJson;
         this.errorMessage = null;
+        this.failureCount = 0;
+        this.lastFailedAt = null;
     }
 
     public void markFailed(String requestHash, String errorMessage) {
@@ -122,5 +133,14 @@ public class LlmEnrichmentCache extends BaseTimeEntity {
         this.status = LlmEnrichmentCacheStatus.FAILED;
         this.responseJson = null;
         this.errorMessage = errorMessage;
+        this.failureCount++;
+        this.lastFailedAt = Instant.now();
+    }
+
+    public boolean isFailedRetryBlocked(Instant now, Duration cooldown) {
+        if (status != LlmEnrichmentCacheStatus.FAILED || lastFailedAt == null) {
+            return false;
+        }
+        return lastFailedAt.plus(cooldown).isAfter(now);
     }
 }

@@ -20,6 +20,8 @@ import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
@@ -31,6 +33,8 @@ import java.util.Set;
 @Component
 @RequiredArgsConstructor
 public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
+
+    private static final Duration FAILED_RETRY_COOLDOWN = Duration.ofHours(6);
 
     private final CollectorProperties properties;
     private final List<LlmProviderClient> providerClients;
@@ -55,6 +59,15 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
 
         if (cache.getStatus() == LlmEnrichmentCacheStatus.SUCCESS && cache.getResponseJson() != null) {
             return fromCache(cache, rawProduct, draft);
+        }
+        if (cache.isFailedRetryBlocked(Instant.now(), FAILED_RETRY_COOLDOWN)) {
+            log.debug(
+                    "Skipping FSS LLM enrichment during failed retry cooldown. rawId={}, externalId={}, failureCount={}",
+                    rawProduct.getId(),
+                    rawProduct.getExternalId(),
+                    cache.getFailureCount()
+            );
+            return draft;
         }
 
         try {
@@ -162,6 +175,31 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
                 - 재예치/재가입이라는 단어가 있어도 조건의 핵심이 가입금액, 가입잔액, 요구불평잔, 평균잔액이면 BANK_REDEPOSIT에 매핑하지 않는다.
                 - 예: 요구불평잔, 평균잔액, 가입금액, 예금/적금 보유, 특정 상품 만기/해지 고객, 추천/쿠폰/이벤트, 앱 로그인, 알림 수신 등은 억지로 BANK_*에 매핑하지 않는다.
                 - FSS 원문에 정부기여금/병역연장/비교제외가 명시되지 않았으면 관련 필드는 null 또는 false로 둔다.
+                - 반드시 아래 JSON skeleton의 모든 top-level key를 포함한다. 모르는 값은 null, false, [] 중 schema에 맞는 기본값으로 둔다.
+
+                JSON skeleton:
+                {
+                  "summaryContent": null,
+                  "keywords": [],
+                  "minMonthlyLimit": null,
+                  "maxMonthlyLimit": null,
+                  "minAge": null,
+                  "maxAge": null,
+                  "earnMaxAmt": null,
+                  "earnPercent": null,
+                  "requiresHomeless": false,
+                  "requiresHouseholder": false,
+                  "govContributionRate": null,
+                  "govContributionType": null,
+                  "govMatchingRatio": null,
+                  "govMonthlyFixedContribution": null,
+                  "govContributionPeriodMonths": null,
+                  "excludeFromRateComparison": false,
+                  "allowsMilitaryAgeExtension": false,
+                  "militaryMaxAge": null,
+                  "requiredKeywords": [],
+                  "preferentialRates": []
+                }
 
                 현재 정규화 결과:
                 productName=%s
@@ -312,20 +350,29 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
         return property.toBuilder()
                 .minMonthlyLimit(firstNonNull(property.minMonthlyLimit(), enrichment.minMonthlyLimit()))
                 .maxMonthlyLimit(firstNonNull(property.maxMonthlyLimit(), enrichment.maxMonthlyLimit()))
-                .minAge(enrichment.minAge())
-                .maxAge(enrichment.maxAge())
-                .earnMaxAmt(enrichment.earnMaxAmt())
-                .earnPercent(enrichment.earnPercent())
-                .govContributionRate(enrichment.govContributionRate())
-                .govContributionType(enrichment.govContributionType())
-                .govMatchingRatio(enrichment.govMatchingRatio())
-                .govMonthlyFixedContribution(enrichment.govMonthlyFixedContribution())
-                .govContributionPeriodMonths(enrichment.govContributionPeriodMonths())
-                .excludeFromRateComparison(enrichment.excludeFromRateComparison())
-                .allowsMilitaryAgeExtension(enrichment.allowsMilitaryAgeExtension())
-                .militaryMaxAge(enrichment.militaryMaxAge())
-                .requiresHomeless(Boolean.TRUE.equals(enrichment.requiresHomeless()))
-                .requiresHouseholder(Boolean.TRUE.equals(enrichment.requiresHouseholder()))
+                .minAge(firstNonNull(property.minAge(), enrichment.minAge()))
+                .maxAge(firstNonNull(property.maxAge(), enrichment.maxAge()))
+                .earnMaxAmt(firstNonNull(property.earnMaxAmt(), enrichment.earnMaxAmt()))
+                .earnPercent(firstNonNull(property.earnPercent(), enrichment.earnPercent()))
+                .govContributionRate(firstNonNull(property.govContributionRate(), enrichment.govContributionRate()))
+                .govContributionType(firstNonNull(property.govContributionType(), enrichment.govContributionType()))
+                .govMatchingRatio(firstNonNull(property.govMatchingRatio(), enrichment.govMatchingRatio()))
+                .govMonthlyFixedContribution(firstNonNull(
+                        property.govMonthlyFixedContribution(),
+                        enrichment.govMonthlyFixedContribution()
+                ))
+                .govContributionPeriodMonths(firstNonNull(
+                        property.govContributionPeriodMonths(),
+                        enrichment.govContributionPeriodMonths()
+                ))
+                .excludeFromRateComparison(firstTrue(property.excludeFromRateComparison(), enrichment.excludeFromRateComparison()))
+                .allowsMilitaryAgeExtension(firstTrue(
+                        property.allowsMilitaryAgeExtension(),
+                        enrichment.allowsMilitaryAgeExtension()
+                ))
+                .militaryMaxAge(firstNonNull(property.militaryMaxAge(), enrichment.militaryMaxAge()))
+                .requiresHomeless(firstTrue(property.requiresHomeless(), enrichment.requiresHomeless()))
+                .requiresHouseholder(firstTrue(property.requiresHouseholder(), enrichment.requiresHouseholder()))
                 .keywords(mergeKeywords(property, enrichment))
                 .requiredKeywords(mergeRequiredKeywords(
                         property.requiredKeywords(),
@@ -337,6 +384,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
 
     private List<KeywordValueEnum> mergeKeywords(ProductPropertyDraft property, LlmProductEnrichment enrichment) {
         Set<KeywordValueEnum> keywords = EnumSet.noneOf(KeywordValueEnum.class);
+        keywords.addAll(property.keywords());
         for (String keyword : enrichment.keywords()) {
             KeywordValueEnum keywordValue = KeywordValueEnum.from(keyword);
             if (keywordValue != null && !keywordValue.name().startsWith("TERM_")) {
@@ -488,6 +536,10 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
 
     private <T> T firstNonNull(T existing, T enrichment) {
         return existing != null ? existing : enrichment;
+    }
+
+    private boolean firstTrue(Boolean existing, Boolean enrichment) {
+        return Boolean.TRUE.equals(existing) || Boolean.TRUE.equals(enrichment);
     }
 
     private String blankToNull(String value) {

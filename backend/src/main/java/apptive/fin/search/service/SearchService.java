@@ -8,7 +8,6 @@ import apptive.fin.search.dto.*;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
-import apptive.fin.provider.service.ProviderDisplayResolver;
 import apptive.fin.search.repository.ProductRepository;
 
 import apptive.fin.search.SearchErrorCode;
@@ -42,7 +41,6 @@ public class SearchService {
     private final RateCalculatorService rateCalculatorService;
     private final ResolveKeywordService resolveKeywordService;
     private final ProductRepository productRepository;
-    private final ProviderDisplayResolver providerDisplayResolver;
 
     public ProductSearchResultDto search(SearchRequestDto request) {
         return search(request, null);
@@ -187,8 +185,7 @@ public class SearchService {
                             .productId(p.getId())
                             .productName(p.getProductName())
                             .source(p.getSource().getCode())
-                            .providerName(bestProperty != null
-                                    ? providerDisplayResolver.resolveName(bestProperty.getProvider()) : null)
+                            .providerName(providerName(bestProperty))
                             .baseRate(bestProperty != null && bestProperty.getBaseRate() != null
                                     ? bestProperty.getBaseRate().doubleValue() : null)
                             .maxRate(bestProperty != null && bestProperty.getMaxRate() != null
@@ -246,5 +243,11 @@ public class SearchService {
 
     private boolean isBankProduct(Product product) {
         return product.getSource().getCode().equals("FSS");
+    }
+
+    private String providerName(ProductProperty property) {
+        return property != null && property.getProvider() != null
+                ? property.getProvider().getName()
+                : null;
     }
 }
