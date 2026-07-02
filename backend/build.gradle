@@ -18,6 +18,19 @@ repositories {
     mavenCentral()
 }
 
+sourceSets {
+    reset {
+        java {
+            srcDir 'src/reset/java'
+        }
+        resources {
+            srcDir 'src/main/resources'
+        }
+        compileClasspath += sourceSets.main.output + configurations.runtimeClasspath
+        runtimeClasspath += output + compileClasspath + sourceSets.main.resources
+    }
+}
+
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web'
     //implementation 'org.springframework.boot:spring-boot-starter-webmvc'
@@ -50,4 +63,11 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.register('resetDb', JavaExec) {
+    group = 'devtools'
+    description = 'Drops and recreates the local development database schema from schema.sql and seed data.'
+    classpath = sourceSets.reset.runtimeClasspath
+    mainClass = 'apptive.fin.devtools.ResetDatabase'
 }
