@@ -326,20 +326,56 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
             return parseJsonText(outputText, "output_text");
         }
 
-        JsonNode stepText = response
-                .path("steps")
-                .path(1)
-                .path("content")
-                .path(0)
-                .path("text");
-        if (!stepText.isMissingNode() && !stepText.isNull()) {
-            String value = stepText.asString(null);
-            if (value != null && !value.isBlank()) {
-                return parseJsonText(value, "steps[1].content[0].text");
+        JsonNode steps = response.path("steps");
+        if (!steps.isMissingNode() && !steps.isNull() && steps.isArray()) {
+            String stepText = findStepText(steps);
+            if (stepText != null) {
+                return parseJsonText(stepText, "steps content text");
             }
+
+            throw new IllegalStateException(
+                    "Gemini response steps contain no text content. response=" + preview(response));
         }
 
         return response;
+    }
+
+    private String findStepText(JsonNode steps) {
+        List<JsonNode> candidates = new ArrayList<>();
+        for (JsonNode step : steps) {
+            if ("model_output".equals(text(step, "type"))) {
+                candidates.add(step);
+            }
+        }
+        if (candidates.isEmpty()) {
+            for (JsonNode step : steps) {
+                candidates.add(step);
+            }
+        }
+
+        String result = null;
+        for (JsonNode step : candidates) {
+            String value = firstContentText(step);
+            if (value != null) {
+                result = value;
+            }
+        }
+        return result;
+    }
+
+    private String firstContentText(JsonNode step) {
+        JsonNode content = step.path("content");
+        if (!content.isArray()) {
+            return null;
+        }
+
+        for (JsonNode item : content) {
+            String value = text(item, "text");
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private JsonNode parseJsonText(String value, String fieldName) {
@@ -470,17 +506,18 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
                 log.debug("Dropping Gemini preferentialRates item with invalid age range. response={}", preview(item));
                 continue;
             }
-            if (!matchesPreferentialRateKeyword(keyword, description, minAge, maxAge)) {
-                log.debug("Dropping Gemini preferentialRates item with unsupported condition. response={}", preview(item));
-                continue;
-            }
-            result.add(PreferentialRateDraft.builder()
+            PreferentialRateDraft draft = PreferentialRateDraft.builder()
                     .keywordCode(keyword)
                     .rate(rate)
                     .description(description)
                     .minAge(minAge)
                     .maxAge(maxAge)
-                    .build());
+                    .build();
+            if (!draft.matchesKeywordCondition()) {
+                log.debug("Dropping Gemini preferentialRates item with unsupported condition. response={}", preview(item));
+                continue;
+            }
+            result.add(draft);
         }
         return List.copyOf(result);
     }
@@ -491,42 +528,6 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
 
     private boolean isPreferentialRateKeyword(KeywordValueEnum keyword) {
         return keyword != null && keyword.name().startsWith("BANK_");
-    }
-
-    private boolean matchesPreferentialRateKeyword(
-            KeywordValueEnum keyword,
-            String description,
-            Integer minAge,
-            Integer maxAge
-    ) {
-        return switch (keyword) {
-            case BANK_SALARY_TRANSFER -> containsAny(description, "급여", "월급", "salary");
-            case BANK_CARD_USAGE -> containsAny(description, "카드", "체크카드", "신용카드", "결제실적", "전월결제", "card", "payment");
-            case BANK_AUTO_TRANSFER -> containsAny(description, "자동이체", "자동 이체");
-            case BANK_MARKETING -> containsAny(description, "마케팅", "상품서비스", "개인정보", "개인(신용)정보", "수집이용", "동의");
-            case BANK_FIRST_TRANSACTION -> containsAny(description, "첫거래", "최초거래", "신규고객", "신규 고객", "첫 예금거래", "입출금통장 최초");
-            case BANK_REDEPOSIT -> containsAny(description, "재예치", "재가입") && !hasAmountOrBalanceCondition(description);
-            case BANK_ONLINE_JOIN -> containsAny(description, "인터넷 가입", "스마트뱅킹 가입", "비대면 가입", "모바일 가입", "온라인 가입", "online join", "mobile join");
-            case BANK_AGE -> minAge != null || maxAge != null || containsAny(description, "나이", "연령");
-            default -> false;
-        };
-    }
-
-    private boolean containsAny(String value, String... tokens) {
-        if (value == null || value.isBlank()) {
-            return false;
-        }
-        String normalized = value.toLowerCase();
-        for (String token : tokens) {
-            if (normalized.contains(token.toLowerCase())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean hasAmountOrBalanceCondition(String value) {
-        return containsAny(value, "금액", "잔액", "평잔", "평균잔액", "요구불", "만원", "백만원", "억원");
     }
 
     private KeywordValueEnum keyword(JsonNode node, String fieldName) {
