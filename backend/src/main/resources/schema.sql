@@ -101,7 +101,8 @@ CREATE TABLE provider (
     id BIGSERIAL PRIMARY KEY,
     source_id BIGINT NOT NULL REFERENCES product_source(id),
     code VARCHAR(100),
-    name VARCHAR(100) NOT NULL
+    name VARCHAR(100) NOT NULL,
+    apply_url VARCHAR(500)
 );
 
 CREATE TABLE product (

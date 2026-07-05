@@ -1,7 +1,7 @@
 spring:
   sql:
     init:
-      mode: never
+      mode: always
   datasource:
     url: jdbc:postgresql://localhost:5678/database
     username: user

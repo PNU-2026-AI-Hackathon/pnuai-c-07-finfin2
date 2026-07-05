@@ -3,6 +3,9 @@ package apptive.fin.search.service;
 import apptive.fin.search.ContributionType;
 import apptive.fin.search.KeywordValueEnum;
 import apptive.fin.search.ProductType;
+import apptive.fin.search.dto.BankDetailDto;
+import apptive.fin.search.dto.GovernmentDetailDto;
+import apptive.fin.search.dto.PreferentialConditionDto;
 import apptive.fin.search.dto.ProductRateDto;
 import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
@@ -14,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.Period;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Comparator;
@@ -58,6 +62,102 @@ public class RateCalculatorService {
         }
 
         return calculateBankProperty(product, property, request, resolvedKeywords);
+    }
+
+    // ===== 상품 상세용 (Y4-1) =====
+
+    // 정부 상세: 선택 property의 환산수익률 + 예상 만기 기여금 총액. 리스트(calculate)와 동일 헬퍼를 재사용해 값 일치.
+    public GovernmentDetailDto governmentDetail(ProductProperty property, SearchRequestDto request) {
+        if (property == null) {
+            return null;
+        }
+
+        Long monthlyGoal = monthlySavingsGoal(request);
+        Long effectiveDeposit = (monthlyGoal != null && monthlyGoal > 0)
+                ? effectiveMonthlyDeposit(monthlyGoal, property.getMaxMonthlyLimit())
+                : null;
+
+        return new GovernmentDetailDto(
+                calculateGovernmentYield(property, request),
+                expectedTotalContribution(property, monthlyGoal),
+                property.getGovContributionType(),
+                effectiveDeposit,
+                contributionMonths(property)
+        );
+    }
+
+    // 예상 만기 기여금 총액 = 외부(정부·지자체·기업) 매칭 총액. Y3-2 B-1 명세 기준.
+    private Long expectedTotalContribution(ProductProperty property, Long monthlySavingsGoal) {
+        ContributionType type = property.getGovContributionType();
+        Integer months = contributionMonths(property);
+        if (type == null || type == ContributionType.NONE || months == null) {
+            return null;
+        }
+
+        return switch (type) {
+            // 정액: 월정액매칭 × 개월 (본인 납입과 무관하게 고정)
+            case FIXED_AMOUNT -> property.getGovMonthlyFixedContribution() == null
+                    ? null
+                    : property.getGovMonthlyFixedContribution() * months;
+            // 정률: 매칭배수 × 본인 납입 총액(min(희망월납입, 한도) × 개월)
+            case RATIO -> {
+                if (monthlySavingsGoal == null || monthlySavingsGoal <= 0 || property.getGovMatchingRatio() == null) {
+                    yield null;
+                }
+                long ownDeposit = effectiveMonthlyDeposit(monthlySavingsGoal, property.getMaxMonthlyLimit());
+                yield Math.round(property.getGovMatchingRatio().doubleValue() * ownDeposit * months);
+            }
+            case NONE -> null;
+        };
+    }
+
+    // 은행 상세: 선택 property의 기본/최고/실질금리 + 충족/미충족 우대조건. calculate와 동일 헬퍼 재사용.
+    public BankDetailDto bankDetail(ProductProperty property, SearchRequestDto request, ResolvedKeywords keywords) {
+        if (property == null) {
+            return null;
+        }
+
+        ResolvedKeywords resolvedKeywords = keywords != null ? keywords : emptyKeywords();
+        Set<KeywordValueEnum> applicable = applicableBankConditions(property, request, resolvedKeywords);
+
+        List<PreferentialConditionDto> met = new ArrayList<>();
+        List<PreferentialConditionDto> unmet = new ArrayList<>();
+        for (ProductPreferentialRate rate : property.getPreferentialRates()) {
+            boolean satisfied = applicable.contains(rate.getKeywordCode()) && isAgeConditionSatisfied(rate, request);
+            (satisfied ? met : unmet).add(toConditionDto(rate));
+        }
+
+        return new BankDetailDto(
+                property.getBaseRate() != null ? property.getBaseRate().doubleValue() : null,
+                property.getMaxRate() != null ? property.getMaxRate().doubleValue() : null,
+                achievableBankRate(property, request, resolvedKeywords),
+                met,
+                unmet
+        );
+    }
+
+    private PreferentialConditionDto toConditionDto(ProductPreferentialRate rate) {
+        return new PreferentialConditionDto(
+                rate.getKeywordCode(),
+                rate.getRate() != null ? rate.getRate().doubleValue() : null,
+                rate.getDescription()
+        );
+    }
+
+    // productPropertyId 미전달 시 대표 property 선정(정부=max 수익률, 은행=max 실질금리). 리스트가 고르는 것과 동일 로직.
+    public ProductProperty selectRepresentativeProperty(Product product, SearchRequestDto request, ResolvedKeywords keywords) {
+        ResolvedKeywords resolvedKeywords = keywords != null ? keywords : emptyKeywords();
+
+        if (isGovernmentProduct(product)) {
+            return product.getProperties().stream()
+                    .filter(property -> calculateGovernmentYield(property, request) != null)
+                    .max(Comparator.comparingDouble(property -> calculateGovernmentYield(property, request)))
+                    .orElseGet(() -> product.getProperties().stream().findFirst().orElse(null));
+        }
+
+        return product.getProperties().stream()
+                .max(Comparator.comparingDouble(property -> achievableBankRate(property, request, resolvedKeywords)))
+                .orElse(null);
     }
 
     private ProductRateDto subscriptionDto(Product product) {
@@ -196,7 +296,7 @@ public class RateCalculatorService {
         return Math.min(monthlySavingsGoal, maxMonthlyLimit);
     }
 
-    private Double contributionYears(ProductProperty property) {
+    private Integer contributionMonths(ProductProperty property) {
         Integer periodMonths = property.getGovContributionPeriodMonths() != null
                 ? property.getGovContributionPeriodMonths()
                 : property.getSaveTrm();
@@ -205,7 +305,12 @@ public class RateCalculatorService {
             return null;
         }
 
-        return periodMonths / 12.0;
+        return periodMonths;
+    }
+
+    private Double contributionYears(ProductProperty property) {
+        Integer months = contributionMonths(property);
+        return months == null ? null : months / 12.0;
     }
 
     private Long monthlySavingsGoal(SearchRequestDto request) {

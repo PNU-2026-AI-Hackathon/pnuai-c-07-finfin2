@@ -2,10 +2,13 @@ package apptive.fin.search.controller;
 
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.search.dto.DynamicFormResponseDto;
+import apptive.fin.search.dto.ProductDetailRequestDto;
+import apptive.fin.search.dto.ProductDetailResponseDto;
 import apptive.fin.search.dto.ProductNameSearchDto;
 import apptive.fin.search.dto.ProductSearchResultDto;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.service.DynamicFormService;
+import apptive.fin.search.service.ProductDetailService;
 import apptive.fin.search.service.SearchService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +32,7 @@ public class SearchController {
 
     private final DynamicFormService dynamicFormService;
     private final SearchService searchService;
+    private final ProductDetailService productDetailService;
 
     @PostMapping("/dynamic-form")
     public DynamicFormResponseDto dynamicForm(@Valid @RequestBody SearchRequestDto searchRequestDto) {
@@ -48,6 +52,15 @@ public class SearchController {
             @RequestParam String searchInput
     ){
         return ResponseEntity.ok(searchService.searchByName(searchInput));
+    }
+
+    @PostMapping("/products/{productId}/detail")
+    public ResponseEntity<ProductDetailResponseDto> productDetail(
+            @PathVariable Long productId,
+            @RequestBody(required = false) ProductDetailRequestDto request,
+            @AuthenticationPrincipal AuthUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(productDetailService.getProductDetail(productId, request, userDetails));
     }
 
 }

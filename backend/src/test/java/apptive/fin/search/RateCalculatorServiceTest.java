@@ -1,6 +1,9 @@
 package apptive.fin.search;
 
+import apptive.fin.search.dto.BankDetailDto;
 import apptive.fin.search.dto.DetailedOptionsDto;
+import apptive.fin.search.dto.GovernmentDetailDto;
+import apptive.fin.search.dto.PreferentialConditionDto;
 import apptive.fin.search.dto.ProductRateDto;
 import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
@@ -314,6 +317,87 @@ class RateCalculatorServiceTest {
 
         assertThat(result.rateComparable()).isFalse();
         assertThat(result.isSubscription()).isFalse();
+    }
+
+    // ===== 상품 상세 (Y4-1) =====
+
+    @Test
+    void 정부_정액상품_상세는_예상_만기_기여금_총액을_월정액매칭x개월로_계산한다() {
+        ProductProperty property = createProperty(10L, "GOV", "정책기관", null, null);
+        ReflectionTestUtils.setField(property, "govContributionType", ContributionType.FIXED_AMOUNT);
+        ReflectionTestUtils.setField(property, "govMonthlyFixedContribution", 300_000L);
+        ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 36);
+
+        GovernmentDetailDto detail = rateCalculatorService.governmentDetail(property, createRequest(100_000L));
+
+        assertThat(detail.annualizedYield()).isEqualTo(100.0);
+        assertThat(detail.expectedTotalContribution()).isEqualTo(10_800_000L); // 30만 x 36
+        assertThat(detail.contributionType()).isEqualTo(ContributionType.FIXED_AMOUNT);
+        assertThat(detail.contributionPeriodMonths()).isEqualTo(36);
+    }
+
+    @Test
+    void 정부_정률상품_상세는_예상_만기_기여금_총액을_매칭배수x본인납입총액으로_계산한다() {
+        ProductProperty property = createProperty(10L, "GOV", "정책기관", null, null);
+        ReflectionTestUtils.setField(property, "govContributionType", ContributionType.RATIO);
+        ReflectionTestUtils.setField(property, "govMatchingRatio", new BigDecimal("1.0000"));
+        ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 24);
+
+        GovernmentDetailDto detail = rateCalculatorService.governmentDetail(property, createRequest(100_000L));
+
+        assertThat(detail.annualizedYield()).isEqualTo(50.0);
+        assertThat(detail.expectedTotalContribution()).isEqualTo(2_400_000L); // 1.0 x (10만 x 24)
+        assertThat(detail.effectiveMonthlyDeposit()).isEqualTo(100_000L);
+    }
+
+    @Test
+    void 정부_정률상품_상세는_총액에도_최대월납입한도를_실효납입액으로_사용한다() {
+        ProductProperty property = createProperty(10L, "GOV", "정책기관", null, null);
+        ReflectionTestUtils.setField(property, "govContributionType", ContributionType.RATIO);
+        ReflectionTestUtils.setField(property, "govMatchingRatio", new BigDecimal("1.0000"));
+        ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 36);
+        ReflectionTestUtils.setField(property, "maxMonthlyLimit", 100_000L);
+
+        GovernmentDetailDto detail = rateCalculatorService.governmentDetail(property, createRequest(500_000L));
+
+        assertThat(detail.expectedTotalContribution()).isEqualTo(3_600_000L); // min(50만,10만) x 36
+        assertThat(detail.effectiveMonthlyDeposit()).isEqualTo(100_000L);
+    }
+
+    @Test
+    void 정부_정률상품_상세는_희망월납입액이_없으면_총액은_null이고_수익률은_유지된다() {
+        ProductProperty property = createProperty(10L, "GOV", "정책기관", null, null);
+        ReflectionTestUtils.setField(property, "govContributionType", ContributionType.RATIO);
+        ReflectionTestUtils.setField(property, "govMatchingRatio", new BigDecimal("1.0000"));
+        ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 24);
+
+        GovernmentDetailDto detail = rateCalculatorService.governmentDetail(property, createRequest());
+
+        assertThat(detail.annualizedYield()).isEqualTo(50.0);
+        assertThat(detail.expectedTotalContribution()).isNull();
+    }
+
+    @Test
+    void 은행상품_상세는_충족_미충족_우대조건을_분해한다() {
+        ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");
+        addPreferentialRates(property,
+                preferentialRate(KeywordValueEnum.BANK_SALARY_TRANSFER, "0.30"),  // 선택 → 충족
+                preferentialRate(KeywordValueEnum.BANK_CARD_USAGE, "0.20"),       // 미선택 → 미충족
+                preferentialRate(KeywordValueEnum.BANK_ONLINE_JOIN, "0.10"));     // 자동 → 충족
+
+        BankDetailDto detail = rateCalculatorService.bankDetail(
+                property,
+                createRequest(),
+                keywords(List.of(KeywordValueEnum.BANK_SALARY_TRANSFER))
+        );
+
+        assertThat(detail.baseRate()).isEqualTo(3.5);
+        assertThat(detail.maxRate()).isEqualTo(5.0);
+        assertThat(detail.achievableRate()).isEqualTo(3.9); // 3.5 + 0.3 + 0.1
+        assertThat(detail.metConditions()).extracting(PreferentialConditionDto::keywordCode)
+                .containsExactlyInAnyOrder(KeywordValueEnum.BANK_SALARY_TRANSFER, KeywordValueEnum.BANK_ONLINE_JOIN);
+        assertThat(detail.unmetConditions()).extracting(PreferentialConditionDto::keywordCode)
+                .containsExactly(KeywordValueEnum.BANK_CARD_USAGE);
     }
 
     private Product createProduct(String code, String name, String sourceCode) {
