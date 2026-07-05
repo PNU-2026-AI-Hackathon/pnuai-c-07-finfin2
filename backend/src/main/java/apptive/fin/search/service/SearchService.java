@@ -185,8 +185,7 @@ public class SearchService {
                             .productId(p.getId())
                             .productName(p.getProductName())
                             .source(p.getSource().getCode())
-                            .providerName(bestProperty != null && bestProperty.getProvider() != null
-                                    ? bestProperty.getProvider().getName() : null)
+                            .providerName(providerName(bestProperty))
                             .baseRate(bestProperty != null && bestProperty.getBaseRate() != null
                                     ? bestProperty.getBaseRate().doubleValue() : null)
                             .maxRate(bestProperty != null && bestProperty.getMaxRate() != null
@@ -244,5 +243,11 @@ public class SearchService {
 
     private boolean isBankProduct(Product product) {
         return product.getSource().getCode().equals("FSS");
+    }
+
+    private String providerName(ProductProperty property) {
+        return property != null && property.getProvider() != null
+                ? property.getProvider().getName()
+                : null;
     }
 }

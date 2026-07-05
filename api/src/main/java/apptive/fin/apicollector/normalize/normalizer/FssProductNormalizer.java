@@ -2,6 +2,7 @@ package apptive.fin.apicollector.normalize.normalizer;
 
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.config.CollectorProperties;
+import apptive.fin.apicollector.normalize.FssBankNameNormalizer;
 import apptive.fin.apicollector.normalize.ProductClassification;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
@@ -26,6 +27,7 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
     private final KeywordExtractor keywordExtractor;
     private final FssPreferentialRateExtractor preferentialRateExtractor;
     private final FssRequiredKeywordExtractor requiredKeywordExtractor;
+    private final FssBankNameNormalizer bankNameNormalizer;
 
     @Override
     public Source source() {
@@ -79,7 +81,7 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                 content
         );
         String providerCode = firstText(base, "fin_co_no", "kor_co_nm");
-        String providerName = firstText(base, "kor_co_nm", "fin_co_no");
+        String providerName = bankNameNormalizer.normalize(providerCode, firstText(base, "kor_co_nm", "fin_co_no"));
         Long maxMonthlyLimit = longValue(base, "max_limit");
         var preferentialRates = preferentialRateExtractor.extract(text(base, "spcl_cnd"));
         var requiredKeywords = requiredKeywordExtractor.extract(text(base, "join_member"), text(base, "etc_note"));

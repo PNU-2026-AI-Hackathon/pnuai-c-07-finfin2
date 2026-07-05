@@ -33,7 +33,8 @@ class FssProductNormalizerTest {
             properties(),
             keywordExtractor(),
             new FssPreferentialRateExtractor(),
-            new FssRequiredKeywordExtractor()
+            new FssRequiredKeywordExtractor(),
+            new FssBankNameNormalizer()
     );
 
     @Test
@@ -105,6 +106,27 @@ class FssProductNormalizerTest {
                         KeywordValueEnum.BANK_CARD_USAGE,
                         KeywordValueEnum.BANK_FIRST_TRANSACTION
                 );
+    }
+
+    @Test
+    void normalizesFssProviderNameByCompanyCode() {
+        ProductRaw raw = new ProductRaw(Source.FSS, "FSS:SAVING:0013909:XYZ", "hash", """
+                {
+                  "source": "FSS",
+                  "productType": "SAVING",
+                  "financialGroupName": "은행",
+                  "base": {
+                    "fin_co_no": "0013909",
+                    "kor_co_nm": "주식회사 하나은행",
+                    "fin_prdt_nm": "하나 청년 적금"
+                  },
+                  "options": []
+                }
+                """, ProductType.SAVING);
+
+        ProductDraft draft = normalizer.normalize(raw);
+
+        assertThat(draft.properties().getFirst().providerName()).isEqualTo("하나은행");
     }
 
     @Test

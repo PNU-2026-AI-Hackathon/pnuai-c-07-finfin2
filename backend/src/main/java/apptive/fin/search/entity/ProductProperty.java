@@ -1,5 +1,6 @@
 package apptive.fin.search.entity;
 
+import apptive.fin.provider.entity.Provider;
 import apptive.fin.search.ContributionType;
 import apptive.fin.search.InterestRateType;
 import jakarta.persistence.CascadeType;
