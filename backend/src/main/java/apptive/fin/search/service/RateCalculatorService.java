@@ -397,9 +397,8 @@ public class RateCalculatorService {
         }
 
         String providerCode = property.getProvider().getCode();
-        String providerName = property.getProvider().getName();
         return selectedProviders.stream()
-                .anyMatch(selected -> selected != null && (selected.equals(providerCode) || selected.equals(providerName)));
+                .anyMatch(selected -> selected != null && selected.equals(providerCode));
     }
 
     private List<String> neverUsedBanks(SearchRequestDto request) {

@@ -4,7 +4,7 @@ import apptive.fin.search.dto.ProductNameSearchDto;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.entity.ProductSource;
-import apptive.fin.search.entity.Provider;
+import apptive.fin.provider.entity.Provider;
 import apptive.fin.search.repository.ProductRepository;
 import apptive.fin.search.service.*;
 import org.junit.jupiter.api.DisplayName;

@@ -11,7 +11,7 @@ import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductPreferentialRate;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.entity.ProductSource;
-import apptive.fin.search.entity.Provider;
+import apptive.fin.provider.entity.Provider;
 import apptive.fin.search.service.RateCalculatorService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -24,6 +24,9 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class RateCalculatorServiceTest {
+
+    private static final String KB_PROVIDER_CODE = "0010927";
+    private static final String SHINHAN_PROVIDER_CODE = "0011625";
 
     private final RateCalculatorService rateCalculatorService = new RateCalculatorService();
 
@@ -398,6 +401,38 @@ class RateCalculatorServiceTest {
                 .containsExactlyInAnyOrder(KeywordValueEnum.BANK_SALARY_TRANSFER, KeywordValueEnum.BANK_ONLINE_JOIN);
         assertThat(detail.unmetConditions()).extracting(PreferentialConditionDto::keywordCode)
                 .containsExactly(KeywordValueEnum.BANK_CARD_USAGE);
+    }
+
+    @Test
+    void 은행_거래이력은_provider_code로만_매칭된다() {
+        Product product = createProduct("BANK_CODE_ONLY", "first transaction code product", "FSS");
+        ProductProperty property = createProperty(10L, KB_PROVIDER_CODE, "국민은행", "3.50", "5.00");
+        addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_FIRST_TRANSACTION, "0.50"));
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        ProductRateDto result = rateCalculatorService.calculate(
+                product,
+                createRequest(null, null, List.of(KB_PROVIDER_CODE), List.of()),
+                emptyKeywords()
+        );
+
+        assertThat(result.achievableRate()).isEqualTo(4.0);
+    }
+
+    @Test
+    void 은행_거래이력은_provider_별칭으로_매칭되지_않는다() {
+        Product product = createProduct("BANK_ALIAS", "first transaction alias product", "FSS");
+        ProductProperty property = createProperty(10L, KB_PROVIDER_CODE, "국민은행", "3.50", "5.00");
+        addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_FIRST_TRANSACTION, "0.50"));
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        ProductRateDto result = rateCalculatorService.calculate(
+                product,
+                createRequest(null, null, List.of("KB"), List.of()),
+                emptyKeywords()
+        );
+
+        assertThat(result.achievableRate()).isEqualTo(3.5);
     }
 
     private Product createProduct(String code, String name, String sourceCode) {

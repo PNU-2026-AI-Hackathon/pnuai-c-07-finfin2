@@ -116,9 +116,71 @@ class FssLlmProductDraftEnricherTest {
         assertThat(property.keywords()).contains(
                 KeywordValueEnum.BANK_CARD_USAGE,
                 KeywordValueEnum.BENEFIT_TAX_FREE,
+                KeywordValueEnum.REGION_SEOUL,
                 KeywordValueEnum.TERM_AROUND_1_YEAR
         );
-        assertThat(property.keywords()).doesNotContain(KeywordValueEnum.REGION_SEOUL);
+        verify(cacheRepository).save(any(LlmEnrichmentCache.class));
+    }
+
+    @Test
+    void preservesDeterministicFieldsWhenLlmEnrichmentIsIncomplete() {
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                null,
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+        ProductDraft draft = draftWithProperty(draft().properties().getFirst().toBuilder()
+                .minAge(18)
+                .maxAge(35)
+                .earnMaxAmt(40_000_000L)
+                .requiresHomeless(true)
+                .excludeFromRateComparison(true)
+                .build());
+
+        ProductDraft result = enricher.enrich(raw(), draft);
+        ProductPropertyDraft property = result.properties().getFirst();
+
+        assertThat(result.contentSummary()).isNull();
+        assertThat(property.maxMonthlyLimit()).isEqualTo(300_000L);
+        assertThat(property.minAge()).isEqualTo(18);
+        assertThat(property.maxAge()).isEqualTo(35);
+        assertThat(property.earnMaxAmt()).isEqualTo(40_000_000L);
+        assertThat(property.requiresHomeless()).isTrue();
+        assertThat(property.excludeFromRateComparison()).isTrue();
+        assertThat(property.keywords()).containsExactlyInAnyOrder(
+                KeywordValueEnum.REGION_SEOUL,
+                KeywordValueEnum.TERM_AROUND_1_YEAR
+        );
         verify(cacheRepository).save(any(LlmEnrichmentCache.class));
     }
 
@@ -264,6 +326,41 @@ class FssLlmProductDraftEnricherTest {
         verify(cacheRepository).save(any(LlmEnrichmentCache.class));
     }
 
+    @Test
+    void skipsProviderCallWhenFailedCacheIsStillInCooldown() {
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        LlmEnrichmentCache cache = LlmEnrichmentCache.create(
+                Source.FSS,
+                "FSS:SAVING:001:ABC",
+                "hash",
+                "GEMINI",
+                "gemini-test",
+                1,
+                1,
+                "request-hash"
+        );
+        cache.markFailed("request-hash", "503 Service Unavailable");
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.of(cache));
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+        ProductDraft draft = draft();
+
+        ProductDraft result = enricher.enrich(raw(), draft);
+
+        assertThat(result).isSameAs(draft);
+        verify(providerClient, never()).enrich(any());
+        verify(cacheRepository, never()).save(any());
+    }
+
     private ProductRaw raw() {
         return raw("실명의 개인", "월 1만원 이상 가입");
     }
@@ -300,6 +397,12 @@ class FssLlmProductDraftEnricherTest {
                         .maxMonthlyLimit(300_000L)
                         .keywords(List.of(KeywordValueEnum.REGION_SEOUL))
                         .build()))
+                .build();
+    }
+
+    private ProductDraft draftWithProperty(ProductPropertyDraft property) {
+        return draft().toBuilder()
+                .properties(List.of(property))
                 .build();
     }
 

@@ -120,6 +120,8 @@ CREATE TABLE IF NOT EXISTS llm_enrichment_cache (
                                   status VARCHAR(20) NOT NULL,
                                   response_json TEXT,
                                   error_message TEXT,
+                                  failure_count INT NOT NULL DEFAULT 0,
+                                  last_failed_at TIMESTAMP WITH TIME ZONE,
                                   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
                                   CONSTRAINT uk_llm_enrichment_cache_key UNIQUE (
@@ -132,6 +134,12 @@ CREATE TABLE IF NOT EXISTS llm_enrichment_cache (
                                       schema_version
                                   )
 );
+
+ALTER TABLE IF EXISTS llm_enrichment_cache
+    ADD COLUMN IF NOT EXISTS failure_count INT NOT NULL DEFAULT 0;
+
+ALTER TABLE IF EXISTS llm_enrichment_cache
+    ADD COLUMN IF NOT EXISTS last_failed_at TIMESTAMP WITH TIME ZONE;
 
 -- SELECT setval(pg_get_serial_sequence('product_raw', 'id'), COALESCE((SELECT MAX(id) FROM product_raw), 1), (SELECT MAX(id) FROM product_raw) IS NOT NULL);
 -- SELECT setval(pg_get_serial_sequence('product_source', 'id'), COALESCE((SELECT MAX(id) FROM product_source), 1), (SELECT MAX(id) FROM product_source) IS NOT NULL);
