@@ -100,6 +100,32 @@ class ProductDetailServiceIntegrationTest {
     }
 
     @Test
+    void 상품안내_필드는_비로그인_잠금과_무관하게_항상_노출된다() {
+        Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
+        Long propertyId = propertyId("SEARCH_YOUTH_EMPLOYMENT");
+        jdbcTemplate.update(
+                "UPDATE product SET join_method = ?, eligibility_text = ?, caution_text = ?, recruitment_period = ? WHERE id = ?",
+                "읍·면·동 행정복지센터", "만 15세 이상 ~ 39세 이하", "3년 통장 유지 필요", "2026.5.4. ~ 2026.5.20.", productId);
+        jdbcTemplate.update(
+                "UPDATE product_properties SET installment_type = ? WHERE id = ?",
+                "정액적립식", propertyId);
+
+        ProductDetailResponseDto locked = productDetailService.getProductDetail(
+                productId, request(propertyId, 100L), null);
+        ProductDetailResponseDto unlocked = productDetailService.getProductDetail(
+                productId, request(propertyId, 100L), authenticatedUser());
+
+        assertThat(locked.metricsLocked()).isTrue();
+        for (ProductDetailResponseDto detail : List.of(locked, unlocked)) {
+            assertThat(detail.joinMethod()).isEqualTo("읍·면·동 행정복지센터");
+            assertThat(detail.eligibilityText()).isEqualTo("만 15세 이상 ~ 39세 이하");
+            assertThat(detail.cautionText()).isEqualTo("3년 통장 유지 필요");
+            assertThat(detail.recruitmentPeriod()).isEqualTo("2026.5.4. ~ 2026.5.20.");
+            assertThat(detail.installmentType()).isEqualTo("정액적립식");
+        }
+    }
+
+    @Test
     void 존재하지_않는_상품은_예외를_던진다() {
         assertThatThrownBy(() -> productDetailService.getProductDetail(
                 999_999L, request(null, null), authenticatedUser()))

@@ -113,6 +113,10 @@ CREATE TABLE product (
     product_name VARCHAR(200) NOT NULL,
     content TEXT,
     content_summary TEXT,
+    join_method TEXT,
+    eligibility_text TEXT,
+    caution_text TEXT,
+    recruitment_period TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -143,6 +147,7 @@ CREATE TABLE product_properties (
     is_joinable BOOLEAN NOT NULL DEFAULT TRUE,
     apply_url VARCHAR(500),
     intr_rate_type VARCHAR(30),
+    installment_type VARCHAR(50),
     save_trm INT
 );
 

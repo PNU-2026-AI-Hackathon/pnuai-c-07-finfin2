@@ -168,6 +168,36 @@ class FssProductNormalizerTest {
                 .containsExactly(KeywordValueEnum.STATUS_SME_WORKER);
     }
 
+    @Test
+    void mapsJoinMethodEligibilityCautionAndInstallmentType() {
+        ProductRaw raw = new ProductRaw(Source.FSS, "FSS:SAVING:004:JKL", "hash", """
+                {
+                  "source": "FSS",
+                  "productType": "SAVING",
+                  "financialGroupName": "은행",
+                  "base": {
+                    "fin_co_no": "004",
+                    "kor_co_nm": "테스트은행",
+                    "fin_prdt_nm": "자유적금",
+                    "join_way": "영업점,인터넷,스마트폰",
+                    "join_member": "실명의 개인",
+                    "etc_note": "만기 후 이자율은 기본이율의 50%로 낮아집니다.",
+                    "max_limit": 300000
+                  },
+                  "options": [
+                    {"intr_rate_type": "S", "intr_rate_type_nm": "단리", "rsrv_type": "F", "rsrv_type_nm": "자유적립식", "save_trm": "12", "intr_rate": 3.1, "intr_rate2": 4.1}
+                  ]
+                }
+                """, ProductType.SAVING);
+
+        ProductDraft draft = normalizer.normalize(raw);
+
+        assertThat(draft.joinMethod()).isEqualTo("영업점,인터넷,스마트폰");
+        assertThat(draft.eligibilityText()).isEqualTo("실명의 개인");
+        assertThat(draft.cautionText()).isEqualTo("만기 후 이자율은 기본이율의 50%로 낮아집니다.");
+        assertThat(draft.properties().getFirst().installmentType()).isEqualTo("자유적립식");
+    }
+
     private CollectorProperties properties() {
         return new CollectorProperties(
                 true,

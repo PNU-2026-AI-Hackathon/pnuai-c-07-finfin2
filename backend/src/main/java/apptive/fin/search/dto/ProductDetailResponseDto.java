@@ -26,6 +26,11 @@ public record ProductDetailResponseDto(
         Long maxMonthlyLimit,
         Boolean requiresHomeless,
         Boolean requiresHouseholder,
+        String joinMethod,
+        String eligibilityText,
+        String cautionText,
+        String recruitmentPeriod,
+        String installmentType,
 
         // CTA (공개 정보 — 잠금과 무관하게 항상 반환, null = 비활성)
         String applyUrl,
