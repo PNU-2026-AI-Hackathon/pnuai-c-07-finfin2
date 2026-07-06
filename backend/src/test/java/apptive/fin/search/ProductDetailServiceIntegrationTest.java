@@ -3,9 +3,14 @@ package apptive.fin.search;
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.global.error.BusinessException;
 import apptive.fin.search.dto.DetailedOptionsDto;
+import apptive.fin.search.dto.OptionRequestDto;
 import apptive.fin.search.dto.ProductDetailRequestDto;
 import apptive.fin.search.dto.ProductDetailResponseDto;
+import apptive.fin.search.dto.ProductMatchDto;
+import apptive.fin.search.dto.ProductSearchResultDto;
+import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.service.ProductDetailService;
+import apptive.fin.search.service.SearchService;
 import apptive.fin.user.UserRole;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,10 +18,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.offset;
 
 @SpringBootTest
 @Sql(scripts = "/sql/search-products.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
@@ -25,6 +32,9 @@ class ProductDetailServiceIntegrationTest {
 
     @Autowired
     private ProductDetailService productDetailService;
+
+    @Autowired
+    private SearchService searchService;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
@@ -126,6 +136,41 @@ class ProductDetailServiceIntegrationTest {
     }
 
     @Test
+    void 상세_적합도는_리스트의_totalScore와_일치한다() {
+        List<OptionRequestDto> options = List.of(new OptionRequestDto(CategoryIdEnum.REGION.getId(), 2L));
+        DetailedOptionsDto detailedOptions = detailedOptions(50L);
+
+        // 리스트(탭A)에서 해당 카드의 totalScore와 productPropertyId 확보
+        ProductSearchResultDto list = searchService.search(
+                new SearchRequestDto(options, detailedOptions), authenticatedUser());
+        ProductMatchDto card = list.governmentRanked().stream()
+                .filter(match -> match.productName().equals("청년내일채움공제"))
+                .findFirst()
+                .orElseThrow();
+
+        // 같은 옵션 + 같은 property로 상세 조회 → matchScore가 리스트 값과 동일해야 함
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                card.productId(),
+                new ProductDetailRequestDto(card.productPropertyId(), options, detailedOptions),
+                authenticatedUser());
+
+        assertThat(detail.matchScore()).isNotNull();
+        assertThat(detail.matchScore()).isCloseTo(card.totalScore(), offset(0.0001));
+    }
+
+    @Test
+    void 옵션없이_직접진입하면_적합도는_null이다() {
+        Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
+        Long propertyId = propertyId("SEARCH_YOUTH_EMPLOYMENT");
+
+        // request(...) 헬퍼는 options를 비워 보냄 → 채점 근거 없음
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(propertyId, 100L), authenticatedUser());
+
+        assertThat(detail.matchScore()).isNull();
+    }
+
+    @Test
     void 존재하지_않는_상품은_예외를_던진다() {
         assertThatThrownBy(() -> productDetailService.getProductDetail(
                 999_999L, request(null, null), authenticatedUser()))
@@ -157,6 +202,18 @@ class ProductDetailServiceIntegrationTest {
                         null, null, null, null, null, null, null, null,
                         monthlySavingsGoal, null, List.of()
                 )
+        );
+    }
+
+    // neverUsedBanks/maturedSavingBanks 비어있지 않게 채워 리스트 탭B(=includeTx)와 조건을 맞춘다.
+    private DetailedOptionsDto detailedOptions(long monthlySavingsGoal) {
+        return new DetailedOptionsDto(
+                LocalDate.now().minusYears(27),
+                30_000_000L, 3, 100, 12, null, true, null,
+                monthlySavingsGoal, null,
+                List.of(),
+                List.of(),
+                List.of()
         );
     }
 }

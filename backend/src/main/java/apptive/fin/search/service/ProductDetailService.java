@@ -36,6 +36,7 @@ public class ProductDetailService {
     private final ProductRepository productRepository;
     private final ResolveKeywordService resolveKeywordService;
     private final RateCalculatorService rateCalculatorService;
+    private final MatchScoreService matchScoreService;
 
     public ProductDetailResponseDto getProductDetail(
             Long productId,
@@ -62,6 +63,20 @@ public class ProductDetailService {
         boolean metricsLocked = userDetails == null; // 비로그인 시 수익 지표 잠금(로그인 게이트)
         boolean showMetrics = !metricsLocked && !subscription && selected != null;
 
+        // 적합도(리스트 탭A totalScore)는 잠금과 무관 — property/옵션이 있으면 계산.
+        // includeTx는 리스트(SearchService.isTabBEnabled)와 동일하게 맞춰 값 일관성 보장.
+        Double matchScore = null;
+        if (selected != null && !options.isEmpty()) {
+            var detail = req.detailedOptions();
+            boolean includeTx = userDetails != null
+                    && detail != null
+                    && detail.neverUsedBanks() != null
+                    && detail.maturedSavingBanks() != null;
+            matchScore = matchScoreService
+                    .score(product, selected, calcRequest, keywords, includeTx)
+                    .totalScore();
+        }
+
         GovernmentDetailDto governmentDetail = null;
         BankDetailDto bankDetail = null;
         List<RateTableRowDto> rateTable = null;
@@ -84,6 +99,7 @@ public class ProductDetailService {
                 .content(product.getContent())
                 .contentSummary(product.getContentSummary())
                 .saveTrms(saveTrms(product))
+                .matchScore(matchScore)
                 .minAge(selected != null ? selected.getMinAge() : null)
                 .maxAge(selected != null ? selected.getMaxAge() : null)
                 .minMonthlyLimit(selected != null ? selected.getMinMonthlyLimit() : null)
