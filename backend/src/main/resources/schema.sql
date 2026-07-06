@@ -168,3 +168,4 @@ CREATE TABLE product_preferential_rates (
     min_age INT,
     max_age INT
 );
+
