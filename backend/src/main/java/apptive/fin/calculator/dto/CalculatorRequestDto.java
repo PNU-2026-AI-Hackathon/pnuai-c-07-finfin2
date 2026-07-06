@@ -11,7 +11,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 
-public record calculatorRequestDto (
+public record CalculatorRequestDto(
     @NotNull ProductType productType,
     @NotNull InterestRateType interestRateType,
     ReserveType reserveType,

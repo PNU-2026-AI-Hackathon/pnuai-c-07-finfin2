@@ -2,7 +2,7 @@ package apptive.fin.calculator.dto;
 
 import java.math.BigDecimal;
 
-public record calculatorResponseDto (
+public record CalculatorResponseDto(
         BigDecimal principal,
         BigDecimal preTaxInterest,
         BigDecimal taxRate,

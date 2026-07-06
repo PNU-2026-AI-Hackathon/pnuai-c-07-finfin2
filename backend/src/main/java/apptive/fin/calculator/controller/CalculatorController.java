@@ -1,4 +1,4 @@
 package apptive.fin.calculator.controller;
 
-public class calculatorController {
+public class CalculatorController {
 }
