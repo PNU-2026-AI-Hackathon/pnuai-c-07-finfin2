@@ -23,13 +23,13 @@ public record CalculatorRequestDto(
 
     @NotNull
     @Min(10_000) // 1만원 이상
-    BigDecimal amount,
+    BigDecimal amount, // 월 납입액(원)
 
     @NotNull
     @Min(1)
     Integer saveTrm, // 저축 기간(개월)
 
     @NotNull
-    TaxType taxType
+    TaxType taxType // 과세 or 비과세
 ){}
 
