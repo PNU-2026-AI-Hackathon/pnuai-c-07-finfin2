@@ -2,6 +2,7 @@ package apptive.fin.calculator.dto;
 
 import apptive.fin.search.InterestRateType;
 import apptive.fin.search.ProductType;
+import apptive.fin.search.ReserveType;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
