@@ -34,21 +34,24 @@ public class SavingRateCalculator implements RateCalculator {
         BigDecimal monthlyRate = r.divide(TWELVE, MC); // i = r / 12
 
         BigDecimal preTaxInterest;
+        BigDecimal maturityAmount;
 
         if (request.interestRateType() == InterestRateType.SINGLE_INTEREST) {
             // A × i × [n(n+1)/2]
             BigDecimal sumOfMonths = BigDecimal.valueOf((long) n * (n + 1))
                     .divide(BigDecimal.valueOf(2), MC);
             preTaxInterest = monthlyPayment.multiply(monthlyRate, MC).multiply(sumOfMonths, MC);
+            maturityAmount = principal.add(preTaxInterest);
         } else {
             if (monthlyRate.compareTo(BigDecimal.ZERO) == 0) {
                 // 금리 0%면 이자 없음 (0으로 나누기 방지)
                 preTaxInterest = BigDecimal.ZERO;
+                maturityAmount = principal;
             } else {
                 // 만기금액 = A × (1+i) × {(1+i)^n − 1} / i
                 BigDecimal onePlusI = BigDecimal.ONE.add(monthlyRate);
                 BigDecimal growthFactor = onePlusI.pow(n, MC).subtract(BigDecimal.ONE);
-                BigDecimal maturityAmount = monthlyPayment
+                maturityAmount = monthlyPayment
                         .multiply(onePlusI, MC)
                         .multiply(growthFactor, MC)
                         .divide(monthlyRate, MC);
@@ -57,6 +60,7 @@ public class SavingRateCalculator implements RateCalculator {
         }
 
         preTaxInterest = preTaxInterest.setScale(SCALE, RoundingMode.HALF_UP);
+        maturityAmount = maturityAmount.setScale(SCALE, RoundingMode.HALF_UP);
 
         BigDecimal taxRate = request.taxType().getRate();
         BigDecimal interestTax = preTaxInterest.multiply(taxRate, MC).setScale(SCALE, RoundingMode.HALF_UP);
@@ -64,6 +68,7 @@ public class SavingRateCalculator implements RateCalculator {
 
         return new CalculatorResponseDto(
                 principal.setScale(SCALE, RoundingMode.HALF_UP),
+                maturityAmount,
                 preTaxInterest,
                 taxRate,
                 interestTax,

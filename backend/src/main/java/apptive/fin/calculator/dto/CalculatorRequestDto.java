@@ -12,22 +12,23 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 public record CalculatorRequestDto(
+    @NotNull Long productId, // 상품 ID (바운더리 검증용)
+
     @NotNull ProductType productType,
     @NotNull InterestRateType interestRateType,
     ReserveType reserveType,
 
     @NotNull
     @DecimalMin(value = "0.0", inclusive = true)
-    @DecimalMax(value = "1.0") // 소수 기준 (4% = 0.04)
-    BigDecimal appliedRate, // 적용 금리 (연이율, 소수)
+    BigDecimal appliedRate, // 적용 금리 (연이율, 소수) - 상품 max_rate 기준으로 검증
 
     @NotNull
     @Min(10_000) // 1만원 이상
-    BigDecimal amount, // 월 납입액(원)
+    BigDecimal amount, // 월 납입액(원) - 상품 max_monthly_limit 기준으로 검증
 
     @NotNull
     @Min(1)
-    Integer saveTrm, // 저축 기간(개월)
+    Integer saveTrm, // 저축 기간(개월) - 상품 save_trm 옵션으로 검증
 
     @NotNull
     TaxType taxType // 과세 or 비과세

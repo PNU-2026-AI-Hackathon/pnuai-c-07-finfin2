@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 public record CalculatorResponseDto(
         BigDecimal principal,
+        BigDecimal maturityAmount,
         BigDecimal preTaxInterest,
         BigDecimal taxRate,
         BigDecimal interestTax,

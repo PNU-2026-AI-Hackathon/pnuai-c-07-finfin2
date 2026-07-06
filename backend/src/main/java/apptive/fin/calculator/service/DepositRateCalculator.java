@@ -30,20 +30,23 @@ public class DepositRateCalculator implements  RateCalculator {
         int n = request.saveTrm();
 
         BigDecimal preTaxInterest;
+        BigDecimal maturityAmount;
 
         if (request.interestRateType() == InterestRateType.SINGLE_INTEREST) {
             // P × r × (n/12)
             BigDecimal nOverTwelve = BigDecimal.valueOf(n).divide(TWELVE, MC);
             preTaxInterest = principal.multiply(r, MC).multiply(nOverTwelve, MC);
+            maturityAmount = principal.add(preTaxInterest);
         } else {
             // 월복리: 만기금액 = P × (1 + r/12)^n
             BigDecimal monthlyRate = r.divide(TWELVE, MC);
             BigDecimal growthFactor = BigDecimal.ONE.add(monthlyRate).pow(n, MC);
-            BigDecimal maturityAmount = principal.multiply(growthFactor, MC);
+            maturityAmount = principal.multiply(growthFactor, MC);
             preTaxInterest = maturityAmount.subtract(principal);
         }
 
         preTaxInterest = preTaxInterest.setScale(SCALE, RoundingMode.HALF_UP);
+        maturityAmount = maturityAmount.setScale(SCALE, RoundingMode.HALF_UP);
 
         BigDecimal taxRate = request.taxType().getRate();
         BigDecimal interestTax = preTaxInterest.multiply(taxRate, MC).setScale(SCALE, RoundingMode.HALF_UP);
@@ -51,6 +54,7 @@ public class DepositRateCalculator implements  RateCalculator {
 
         return new CalculatorResponseDto(
                 principal.setScale(SCALE, RoundingMode.HALF_UP),
+                maturityAmount,
                 preTaxInterest,
                 taxRate,
                 interestTax,
