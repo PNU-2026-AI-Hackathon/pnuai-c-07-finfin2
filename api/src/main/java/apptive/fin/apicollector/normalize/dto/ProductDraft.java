@@ -20,6 +20,10 @@ public record ProductDraft(
         String productName,
         String content,
         String contentSummary,
+        String joinMethod,
+        String eligibilityText,
+        String cautionText,
+        String recruitmentPeriod,
         List<ProductPropertyDraft> properties
 ) {
     public ProductDraft {

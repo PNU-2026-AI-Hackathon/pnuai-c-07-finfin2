@@ -90,6 +90,8 @@ public class ProductProperty {
     @Enumerated(EnumType.STRING)
     private InterestRateType intrRateType;
 
+    private String installmentType;
+
     private Integer saveTrm;
 
     @BatchSize(size = 100)
