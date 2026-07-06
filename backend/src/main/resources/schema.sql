@@ -169,3 +169,5 @@ CREATE TABLE product_preferential_rates (
     max_age INT
 );
 
+ALTER TABLE product_properties
+    ADD COLUMN rsrv_type VARCHAR(30);
