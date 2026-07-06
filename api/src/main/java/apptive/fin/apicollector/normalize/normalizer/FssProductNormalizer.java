@@ -2,7 +2,6 @@ package apptive.fin.apicollector.normalize.normalizer;
 
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.config.CollectorProperties;
-import apptive.fin.apicollector.normalize.FssBankNameNormalizer;
 import apptive.fin.apicollector.normalize.ProductClassification;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;

@@ -14,6 +14,7 @@ import apptive.fin.apicollector.normalize.extractor.keywords.InterestKeywordReco
 import apptive.fin.apicollector.normalize.extractor.keywords.RegionKeywordRecognizer;
 import apptive.fin.apicollector.normalize.extractor.keywords.StatusKeywordRecognizer;
 import apptive.fin.apicollector.normalize.extractor.keywords.TermKeywordRecognizer;
+import apptive.fin.apicollector.normalize.normalizer.FssBankNameNormalizer;
 import apptive.fin.apicollector.normalize.normalizer.FssProductNormalizer;
 import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.product.ProductType;
