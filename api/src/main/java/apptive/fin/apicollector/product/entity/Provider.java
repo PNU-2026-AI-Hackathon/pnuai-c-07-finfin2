@@ -32,6 +32,8 @@ public class Provider {
     @Column(nullable = false)
     private String name;
 
+    private String applyUrl;
+
     private Provider(ProductSource source, String code, String name) {
         this.source = source;
         this.code = code;
