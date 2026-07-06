@@ -35,6 +35,7 @@ public record ProductPropertyDraft(
         Boolean requiresHomeless,
         Boolean requiresHouseholder,
         String applyUrl,
+        String providerApplyUrl,
         List<KeywordValueEnum> keywords,
         List<RequiredKeywordDraft> requiredKeywords,
         List<PreferentialRateDraft> preferentialRates
