@@ -143,6 +143,7 @@ CREATE TABLE product_properties (
     apply_url VARCHAR(500),
     intr_rate_type VARCHAR(30),
     save_trm INT
+    rsrv_type VARCHAR(30);
 );
 
 CREATE TABLE product_property_keyword (
@@ -168,6 +169,3 @@ CREATE TABLE product_preferential_rates (
     min_age INT,
     max_age INT
 );
-
-ALTER TABLE product_properties
-    ADD COLUMN rsrv_type VARCHAR(30);
