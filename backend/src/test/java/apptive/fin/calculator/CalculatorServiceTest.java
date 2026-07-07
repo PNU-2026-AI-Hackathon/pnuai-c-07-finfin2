@@ -21,7 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
-import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
@@ -71,7 +71,7 @@ class CalculatorServiceTest {
                 1L, ProductType.DEPOSIT, InterestRateType.SINGLE_INTEREST, null,
                 new BigDecimal("0.04"), new BigDecimal("1000000"), 12, TaxType.GENERAL
         );
-        when(productPropertyRepository.findByProductId(1L)).thenReturn(List.of(dummyProperty));
+        when(productPropertyRepository.findById(1L)).thenReturn(Optional.of(dummyProperty));
         when(calculatorFactory.getCalculator(ProductType.DEPOSIT)).thenReturn(rateCalculator);
         when(rateCalculator.calculate(request)).thenReturn(dummyResponse);
 
@@ -89,7 +89,7 @@ class CalculatorServiceTest {
                 1L, ProductType.SAVING, InterestRateType.SINGLE_INTEREST, null,
                 new BigDecimal("0.04"), new BigDecimal("100000"), 12, TaxType.GENERAL
         );
-        when(productPropertyRepository.findByProductId(1L)).thenReturn(List.of(dummyProperty));
+        when(productPropertyRepository.findById(1L)).thenReturn(Optional.of(dummyProperty));
 
         assertThatThrownBy(() -> calculatorService.simulate(request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -103,7 +103,7 @@ class CalculatorServiceTest {
                 1L, ProductType.SAVING, InterestRateType.SINGLE_INTEREST, ReserveType.FIXED,
                 new BigDecimal("0.04"), new BigDecimal("100000"), 12, TaxType.GENERAL
         );
-        when(productPropertyRepository.findByProductId(1L)).thenReturn(List.of(dummyProperty));
+        when(productPropertyRepository.findById(1L)).thenReturn(Optional.of(dummyProperty));
         when(calculatorFactory.getCalculator(ProductType.SAVING)).thenReturn(rateCalculator);
         when(rateCalculator.calculate(request)).thenReturn(dummyResponse);
 
@@ -114,31 +114,17 @@ class CalculatorServiceTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 상품 ID로 요청하면 IllegalArgumentException을 던진다")
-    void nonExistentProductId_throwsException() {
+    @DisplayName("존재하지 않는 상품 옵션 ID로 요청하면 IllegalArgumentException을 던진다")
+    void nonExistentProductPropertyId_throwsException() {
         CalculatorRequestDto request = new CalculatorRequestDto(
                 999L, ProductType.DEPOSIT, InterestRateType.SINGLE_INTEREST, null,
                 new BigDecimal("0.04"), new BigDecimal("1000000"), 12, TaxType.GENERAL
         );
-        when(productPropertyRepository.findByProductId(999L)).thenReturn(List.of());
+        when(productPropertyRepository.findById(999L)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> calculatorService.simulate(request))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("존재하지 않는 상품");
-    }
-
-    @Test
-    @DisplayName("상품에서 지원하지 않는 저축 기간으로 요청하면 IllegalArgumentException을 던진다")
-    void unsupportedSaveTrm_throwsException() {
-        CalculatorRequestDto request = new CalculatorRequestDto(
-                1L, ProductType.DEPOSIT, InterestRateType.SINGLE_INTEREST, null,
-                new BigDecimal("0.04"), new BigDecimal("1000000"), 24, TaxType.GENERAL
-        );
-        when(productPropertyRepository.findByProductId(1L)).thenReturn(List.of(dummyProperty)); // saveTrm=12만 지원
-
-        assertThatThrownBy(() -> calculatorService.simulate(request))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("지원하지 않는 저축 기간");
+                .hasMessageContaining("존재하지 않는 상품 옵션");
     }
 
     @Test
@@ -149,7 +135,7 @@ class CalculatorServiceTest {
                 new BigDecimal("0.10"), // 10% (상품 최고금리 5% 초과)
                 new BigDecimal("1000000"), 12, TaxType.GENERAL
         );
-        when(productPropertyRepository.findByProductId(1L)).thenReturn(List.of(dummyProperty));
+        when(productPropertyRepository.findById(1L)).thenReturn(Optional.of(dummyProperty));
 
         assertThatThrownBy(() -> calculatorService.simulate(request))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -165,7 +151,7 @@ class CalculatorServiceTest {
                 new BigDecimal("20000000"), // 2천만원 (상품 최대 한도 1천만원 초과)
                 12, TaxType.GENERAL
         );
-        when(productPropertyRepository.findByProductId(1L)).thenReturn(List.of(dummyProperty));
+        when(productPropertyRepository.findById(1L)).thenReturn(Optional.of(dummyProperty));
 
         assertThatThrownBy(() -> calculatorService.simulate(request))
                 .isInstanceOf(IllegalArgumentException.class)

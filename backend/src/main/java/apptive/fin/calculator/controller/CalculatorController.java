@@ -6,7 +6,6 @@ import apptive.fin.calculator.dto.CalculatorResponseDto;
 import apptive.fin.calculator.service.CalculatorService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -24,11 +23,6 @@ public class CalculatorController {
     ) {
         CalculatorResponseDto response = calculatorService.simulate(request);
         return ResponseEntity.ok(response);
-    }
-
-    @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<String> handleInvalidInput(IllegalArgumentException e) {
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     }
 
 }

@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -19,32 +18,13 @@ public class CalculatorService {
     private final ProductPropertyRepository productPropertyRepository;
 
     public CalculatorResponseDto simulate(CalculatorRequestDto request) {
-        List<ProductProperty> properties = productPropertyRepository.findByProductId(request.productId());
-        if (properties.isEmpty()) {
-            throw new IllegalArgumentException("존재하지 않는 상품입니다: " + request.productId());
-        }
+        ProductProperty property = productPropertyRepository.findById(request.productPropertyId())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 상품 옵션입니다: " + request.productPropertyId()));
 
-        ProductProperty property = findMatchingProperty(properties, request.saveTrm());
         validateWithProductProperty(request, property);
 
         RateCalculator calculator = calculatorFactory.getCalculator(request.productType());
         return calculator.calculate(request);
-    }
-
-    private ProductProperty findMatchingProperty(List<ProductProperty> properties, Integer requestedSaveTrm) {
-        // 요청한 저축 기간과 일치하는 property 찾기
-        return properties.stream()
-                .filter(p -> p.getSaveTrm() != null && p.getSaveTrm().equals(requestedSaveTrm))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "해당 상품에서 지원하지 않는 저축 기간입니다: " + requestedSaveTrm + "개월. " +
-                        "지원 가능한 기간: " + properties.stream()
-                                .map(ProductProperty::getSaveTrm)
-                                .filter(t -> t != null)
-                                .distinct()
-                                .sorted()
-                                .toList()
-                ));
     }
 
     private void validateWithProductProperty(CalculatorRequestDto request, ProductProperty property) {

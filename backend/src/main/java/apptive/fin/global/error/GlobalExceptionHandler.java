@@ -44,6 +44,14 @@ public class GlobalExceptionHandler {
     }
 
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    protected ResponseEntity<ErrorResponseDto> handleIllegalArgumentException(IllegalArgumentException e) {
+        ErrorResponseDto dto = ErrorResponseDto.of(CommonErrorCode.INVALID_INPUT_VALUE, e.getMessage());
+        return ResponseEntity
+                .status(CommonErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
+                .body(dto);
+    }
+
     @ExceptionHandler(Exception.class)
     protected ResponseEntity<ErrorResponseDto> handleException(Exception e) {
         log.error("[치명적 에러]", e);

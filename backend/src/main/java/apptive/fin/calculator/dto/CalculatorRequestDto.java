@@ -12,7 +12,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 public record CalculatorRequestDto(
-    @NotNull Long productId, // 상품 ID (바운더리 검증용)
+    @NotNull Long productPropertyId, // ProductProperty ID (바운더리 검증용)
 
     @NotNull ProductType productType,
     @NotNull InterestRateType interestRateType,
