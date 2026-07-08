@@ -1,0 +1,7 @@
+spring:
+  sql:
+    init:
+      mode: always          # 컨테이너에 schema.sql + data.sql 로드 (기본 위치 classpath:schema.sql / data.sql)
+  jpa:
+    hibernate:
+      ddl-auto: validate    # schema.sql이 테이블 생성 → Hibernate는 검증만 (dev와 동일)

@@ -19,6 +19,9 @@ public record ProductDetailResponseDto(
         String contentSummary,
         List<Integer> saveTrms,
 
+        // 적합도(리스트 탭A totalScore와 동일 스케일 0~100). 잠금과 무관, property/옵션 없으면 null
+        Double matchScore,
+
         // 상품 안내 (선택 property 기준)
         Integer minAge,
         Integer maxAge,
