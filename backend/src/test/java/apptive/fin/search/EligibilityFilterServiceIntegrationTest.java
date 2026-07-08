@@ -5,9 +5,9 @@ import apptive.fin.search.dto.OptionRequestDto;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.service.EligibilityFilterService;
+import apptive.fin.support.IntegrationTestSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
 
@@ -16,7 +16,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
 @Sql(
         scripts = "/sql/eligibility-filter-products.sql",
         executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
@@ -25,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         scripts = "/sql/cleanup-product-fixtures.sql",
         executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD
 )
-class EligibilityFilterServiceIntegrationTest {
+class EligibilityFilterServiceIntegrationTest extends IntegrationTestSupport {
 
     @Autowired
     private EligibilityFilterService eligibilityFilterService;

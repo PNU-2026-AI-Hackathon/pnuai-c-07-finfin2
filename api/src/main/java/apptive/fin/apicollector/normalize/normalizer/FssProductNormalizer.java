@@ -39,6 +39,9 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
         JsonNode raw = read(rawProduct);
         JsonNode base = raw.path("base");
         String content = joinContent(base, "join_way", "mtrt_int", "spcl_cnd", "join_member", "etc_note");
+        String joinMethod = text(base, "join_way");
+        String eligibilityText = text(base, "join_member");
+        String cautionText = text(base, "etc_note");
         String productName = firstText(base, "fin_prdt_nm");
         List<ProductPropertyDraft> propertyDrafts = properties(raw, base, productName, content);
 
@@ -53,6 +56,9 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                     .productCode(rawProduct.getExternalId())
                     .productName(required(productName, rawProduct))
                     .content(content)
+                    .joinMethod(joinMethod)
+                    .eligibilityText(eligibilityText)
+                    .cautionText(cautionText)
                     .properties(propertyDrafts)
                     .build();
 
@@ -106,6 +112,7 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                     .providerName(providerName)
                     .intrRateType(firstText(option, "intr_rate_type"))
                     .intrRateTypeName(firstText(option, "intr_rate_type_nm"))
+                    .installmentType(firstText(option, "rsrv_type_nm"))
                     .saveTerm(integer(option, "save_trm"))
                     .baseRate(decimal(option, "intr_rate"))
                     .maxRate(decimal(option, "intr_rate2"))

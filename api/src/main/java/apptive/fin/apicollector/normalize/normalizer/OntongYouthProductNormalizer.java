@@ -52,6 +52,10 @@ public class OntongYouthProductNormalizer extends AbstractProductNormalizer impl
                 "earnEtcCn",
                 "etcMttrCn"
         );
+        String joinMethod = text(raw, "plcyAplyMthdCn");
+        String eligibilityText = joinContent(raw, "addAplyQlfcCndCn", "ptcpPrpTrgtCn");
+        String cautionText = text(raw, "etcMttrCn");
+        String recruitmentPeriod = text(raw, "aplyYmd");
 
         var draft = ProductDraft.builder()
                 .rawId(rawProduct.getId())
@@ -64,6 +68,10 @@ public class OntongYouthProductNormalizer extends AbstractProductNormalizer impl
                 .productCode(firstText(raw, "plcyNo") != null ? firstText(raw, "plcyNo") : rawProduct.getExternalId())
                 .productName(required(productName, "productName", rawProduct))
                 .content(content)
+                .joinMethod(joinMethod)
+                .eligibilityText(eligibilityText)
+                .cautionText(cautionText)
+                .recruitmentPeriod(recruitmentPeriod)
                 .properties(java.util.List.of(ProductPropertyDraft.builder()
                         .providerCode(required(providerCode, "providerCode", rawProduct))
                         .providerName(required(providerName, "providerName", rawProduct))

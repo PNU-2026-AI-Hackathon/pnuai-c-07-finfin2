@@ -120,6 +120,35 @@ class OntongYouthProductNormalizerTest {
                 );
     }
 
+    @Test
+    void mapsJoinMethodEligibilityCautionAndRecruitmentPeriod() {
+        ProductRaw raw = new ProductRaw(Source.ONTONG, "P004", "hash", """
+                {
+                  "plcyNo": "P004",
+                  "plcyNm": "청년 내일 저축",
+                  "plcyKywdNm": "보조금",
+                  "mclsfNm": "취약계층 및 금융지원",
+                  "plcyPvsnMthdCd": "0042006",
+                  "plcyExplnCn": "청년 자산형성 지원",
+                  "plcySprtCn": "매월 10만원 저축 시 장려금 지원",
+                  "addAplyQlfcCndCn": "만 15세 이상 ~ 39세 이하",
+                  "ptcpPrpTrgtCn": "기준 중위소득 50% 이하 청년",
+                  "plcyAplyMthdCn": "읍면동 행정복지센터 방문 신청",
+                  "etcMttrCn": "3년 통장 유지 필요",
+                  "aplyYmd": "20250502 ~ 20250521",
+                  "sprvsnInstCd": "ORG001",
+                  "sprvsnInstCdNm": "테스트기관"
+                }
+                """, ProductType.POLICY);
+
+        ProductDraft draft = normalizer.normalize(raw);
+
+        assertThat(draft.joinMethod()).isEqualTo("읍면동 행정복지센터 방문 신청");
+        assertThat(draft.eligibilityText()).isEqualTo("만 15세 이상 ~ 39세 이하\n\n기준 중위소득 50% 이하 청년");
+        assertThat(draft.cautionText()).isEqualTo("3년 통장 유지 필요");
+        assertThat(draft.recruitmentPeriod()).isEqualTo("20250502 ~ 20250521");
+    }
+
     private CollectorProperties properties() {
         return new CollectorProperties(
                 true,

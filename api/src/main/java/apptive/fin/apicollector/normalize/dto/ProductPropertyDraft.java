@@ -13,6 +13,7 @@ public record ProductPropertyDraft(
         String providerName,
         String intrRateType,
         String intrRateTypeName,
+        String installmentType,
         Integer saveTerm,
         BigDecimal baseRate,
         BigDecimal maxRate,

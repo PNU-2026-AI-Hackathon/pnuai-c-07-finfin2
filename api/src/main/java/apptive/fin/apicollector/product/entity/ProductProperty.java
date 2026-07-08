@@ -99,6 +99,8 @@ public class ProductProperty {
     @Enumerated(EnumType.STRING)
     private InterestRateType intrRateType;
 
+    private String installmentType;
+
     private Integer saveTrm;
 
     private ProductProperty(
@@ -130,6 +132,7 @@ public class ProductProperty {
         this.isJoinable = true;
         this.applyUrl = propertyDraft.applyUrl();
         this.intrRateType = InterestRateType.fromCode(propertyDraft.intrRateType());
+        this.installmentType = propertyDraft.installmentType();
         this.saveTrm = propertyDraft.saveTerm();
         replaceKeywords(propertyDraft.keywords());
         replaceRequiredKeywords(propertyDraft.requiredKeywords());

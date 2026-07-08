@@ -1564,6 +1564,18 @@ INSERT INTO public.product (id, source_id, type, product_code, product_name, con
 
 
 --
+-- 와이어프레임 검증용: 청년내일저축계좌(POLICY001) 상품 안내 필드 보강.
+-- 출처가 확인되지 않는 나머지 정책 상품은 채우지 않는다 (검증 불가능한 데이터 생성 금지).
+--
+
+UPDATE public.product SET
+    join_method = '읍·면·동 행정복지센터 / 복지로 온라인',
+    eligibility_text = '만 15세 이상 ~ 39세 이하 / 기준 중위소득 50% 이하(차상위 이하) 청년',
+    caution_text = '3년 통장 유지·근로 지속·교육 이수 · 자금사용계획서 제출 시 적립금 전액 지급',
+    recruitment_period = '2026.5.4.(월) ~ 2026.5.20.(수)'
+WHERE product_code = 'POLICY001';
+
+--
 -- Name: product_id_seq; Type: SEQUENCE SET; Schema: public; Owner: user
 --
 
