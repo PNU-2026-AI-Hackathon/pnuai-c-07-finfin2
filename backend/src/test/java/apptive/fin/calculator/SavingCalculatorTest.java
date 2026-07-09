@@ -108,4 +108,52 @@ class SavingRateCalculatorTest {
         assertThat(response.principal()).isEqualByComparingTo("1200000.00");
         assertThat(response.maturityAmount()).isEqualByComparingTo("1200000.00");
     }
+
+    @Test
+    @DisplayName("납입기간 1개월(n=1) 경계: 세전이자 333.33원 (= 100000 x (0.04/12) x 1)")
+    void simpleInterest_oneMonthBoundary() {
+        CalculatorRequestDto request = new CalculatorRequestDto(
+                1L, ProductType.SAVING, InterestRateType.SINGLE_INTEREST, ReserveType.FIXED,
+                new BigDecimal("0.04"), new BigDecimal("100000"), 1, TaxType.GENERAL
+        );
+
+        CalculatorResponseDto response = calculator.calculate(request);
+
+        assertThat(response.principal()).isEqualByComparingTo("100000.00");
+        assertThat(response.preTaxInterest()).isEqualByComparingTo("333.33");
+        assertThat(response.maturityAmount()).isEqualByComparingTo("100333.33");
+    }
+
+    @Test
+    @DisplayName("비과세: 이자과세 0원, 세후 실수령액 = 원금 + 세전이자")
+    void nonTax_noInterestTax() {
+        CalculatorRequestDto request = new CalculatorRequestDto(
+                1L, ProductType.SAVING, InterestRateType.SINGLE_INTEREST, ReserveType.FIXED,
+                new BigDecimal("0.04"), new BigDecimal("100000"), 12, TaxType.NON_TAX
+        );
+
+        CalculatorResponseDto response = calculator.calculate(request);
+
+        assertThat(response.interestTax()).isEqualByComparingTo("0.00");
+        assertThat(response.afterTaxAmount())
+                .isEqualByComparingTo(response.principal().add(response.preTaxInterest()));
+    }
+
+    @Test
+    @DisplayName("동일 입력이면 월복리 이자가 단리 이자보다 항상 크거나 같다")
+    void compoundInterestIsGreaterThanOrEqualToSimple() {
+        CalculatorRequestDto simpleRequest = new CalculatorRequestDto(
+                1L, ProductType.SAVING, InterestRateType.SINGLE_INTEREST, ReserveType.FIXED,
+                new BigDecimal("0.04"), new BigDecimal("100000"), 12, TaxType.GENERAL
+        );
+        CalculatorRequestDto compoundRequest = new CalculatorRequestDto(
+                1L, ProductType.SAVING, InterestRateType.COMPOUND_INTEREST, ReserveType.FIXED,
+                new BigDecimal("0.04"), new BigDecimal("100000"), 12, TaxType.GENERAL
+        );
+
+        BigDecimal simpleInterest = calculator.calculate(simpleRequest).preTaxInterest();
+        BigDecimal compoundInterest = calculator.calculate(compoundRequest).preTaxInterest();
+
+        assertThat(compoundInterest).isGreaterThanOrEqualTo(simpleInterest);
+    }
 }

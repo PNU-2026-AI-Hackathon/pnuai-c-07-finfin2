@@ -179,6 +179,30 @@ class RateCalculatorServiceTest {
     }
 
     @Test
+    void 은행상품은_기본금리와_우대금리_합계가_최고금리와_같으면_상한이_발동하지_않는다() {
+        Product product = createProduct("BANK_CAP_EQUAL", "cap boundary equal product", "FSS");
+        ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");
+        addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_ONLINE_JOIN, "1.50"));
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        ProductRateDto result = rateCalculatorService.calculate(product, createRequest(), emptyKeywords());
+
+        assertThat(result.achievableRate()).isEqualTo(5.0);
+    }
+
+    @Test
+    void 은행상품은_기본금리와_우대금리_합계가_최고금리를_초과하면_최고금리로_상한처리한다() {
+        Product product = createProduct("BANK_CAP_OVER", "cap boundary over product", "FSS");
+        ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");
+        addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_ONLINE_JOIN, "2.00"));
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        ProductRateDto result = rateCalculatorService.calculate(product, createRequest(), emptyKeywords());
+
+        assertThat(result.achievableRate()).isEqualTo(5.0);
+    }
+
+    @Test
     void 청약상품은_금리비교_불가로_반환한다() {
         Product product = createProduct("GOV001", "subscription product", "ONTONG");
         ProductProperty property = createProperty(10L, "GOV", "정책기관", null, null);

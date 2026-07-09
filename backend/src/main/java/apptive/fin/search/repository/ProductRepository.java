@@ -7,8 +7,19 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
+
+    // product_code 단건 조회 + properties/provider 즉시 로딩 (지연 로딩 예외 방지)
+    @Query("""
+            SELECT DISTINCT p FROM Product p
+            JOIN FETCH p.source
+            JOIN FETCH p.properties pp
+            LEFT JOIN FETCH pp.provider
+            WHERE p.productCode = :productCode
+            """)
+    Optional<Product> findByProductCodeWithProperties(@Param("productCode") String productCode);
 
     // 조건 조회
     @Query("""

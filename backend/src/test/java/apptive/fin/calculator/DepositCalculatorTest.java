@@ -112,6 +112,7 @@ class DepositRateCalculatorTest {
 
         assertThat(response.preTaxInterest()).isEqualByComparingTo("0.00");
         assertThat(response.interestTax()).isEqualByComparingTo("0.00");
+        assertThat(response.maturityAmount()).isEqualByComparingTo("1000000.00");
         assertThat(response.afterTaxAmount()).isEqualByComparingTo("1000000.00");
     }
 }
