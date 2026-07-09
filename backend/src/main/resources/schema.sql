@@ -175,3 +175,14 @@ CREATE TABLE product_preferential_rates (
     min_age INT,
     max_age INT
 );
+
+CREATE TABLE my_fin (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULl,
+    product_property_id BIGINT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_my_fin_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_my_fin_product_property FOREIGN KEY (product_property_id) REFERENCES product_properties(id) ON DELETE CASCADE,
+    CONSTRAINT uq_my_fin_user_property UNIQUE (user_id,product_property_id)
+);
