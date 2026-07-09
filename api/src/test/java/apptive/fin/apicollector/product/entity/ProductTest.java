@@ -5,11 +5,113 @@ import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.product.ProductType;
 import org.junit.jupiter.api.Test;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ProductTest {
+
+    private static Product newProduct() {
+        ProductSource source = ProductSource.create("FSS", "FSS");
+        Product product = Product.create(source, ProductType.SAVING, "P001", "테스트 적금");
+        return product;
+    }
+
+    private static Provider newProvider(ProductSource source) {
+        return Provider.create(source, "ORG001", "테스트은행", null);
+    }
+
+    private static ProductPropertyDraft draft(Integer saveTerm, String reserveType, BigDecimal baseRate) {
+        return ProductPropertyDraft.builder()
+                .providerCode("ORG001")
+                .providerName("테스트은행")
+                .intrRateType("S")
+                .reserveType(reserveType)
+                .saveTerm(saveTerm)
+                .baseRate(baseRate)
+                .build();
+    }
+
+    @Test
+    void replacePropertiesUpdatesMatchingPropertyInPlaceKeepingInstance() {
+        Product product = newProduct();
+        Provider provider = newProvider(product.getSource());
+
+        product.replaceProperties(List.of(draft(12, "F", new BigDecimal("3.00"))), ignored -> provider);
+        ProductProperty original = product.getProperties().getFirst();
+
+        product.replaceProperties(List.of(draft(12, "F", new BigDecimal("3.50"))), ignored -> provider);
+
+        assertThat(product.getProperties()).hasSize(1);
+        assertThat(product.getProperties().getFirst()).isSameAs(original);
+        assertThat(original.getBaseRate()).isEqualByComparingTo("3.50");
+        assertThat(original.getIsJoinable()).isTrue();
+    }
+
+    @Test
+    void replacePropertiesAddsNewKeyWhileKeepingExisting() {
+        Product product = newProduct();
+        Provider provider = newProvider(product.getSource());
+
+        product.replaceProperties(List.of(draft(12, "F", new BigDecimal("3.00"))), ignored -> provider);
+        ProductProperty original = product.getProperties().getFirst();
+
+        product.replaceProperties(
+                List.of(draft(12, "F", new BigDecimal("3.00")), draft(24, "F", new BigDecimal("3.20"))),
+                ignored -> provider
+        );
+
+        assertThat(product.getProperties()).hasSize(2);
+        assertThat(product.getProperties()).contains(original);
+        assertThat(product.getProperties())
+                .extracting(ProductProperty::getSaveTrm)
+                .containsExactlyInAnyOrder(12, 24);
+    }
+
+    @Test
+    void replacePropertiesSoftDisablesVanishedPropertyInsteadOfDeleting() {
+        Product product = newProduct();
+        Provider provider = newProvider(product.getSource());
+
+        product.replaceProperties(
+                List.of(draft(12, "F", new BigDecimal("3.00")), draft(24, "F", new BigDecimal("3.20"))),
+                ignored -> provider
+        );
+        ProductProperty term24 = product.getProperties().stream()
+                .filter(p -> p.getSaveTrm() == 24)
+                .findFirst()
+                .orElseThrow();
+
+        product.replaceProperties(List.of(draft(12, "F", new BigDecimal("3.00"))), ignored -> provider);
+
+        assertThat(product.getProperties()).hasSize(2);
+        assertThat(product.getProperties()).contains(term24);
+        assertThat(term24.getIsJoinable()).isFalse();
+        assertThat(product.getProperties().stream()
+                .filter(p -> p.getSaveTrm() == 12)
+                .findFirst()
+                .orElseThrow()
+                .getIsJoinable()).isTrue();
+    }
+
+    @Test
+    void replacePropertiesReactivatesSoftDisabledPropertyWhenKeyReappears() {
+        Product product = newProduct();
+        Provider provider = newProvider(product.getSource());
+
+        product.replaceProperties(List.of(draft(24, "F", new BigDecimal("3.20"))), ignored -> provider);
+        ProductProperty term24 = product.getProperties().getFirst();
+
+        product.replaceProperties(List.of(draft(12, "F", new BigDecimal("3.00"))), ignored -> provider);
+        assertThat(term24.getIsJoinable()).isFalse();
+
+        product.replaceProperties(List.of(draft(24, "F", new BigDecimal("3.40"))), ignored -> provider);
+
+        assertThat(product.getProperties()).contains(term24);
+        assertThat(term24.getIsJoinable()).isTrue();
+        assertThat(term24.getBaseRate()).isEqualByComparingTo("3.40");
+    }
 
     @Test
     void replaceKeywordsReusesExistingKeywordsAndAddsOnlyMissingOnes() {

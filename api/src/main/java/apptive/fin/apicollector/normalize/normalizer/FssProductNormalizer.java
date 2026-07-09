@@ -115,7 +115,7 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                     .providerApplyUrl(providerApplyUrl)
                     .intrRateType(firstText(option, "intr_rate_type"))
                     .intrRateTypeName(firstText(option, "intr_rate_type_nm"))
-                    .installmentType(firstText(option, "rsrv_type_nm"))
+                    .reserveType(firstText(option, "rsrv_type"))
                     .saveTerm(integer(option, "save_trm"))
                     .baseRate(decimal(option, "intr_rate"))
                     .maxRate(decimal(option, "intr_rate2"))

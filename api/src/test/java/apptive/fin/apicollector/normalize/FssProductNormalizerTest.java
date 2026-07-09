@@ -221,7 +221,7 @@ class FssProductNormalizerTest {
         assertThat(draft.joinMethod()).isEqualTo("영업점,인터넷,스마트폰");
         assertThat(draft.eligibilityText()).isEqualTo("실명의 개인");
         assertThat(draft.cautionText()).isEqualTo("만기 후 이자율은 기본이율의 50%로 낮아집니다.");
-        assertThat(draft.properties().getFirst().installmentType()).isEqualTo("자유적립식");
+        assertThat(draft.properties().getFirst().reserveType()).isEqualTo("F");
     }
 
     private CollectorProperties properties() {
