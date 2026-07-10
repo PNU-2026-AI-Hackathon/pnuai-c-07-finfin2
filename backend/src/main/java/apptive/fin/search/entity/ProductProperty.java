@@ -3,6 +3,7 @@ package apptive.fin.search.entity;
 import apptive.fin.provider.entity.Provider;
 import apptive.fin.search.ContributionType;
 import apptive.fin.search.InterestRateType;
+import apptive.fin.search.ReserveType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -90,7 +91,9 @@ public class ProductProperty {
     @Enumerated(EnumType.STRING)
     private InterestRateType intrRateType;
 
-    private String installmentType;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rsrv_type")
+    private ReserveType reserveType;
 
     private Integer saveTrm;
 

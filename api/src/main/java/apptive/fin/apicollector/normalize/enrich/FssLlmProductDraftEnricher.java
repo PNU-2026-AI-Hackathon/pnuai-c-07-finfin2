@@ -13,6 +13,9 @@ import apptive.fin.apicollector.product.RequiredKeywordEffect;
 import apptive.fin.apicollector.raw.ProductRaw;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.ExitStatus;
+import org.springframework.batch.core.listener.StepExecutionListener;
+import org.springframework.batch.core.step.StepExecution;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -28,11 +31,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
+public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExecutionListener {
 
     private static final Duration FAILED_RETRY_COOLDOWN = Duration.ofHours(6);
 
@@ -40,6 +44,34 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
     private final List<LlmProviderClient> providerClients;
     private final LlmEnrichmentCacheRepository cacheRepository;
     private final ObjectMapper objectMapper;
+
+    private final AtomicInteger cacheHits = new AtomicInteger();
+    private final AtomicInteger llmCalls = new AtomicInteger();
+    private final AtomicInteger llmFailures = new AtomicInteger();
+    private final AtomicInteger cooldownSkips = new AtomicInteger();
+    private final AtomicInteger invalidCacheEntries = new AtomicInteger();
+
+    @Override
+    public void beforeStep(StepExecution stepExecution) {
+        cacheHits.set(0);
+        llmCalls.set(0);
+        llmFailures.set(0);
+        cooldownSkips.set(0);
+        invalidCacheEntries.set(0);
+    }
+
+    @Override
+    public ExitStatus afterStep(StepExecution stepExecution) {
+        log.info(
+                "FSS LLM enrichment summary. cacheHits={}, llmCalls={}, llmFailures={}, cooldownSkips={}, invalidCache={}",
+                cacheHits.get(),
+                llmCalls.get(),
+                llmFailures.get(),
+                cooldownSkips.get(),
+                invalidCacheEntries.get()
+        );
+        return null;
+    }
 
     @Override
     public boolean supports(Source source) {
@@ -57,10 +89,14 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
         String requestHash = sha256(prompt);
         LlmEnrichmentCache cache = cache(rawProduct, requestHash);
 
-        if (cache.getStatus() == LlmEnrichmentCacheStatus.SUCCESS && cache.getResponseJson() != null) {
+        if (cache.getStatus() == LlmEnrichmentCacheStatus.SUCCESS
+                && cache.getResponseJson() != null
+                && requestHash.equals(cache.getRequestHash())) {
+            cacheHits.incrementAndGet();
             return fromCache(cache, rawProduct, draft);
         }
         if (cache.isFailedRetryBlocked(Instant.now(), FAILED_RETRY_COOLDOWN)) {
+            cooldownSkips.incrementAndGet();
             log.debug(
                     "Skipping FSS LLM enrichment during failed retry cooldown. rawId={}, externalId={}, failureCount={}",
                     rawProduct.getId(),
@@ -71,6 +107,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
         }
 
         try {
+            llmCalls.incrementAndGet();
             LlmProductEnrichment enrichment = providerClient.enrich(new LlmProductEnrichmentRequest(
                     properties.llm().model(),
                     prompt,
@@ -83,6 +120,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
             return merge(rawProduct, draft, enrichment);
         }
         catch (Exception e) {
+            llmFailures.incrementAndGet();
             log.warn("FSS LLM enrichment failed. rawId={}, externalId={}", rawProduct.getId(), rawProduct.getExternalId(), e);
             cache.markFailed(requestHash, truncate(e.getMessage()));
             cacheRepository.save(cache);
@@ -97,6 +135,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
             return merge(rawProduct, draft, enrichment);
         }
         catch (Exception e) {
+            invalidCacheEntries.incrementAndGet();
             log.warn("FSS LLM enrichment cache is invalid. cacheId={}", cache.getId(), e);
             return draft;
         }
@@ -265,7 +304,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
                     && preferentialRate.maxAge() < preferentialRate.minAge()) {
                 throw new IllegalArgumentException("preferentialRate maxAge is smaller than minAge");
             }
-            if (!matchesPreferentialRateKeyword(preferentialRate)) {
+            if (!preferentialRate.matchesKeywordCondition()) {
                 throw new IllegalArgumentException("Unsupported LLM preferential condition: " + preferentialRate);
             }
         }
@@ -273,24 +312,6 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
 
     private boolean isPreferentialRateKeyword(KeywordValueEnum keyword) {
         return keyword != null && keyword.name().startsWith("BANK_");
-    }
-
-    private boolean matchesPreferentialRateKeyword(PreferentialRateDraft preferentialRate) {
-        KeywordValueEnum keyword = preferentialRate.keywordCode();
-        String description = preferentialRate.description();
-        return switch (keyword) {
-            case BANK_SALARY_TRANSFER -> containsAny(description, "급여", "월급", "salary");
-            case BANK_CARD_USAGE -> containsAny(description, "카드", "체크카드", "신용카드", "결제실적", "전월결제", "card", "payment");
-            case BANK_AUTO_TRANSFER -> containsAny(description, "자동이체", "자동 이체");
-            case BANK_MARKETING -> containsAny(description, "마케팅", "상품서비스", "개인정보", "개인(신용)정보", "수집이용", "동의");
-            case BANK_FIRST_TRANSACTION -> containsAny(description, "첫거래", "최초거래", "신규고객", "신규 고객", "첫 예금거래", "입출금통장 최초");
-            case BANK_REDEPOSIT -> containsAny(description, "재예치", "재가입") && !hasAmountOrBalanceCondition(description);
-            case BANK_ONLINE_JOIN -> containsAny(description, "인터넷 가입", "스마트뱅킹 가입", "비대면 가입", "모바일 가입", "온라인 가입", "online join", "mobile join");
-            case BANK_AGE -> preferentialRate.minAge() != null
-                    || preferentialRate.maxAge() != null
-                    || containsAny(description, "나이", "연령");
-            default -> false;
-        };
     }
 
     private boolean containsAny(String value, String... tokens) {
@@ -304,10 +325,6 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
             }
         }
         return false;
-    }
-
-    private boolean hasAmountOrBalanceCondition(String value) {
-        return containsAny(value, "금액", "잔액", "평잔", "평균잔액", "요구불", "만원", "백만원", "억원");
     }
 
     private void validateAmount(Long value, String fieldName) {
@@ -428,11 +445,11 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
         List<RequiredKeywordDraft> result = new ArrayList<>();
         for (RequiredKeywordDraft draft : enrichment) {
             if (draft.confidence() != ExtractionConfidence.HIGH) {
-                log.debug("Dropping low-confidence LLM required keyword. keyword={}", draft);
+                log.info("Dropping low-confidence LLM required keyword. keyword={}", draft);
                 continue;
             }
             if (!matchesRequiredKeyword(draft, eligibilityText)) {
-                log.debug("Dropping unsupported LLM required keyword. keyword={}, eligibilityText={}", draft, eligibilityText);
+                log.info("Dropping unsupported LLM required keyword. keyword={}, eligibilityText={}", draft, eligibilityText);
                 continue;
             }
             result.add(draft);

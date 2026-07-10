@@ -71,12 +71,14 @@ public class ProductSyncService {
         return providerRepository.findBySourceAndCode(source, propertyDraft.providerCode())
                 .map(existing -> {
                     existing.updateName(propertyDraft.providerName());
+                    existing.updateApplyUrl(propertyDraft.providerApplyUrl());
                     return existing;
                 })
                 .orElseGet(() -> providerRepository.save(Provider.create(
                         source,
                         propertyDraft.providerCode(),
-                        propertyDraft.providerName()
+                        propertyDraft.providerName(),
+                        propertyDraft.providerApplyUrl()
                 )));
     }
 
