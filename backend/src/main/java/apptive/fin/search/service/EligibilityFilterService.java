@@ -27,15 +27,17 @@ public class EligibilityFilterService {
     private final ProductRepository productRepository;
     private final ResolveKeywordService resolveKeywordService;
 
+    // 사용자가 가입가능한 상품만 필터링하는 메서드
     @Transactional(readOnly = true)
     public List<Product> filterEligible(SearchRequestDto request){
         var detail = request.detailedOptions();
-        // TODO : QueryDSL 도입
-        if (detail == null) return List.of();
-
+        if (detail == null) return List.of(); // 상세옵션 선택안하면 빈 리스트 
+				
+        // 키워드 Resolve
         ResolvedKeywords keywords = resolveKeywordService.resolveKeywords(request.options());
-        EligibilityCriteria criteria = eligibilityCriteria(detail, keywords);
-
+        EligibilityCriteria criteria = eligibilityCriteria(detail, keywords); // 사용자의 가입 기준 정리
+				
+        // 가입가능한 상품 반환	
         return productRepository.findEligibleProducts(
                 criteria.age(),
                 criteria.annualIncome(),
@@ -52,14 +54,17 @@ public class EligibilityFilterService {
 
     }
 
+    // 사용자가 가입가능한 상품 옵션만 필터링하는 메서드
     @Transactional(readOnly = true)
     public List<EligibleProductOption> filterEligibleOptions(SearchRequestDto request) {
         var detail = request.detailedOptions();
-        if (detail == null) return List.of();
+        if (detail == null) return List.of(); // 상세옵션 선택안하면 빈 리스트
 
+        // 키워드 Resolve
         ResolvedKeywords keywords = resolveKeywordService.resolveKeywords(request.options());
-        EligibilityCriteria criteria = eligibilityCriteria(detail, keywords);
-
+        EligibilityCriteria criteria = eligibilityCriteria(detail, keywords);  // 사용자의 가입 기준 정리
+        
+        // 가입가능한 상품 옵션(product, productProperty) 반환
         return productRepository.findEligibleProducts(
                         criteria.age(),
                         criteria.annualIncome(),
@@ -77,6 +82,7 @@ public class EligibilityFilterService {
                 .toList();
     }
 
+    // 사용자의 상품 가입기준을 정리하는 메서드
     private EligibilityCriteria eligibilityCriteria(
             DetailedOptionsDto detail,
             ResolvedKeywords keywords
@@ -102,7 +108,7 @@ public class EligibilityFilterService {
                 detail.monthlySavingsGoal()
         );
     }
-
+    // ProductProperty의 자격요건에 사용자의 조건이 부합하는지 검사하는 함수
     private boolean isPropertyEligible(
             ProductProperty property,
             EligibilityCriteria criteria,
@@ -117,6 +123,7 @@ public class EligibilityFilterService {
                 && isIdentityEligible(property, identities);
     }
 
+    // 나이 조건 확인
     private boolean isAgeEligible(ProductProperty property, Integer age, Boolean militaryAgeExtensionRequested) {
         if (age == null) {
             return true;
@@ -136,6 +143,7 @@ public class EligibilityFilterService {
                 && militaryMaxAge >= age;
     }
 
+    // 소득 조건 확인 
     private boolean isIncomeEligible(
             ProductProperty property,
             Long annualIncome,
@@ -158,6 +166,7 @@ public class EligibilityFilterService {
                 || property.getEarnPercent() >= householdIncomePercent;
     }
 
+    // 거주 조건 확인
     private boolean isResidenceEligible(ProductProperty property, Boolean isHomeless, Boolean isHouseholder) {
         boolean homelessEligible = isHomeless == null
                 || !Boolean.TRUE.equals(property.getRequiresHomeless())
@@ -169,23 +178,27 @@ public class EligibilityFilterService {
         return homelessEligible && householderEligible;
     }
 
+    // 근속년수 조건 확인
     private boolean isTenureEligible(ProductProperty property, Integer tenureMonths) {
         return tenureMonths == null
                 || property.getMinTenureMonths() == null
                 || property.getMinTenureMonths() <= tenureMonths;
     }
 
+    // 월저축희망액 조건 확인
     private boolean isMonthlyDepositEligible(ProductProperty property, Long monthlyDeposit) {
         return monthlyDeposit == null
                 || property.getMinMonthlyLimit() == null
                 || property.getMinMonthlyLimit() <= monthlyDeposit;
     }
 
+    // 상품에 대해 사용자의 현재 신분 기준 가입 가능 여부를 반환하는 함수
     private boolean hasEligibleIdentityProperty(Product product, List<KeywordValueEnum> identities) {
         return product.getProperties().stream()
                 .anyMatch(property -> isIdentityEligible(property, identities));
     }
 
+    // 현재 신분 기준으로 ProductProperty 가입 자격이 되는지 여부를 반환하는 함수
     private boolean isIdentityEligible(ProductProperty property, List<KeywordValueEnum> identities) {
         List<ProductRequiredKeyword> identityConditions = property.getRequiredKeywords().stream()
                 .filter(this::isHighConfidenceIdentityCondition)
@@ -208,6 +221,7 @@ public class EligibilityFilterService {
         return requiredIdentities.isEmpty() || requiredIdentities.stream().anyMatch(identities::contains);
     }
 
+    // 신분 가입조건 Confidence가 HIGH인지 확인하는 함수
     private boolean isHighConfidenceIdentityCondition(ProductRequiredKeyword condition) {
         KeywordValueEnum keyword = condition.getKeywordCode();
         return condition.getConfidence() == ExtractionConfidence.HIGH

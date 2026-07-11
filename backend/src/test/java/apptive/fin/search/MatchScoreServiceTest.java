@@ -593,6 +593,156 @@ class MatchScoreServiceTest {
         assertThat(result.bankCondScore()).isZero();
     }
 
+    // ===== [D] 월 납입액 null 시 납입한도 배점 재배분 =====
+
+    @Test
+    void 월저축목표가_null이면_납입한도_배점을_활성차원에_재배분해_만점이_100이_된다() {
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        // 정부 상품: 혜택+기간+신분 만점 매칭, 월납입 null → 납입한도(18) 재배분되어야 총점 100
+        Product product = createProduct("ONTONG", createProperty(
+                10L,
+                "정책기관",
+                500_000L,
+                12,
+                KeywordValueEnum.BENEFIT_GOV_SUBSIDY,
+                KeywordValueEnum.STATUS_MILITARY
+        ));
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                createRequest(null),
+                new ResolvedKeywords(
+                        List.of(),
+                        List.of(KeywordValueEnum.STATUS_MILITARY),
+                        KeywordValueEnum.TERM_AROUND_1_YEAR,
+                        List.of(KeywordValueEnum.BENEFIT_GOV_SUBSIDY),
+                        List.of()
+                )
+        );
+
+        assertThat(result.depositScore()).isZero();
+        assertThat(result.totalScore()).isCloseTo(100.0, offset(0.001));
+    }
+
+    // ===== [E] 첫거래/재예치는 거래이력 은행이 있을 때만 매칭 =====
+
+    @Test
+    void 첫거래는_거래이력_은행이_비어있으면_탭A에서_매칭되지_않는다() {
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        ProductProperty property = createProperty(
+                10L,
+                "KB",
+                500_000L,
+                12,
+                KeywordValueEnum.BANK_FIRST_TRANSACTION
+        );
+        setProviderCode(property, "KB");
+        Product product = createProduct("FSS", property);
+
+        // 첫거래가 은행거래 조건으로 들어왔지만 거래이력(neverUsedBanks)이 비어 있음 → 매칭 불인정
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                createRequest(300_000L, List.of(), List.of()),
+                new ResolvedKeywords(
+                        List.of(), List.of(), null,
+                        List.of(),
+                        List.of(KeywordValueEnum.BANK_FIRST_TRANSACTION)
+                ),
+                true
+        );
+
+        assertThat(result.bankCondScore()).isZero();
+    }
+
+    @Test
+    void 재예치는_거래이력_은행이_비어있으면_탭A에서_매칭되지_않는다() {
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        ProductProperty property = createProperty(
+                10L,
+                "KB",
+                500_000L,
+                12,
+                KeywordValueEnum.BANK_REDEPOSIT
+        );
+        setProviderCode(property, "KB");
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                createRequest(300_000L, List.of(), List.of()),
+                new ResolvedKeywords(
+                        List.of(), List.of(), null,
+                        List.of(),
+                        List.of(KeywordValueEnum.BANK_REDEPOSIT)
+                ),
+                true
+        );
+
+        assertThat(result.bankCondScore()).isZero();
+    }
+
+    // ===== [A] 은행 #최고이율_중심 상위 30% 동적 판정 =====
+
+    @Test
+    void 은행_최고이율은_임계금리_이상이면_동적으로_매칭된다() {
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
+        ReflectionTestUtils.setField(property, "maxRate", new java.math.BigDecimal("5.00"));
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                property,
+                createRequest(300_000L),
+                new ResolvedKeywords(List.of(), List.of(), null,
+                        List.of(KeywordValueEnum.BENEFIT_MAX_INTEREST), List.of()),
+                false,
+                4.0
+        );
+
+        assertThat(result.benefitScore()).isGreaterThan(0.0);
+    }
+
+    @Test
+    void 은행_최고이율은_임계금리_미만이면_매칭되지_않는다() {
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
+        ReflectionTestUtils.setField(property, "maxRate", new java.math.BigDecimal("3.00"));
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                property,
+                createRequest(300_000L),
+                new ResolvedKeywords(List.of(), List.of(), null,
+                        List.of(KeywordValueEnum.BENEFIT_MAX_INTEREST), List.of()),
+                false,
+                4.0
+        );
+
+        assertThat(result.benefitScore()).isZero();
+    }
+
+    @Test
+    void 임계값이_null이면_최고이율은_정적태그_방식으로_판정한다() {
+        MatchScoreService matchScoreService = new MatchScoreService(resolveKeywordService);
+        // 태그는 있으나 금리는 낮음 → 임계값 미제공 시 태그로 매칭
+        ProductProperty property = createProperty(10L, "KB", 500_000L, 12,
+                KeywordValueEnum.BENEFIT_MAX_INTEREST);
+        ReflectionTestUtils.setField(property, "maxRate", new java.math.BigDecimal("1.00"));
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                createRequest(300_000L),
+                new ResolvedKeywords(List.of(), List.of(), null,
+                        List.of(KeywordValueEnum.BENEFIT_MAX_INTEREST), List.of()),
+                false
+        );
+
+        assertThat(result.benefitScore()).isGreaterThan(0.0);
+    }
+
     private Product createProduct(String sourceCode, ProductProperty property) {
         ProductSource source = new ProductSource();
         Product product = new Product();

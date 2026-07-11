@@ -42,7 +42,7 @@ public class MatchScoreService {
 
         boolean isGov = p.getSource().getCode().equals("ONTONG");
 
-        // 모든 property 점수 계산 후 최고 점수 선택
+        // 모든 property별 점수 계산 후 최고 점수인 property 선택
         ProductPropertyScore bestScore = p.getProperties().stream()
                 .map(property -> scoreProperty(
                         property,
@@ -53,7 +53,8 @@ public class MatchScoreService {
                         detail != null ? detail.monthlySavingsGoal() : null,
                         isGov,
                         request,
-                        includeTransactionHistory
+                        includeTransactionHistory,
+                        null
                 ))
                 .max((a, b) -> Double.compare(a.totalScore(), b.totalScore()))
                 .orElseGet(() -> new ProductPropertyScore(null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
@@ -80,6 +81,18 @@ public class MatchScoreService {
             ResolvedKeywords keywords,
             boolean includeTransactionHistory
     ) {
+        return score(product, property, request, keywords, includeTransactionHistory, null);
+    }
+
+    // bankMaxInterestThreshold: 은행 #최고이율 상위 30% 판정용 임계 금리(결과셋 기준, SearchService에서 사전 계산). null이면 미적용.
+    public ProductMatchDto score(
+            Product product,
+            ProductProperty property,
+            SearchRequestDto request,
+            ResolvedKeywords keywords,
+            boolean includeTransactionHistory,
+            Double bankMaxInterestThreshold
+    ) {
         var detail = request.detailedOptions();
         boolean isGov = product.getSource().getCode().equals("ONTONG");
 
@@ -92,7 +105,8 @@ public class MatchScoreService {
                 detail != null ? detail.monthlySavingsGoal() : null,
                 isGov,
                 request,
-                includeTransactionHistory
+                includeTransactionHistory,
+                bankMaxInterestThreshold
         );
 
         return ProductMatchDto.builder()
@@ -119,7 +133,8 @@ public class MatchScoreService {
             Long monthlyDeposit,
             boolean isGov,
             SearchRequestDto request,
-            boolean includeTransactionHistory
+            boolean includeTransactionHistory,
+            Double bankMaxInterestThreshold
     ) {
         List<KeywordValueEnum> propertyKeywords = property.getKeywords().stream()
                 .map(ProductKeyword::getKeywordCode)
@@ -136,11 +151,12 @@ public class MatchScoreService {
                 identities,
                 activeBankConditions,
                 savingPeriod,
+                monthlyDeposit,
                 property,
                 isGov
         );
 
-        double benefitScore = calcBenefitScore(coreBenefits, propertyKeywords, isGov)
+        double benefitScore = calcBenefitScore(coreBenefits, property, propertyKeywords, isGov, bankMaxInterestThreshold)
                 * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_BENEFITS, ScoreWeightEnum.BANK_BENEFITS));
         double periodScore = calcPeriodScore(savingPeriod, property)
                 * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_PERIOD, ScoreWeightEnum.BANK_PERIOD));
@@ -169,14 +185,36 @@ public class MatchScoreService {
         return isGov ? govWeight.getKey() : bankWeight.getKey();
     }
 
-    private double calcBenefitScore(List<KeywordValueEnum> selected, List<KeywordValueEnum> propertyKeywords, boolean isGov) {
+    private double calcBenefitScore(
+            List<KeywordValueEnum> selected,
+            ProductProperty property,
+            List<KeywordValueEnum> propertyKeywords,
+            boolean isGov,
+            Double bankMaxInterestThreshold
+    ) {
         List<KeywordValueEnum> applicable = applicableBenefitKeywords(selected, isGov);
         if (applicable.isEmpty()) return 0.0;
 
         long matched = applicable.stream()
-                .filter(propertyKeywords::contains)
+                .filter(kw -> isBenefitMatched(kw, property, propertyKeywords, isGov, bankMaxInterestThreshold))
                 .count();
         return (double) matched / applicable.size();
+    }
+
+    private boolean isBenefitMatched(
+            KeywordValueEnum keyword,
+            ProductProperty property,
+            List<KeywordValueEnum> propertyKeywords,
+            boolean isGov,
+            Double bankMaxInterestThreshold
+    ) {
+        // 은행 #최고이율_중심: 정적 태그가 아니라 결과셋 최고금리(maxRate) 상위 30% 임계값 이상인지로 동적 판정 (PRD A-2).
+        // 정부 상품/임계값 미제공 시에는 기존 태그 방식 유지 (정부는 금리 대부분 미공시).
+        if (keyword == BENEFIT_MAX_INTEREST && !isGov && bankMaxInterestThreshold != null) {
+            return property.getMaxRate() != null
+                    && property.getMaxRate().doubleValue() >= bankMaxInterestThreshold;
+        }
+        return propertyKeywords.contains(keyword);
     }
 
     private double calcPeriodScore(KeywordValueEnum selected, ProductProperty property) {
@@ -235,14 +273,14 @@ public class MatchScoreService {
             return false;
         }
 
+        // 첫거래·재예치는 단계2 거래이력으로 추론된 은행에만 매칭 (PRD: 단계2 자동 추론 전용).
+        // 은행 리스트가 비면 매칭 인정하지 않는다.
         if (keyword == BANK_FIRST_TRANSACTION) {
-            List<String> selectedProviders = neverUsedBanks(request);
-            return !hasAny(selectedProviders) || isProviderSelected(property, selectedProviders);
+            return isProviderSelected(property, neverUsedBanks(request));
         }
 
         if (keyword == BANK_REDEPOSIT) {
-            List<String> selectedProviders = maturedSavingBanks(request);
-            return !hasAny(selectedProviders) || isProviderSelected(property, selectedProviders);
+            return isProviderSelected(property, maturedSavingBanks(request));
         }
 
         return true;
@@ -300,6 +338,7 @@ public class MatchScoreService {
             List<KeywordValueEnum> identities,
             List<KeywordValueEnum> bankConditions,
             KeywordValueEnum savingPeriod,
+            Long monthlyDeposit,
             ProductProperty property,
             boolean isGov
     ) {
@@ -320,6 +359,11 @@ public class MatchScoreService {
         // 현재 신분이 선택되지 않았으면
         if (identities.isEmpty()) {
             inactive.add(weightKey(isGov, ScoreWeightEnum.GOV_IDENTITY, ScoreWeightEnum.BANK_IDENTITY));
+        }
+
+        // 월 납입 희망액이 없으면 납입한도 점수를 산출할 수 없으므로 재배분 대상 (A-3)
+        if (monthlyDeposit == null) {
+            inactive.add(weightKey(isGov, ScoreWeightEnum.GOV_DEPOSIT, ScoreWeightEnum.BANK_DEPOSIT));
         }
 
         // 은행 거래 조건이 비었거나, 유형 1(은행취급상품)이 아닌 경우
