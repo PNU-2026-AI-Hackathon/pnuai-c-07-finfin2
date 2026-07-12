@@ -5,6 +5,7 @@ import apptive.fin.search.dto.ProductRateDto;
 import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
+import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.repository.ProductRepository;
 import apptive.fin.search.service.RateCalculatorService;
 import apptive.fin.support.IntegrationTestSupport;
@@ -83,7 +84,8 @@ class GovernmentSeedYieldIntegrationTest extends IntegrationTestSupport {
                 .orElseThrow(() -> new AssertionError(testCase.code() + " 상품이 시드 데이터에 없습니다."));
 
         SearchRequestDto request = createRequest(testCase.monthlySavingsGoal());
-        ProductRateDto result = rateCalculatorService.calculate(product, request, emptyKeywords());
+        ProductProperty selected = rateCalculatorService.selectRepresentativeProperty(product, request, emptyKeywords());
+        ProductRateDto result = rateCalculatorService.calculate(product, selected, request, emptyKeywords());
 
         assertThat(result.rateComparable())
                 .as("%s(%s) rateComparable", testCase.code(), testCase.description())
@@ -110,7 +112,8 @@ class GovernmentSeedYieldIntegrationTest extends IntegrationTestSupport {
                     .as("%s 상품에 기여금 매칭 데이터(gov_contribution_type != NONE)가 존재해야 한다", code)
                     .isTrue();
 
-            ProductRateDto result = rateCalculatorService.calculate(product, request, emptyKeywords());
+            ProductProperty selected = rateCalculatorService.selectRepresentativeProperty(product, request, emptyKeywords());
+            ProductRateDto result = rateCalculatorService.calculate(product, selected, request, emptyKeywords());
             assertThat(result.rateComparable())
                     .as("%s 상품의 calculate() 결과가 rateComparable=true여야 한다", code)
                     .isTrue();

@@ -21,30 +21,12 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Comparator;
-import java.util.Optional;
 import java.util.Set;
 
 @Service
 public class RateCalculatorService {
 
     private static final String ONTONG_SOURCE = "ONTONG";
-
-    public ProductRateDto calculate(Product product, SearchRequestDto request) {
-        return calculate(product, request, emptyKeywords());
-    }
-
-    public ProductRateDto calculate(Product product, SearchRequestDto request, ResolvedKeywords keywords) {
-        ResolvedKeywords resolvedKeywords = keywords != null ? keywords : emptyKeywords();
-        if (product.getType() == ProductType.SUBSCRIPTION) {
-            return subscriptionDto(product);
-        }
-
-        if (isGovernmentProduct(product)) {
-            return calculateGovernmentProduct(product, request);
-        }
-
-        return calculateBankProduct(product, request, resolvedKeywords);
-    }
 
     // 정부 수익률 혹은 적용금리를 계산
     public ProductRateDto calculate(
@@ -182,42 +164,6 @@ public class RateCalculatorService {
                 .isSubscription(true)
                 .subscriptionNote("청약: 금리 비교 대상 아님")
                 .build();
-    }
-
-    // 정부상품 수익률 계산
-    private ProductRateDto calculateGovernmentProduct(Product product, SearchRequestDto request) {
-        // 정부상품의 ProductProperty 수익률 계산 후 수익률이 최대인 속성 하나 선택
-        Optional<GovYieldScore> bestScore = product.getProperties().stream()
-                .map(property -> new GovYieldScore(property, calculateGovernmentYield(property, request)))
-                .filter(score -> score.yield() != null)
-                .max(Comparator.comparingDouble(GovYieldScore::yield));
-
-        // bestScore가 empty이면
-        if (bestScore.isEmpty()) {
-            // 첫 번째 속성을 선택
-            ProductProperty firstProperty = product.getProperties().stream().findFirst().orElse(null);
-            return baseDto(product, firstProperty)
-                    .rateComparable(false)
-                    .isSubscription(false)
-                    .build();
-        }
-
-        GovYieldScore score = bestScore.get();
-        return baseDto(product, score.property())
-                .baseRate(0.0)
-                .achievableRate(score.yield())
-                .rateComparable(true)
-                .isSubscription(false)
-                .build();
-    }
-    
-    // 은행상품 달성 가능 금리 계산해 반환
-    private ProductRateDto calculateBankProduct(Product product, SearchRequestDto request, ResolvedKeywords keywords) {
-        ProductProperty bestProperty = product.getProperties().stream()
-                .max(Comparator.comparingDouble(property -> achievableBankRate(property, request, keywords)))
-                .orElse(null);
-
-        return calculateBankProperty(product, bestProperty, request, keywords);
     }
 
     // 정부상품 수익률 계산해 반환
@@ -452,9 +398,6 @@ public class RateCalculatorService {
         return property != null && property.getProvider() != null
                 ? property.getProvider().getName()
                 : null;
-    }
-
-    private record GovYieldScore(ProductProperty property, Double yield) {
     }
 
     private ResolvedKeywords emptyKeywords() {
