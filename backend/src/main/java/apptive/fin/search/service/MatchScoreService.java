@@ -8,7 +8,6 @@ import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -19,60 +18,7 @@ import java.util.Map;
 import static apptive.fin.search.KeywordValueEnum.*;
 
 @Service
-@RequiredArgsConstructor
 public class MatchScoreService {
-
-    private final ResolveKeywordService resolveKeywordService;
-
-    public ProductMatchDto score(Product p, SearchRequestDto request) {
-        return score(p, request, resolveKeywordService.resolveKeywords(request.options()));
-    }
-
-    public ProductMatchDto score(Product p, SearchRequestDto request, ResolvedKeywords keywords) {
-        return score(p, request, keywords, false);
-    }
-
-    public ProductMatchDto score(
-            Product p,
-            SearchRequestDto request,
-            ResolvedKeywords keywords,
-            boolean includeTransactionHistory
-    ) {
-        var detail = request.detailedOptions();
-
-        boolean isGov = p.getSource().getCode().equals("ONTONG");
-
-        // 모든 property별 점수 계산 후 최고 점수인 property 선택
-        ProductPropertyScore bestScore = p.getProperties().stream()
-                .map(property -> scoreProperty(
-                        property,
-                        keywords.coreBenefits(),
-                        keywords.identities(),
-                        keywords.bankConditions(),
-                        keywords.savingPeriod(),
-                        detail != null ? detail.monthlySavingsGoal() : null,
-                        isGov,
-                        request,
-                        includeTransactionHistory,
-                        null
-                ))
-                .max((a, b) -> Double.compare(a.totalScore(), b.totalScore()))
-                .orElseGet(() -> new ProductPropertyScore(null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
-
-        return ProductMatchDto.builder()
-                .productId(p.getId())
-                .productPropertyId(bestScore.property() != null ? bestScore.property().getId() : null)
-                .productName(p.getProductName())
-                .providerName(providerName(bestScore.property()))
-                .source(p.getSource().getCode())
-                .totalScore(bestScore.totalScore())
-                .benefitScore(bestScore.benefitScore())
-                .periodScore(bestScore.periodScore())
-                .identityScore(bestScore.identityScore())
-                .depositScore(bestScore.depositScore())
-                .bankCondScore(bestScore.bankCondScore())
-                .build();
-    }
 
     public ProductMatchDto score(
             Product product,
@@ -93,9 +39,10 @@ public class MatchScoreService {
             boolean includeTransactionHistory,
             Double bankMaxInterestThreshold
     ) {
-        var detail = request.detailedOptions();
-        boolean isGov = product.getSource().getCode().equals("ONTONG");
+        var detail = request.detailedOptions(); // 상세옵션
+        boolean isGov = product.getSource().getCode().equals("ONTONG");  // 정부상품 여부
 
+        // ProductProperty에 대한 점수 계산
         ProductPropertyScore score = scoreProperty(
                 property,
                 keywords.coreBenefits(),
@@ -136,16 +83,19 @@ public class MatchScoreService {
             boolean includeTransactionHistory,
             Double bankMaxInterestThreshold
     ) {
+        // 상품 속성의 키워드
         List<KeywordValueEnum> propertyKeywords = property.getKeywords().stream()
                 .map(ProductKeyword::getKeywordCode)
                 .toList();
 
+        // 활성화된 은행 관련 조건
         List<KeywordValueEnum> activeBankConditions = activeBankConditions(
                 bankConditions,
                 request,
                 includeTransactionHistory
         );
 
+        // 가중치 분배
         Map<String, Double> weights = distributeWeights(
                 coreBenefits,
                 identities,
@@ -155,7 +105,8 @@ public class MatchScoreService {
                 property,
                 isGov
         );
-
+        
+        // metric 별로 점수계산, 가중치 적용
         double benefitScore = calcBenefitScore(coreBenefits, property, propertyKeywords, isGov, bankMaxInterestThreshold)
                 * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_BENEFITS, ScoreWeightEnum.BANK_BENEFITS));
         double periodScore = calcPeriodScore(savingPeriod, property)
@@ -170,6 +121,7 @@ public class MatchScoreService {
                 * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_BANK_COND, ScoreWeightEnum.BANK_BANK_COND));
         double totalScore = benefitScore + periodScore + identityScore + depositScore + bankCondScore;
 
+        // 점수를 ProductPropertyScore Dto 형태로 반환
         return new ProductPropertyScore(
                 property,
                 totalScore,
@@ -181,10 +133,12 @@ public class MatchScoreService {
         );
     }
 
+    // 정부상품 여부에 따라 맞는 weightKey를 계산해 반환
     private String weightKey(boolean isGov, ScoreWeightEnum govWeight, ScoreWeightEnum bankWeight) {
         return isGov ? govWeight.getKey() : bankWeight.getKey();
     }
 
+    // 혜택 점수 계산
     private double calcBenefitScore(
             List<KeywordValueEnum> selected,
             ProductProperty property,
@@ -201,6 +155,7 @@ public class MatchScoreService {
         return (double) matched / applicable.size();
     }
 
+    // 혜택 매칭 여부 계산
     private boolean isBenefitMatched(
             KeywordValueEnum keyword,
             ProductProperty property,
@@ -217,39 +172,51 @@ public class MatchScoreService {
         return propertyKeywords.contains(keyword);
     }
 
+    // 저축기간 점수 계산
     private double calcPeriodScore(KeywordValueEnum selected, ProductProperty property) {
+        // 선택된 키워드가 없거나 상품 속성의 saveTrm이 null이면 0점
         if (selected == null || property.getSaveTrm() == null) return 0.0;
 
-        int[] range = periodRange(selected);
-        int saveTrm = property.getSaveTrm();
-        if (saveTrm >= range[0] && saveTrm <= range[1]) return 1.0;
-        return isAdjacentOption(property, selected) ? 0.5 : 0.0;
+        
+        int[] range = periodRange(selected); // 사용자가 선택한 키워드의 범위
+        int saveTrm = property.getSaveTrm(); // 상품 속성의 저축기간 
+        if (saveTrm >= range[0] && saveTrm <= range[1]) return 1.0;  // 범위 내이면 100%
+        return isAdjacentOption(property, selected) ? 0.5 : 0.0;     // 범위 밖이고 인접기간이면 50%, 아니면 0%
     }
 
+    // 신분 특화도 계산
     private double calcIdentityScore(List<KeywordValueEnum> selected, List<KeywordValueEnum> propertyKeywords, boolean isGov) {
         if (selected.isEmpty()) return 0;
 
+        // 정부상품이면
         if (isGov) {
+            // 상품속성이 선택한 키워드를 포함하고 있고 그 키워드가 특화 키워드이면 특화상품
             boolean specialized = selected.stream().anyMatch(kw ->
                     propertyKeywords.contains(kw) && isSpecializedKeyword(kw));
+            // 특화 키워드가 아니고 키워드만 포함하고 있으면 포함상품
             boolean included = selected.stream().anyMatch(propertyKeywords::contains);
-            if (specialized) return 1.0;
-            if (included) return 0.5;
-            return 0;
+            if (specialized) return 1.0;  // 특화이면 100%
+            if (included) return 0.5;     // 포함이면 50%
+            return 0; // 둘 다 아니면 0%
         }
 
+        // 은행상품이면 키워드 포함이면 100%, 아니면 0%
         return selected.stream().anyMatch(propertyKeywords::contains) ? 1.0 : 0;
     }
 
+    // 납입 한도 적합도 계산
     private double calcDepositScore(Long monthlyDeposit, ProductProperty property) {
         if (monthlyDeposit == null) return 0.0;
 
         Long maxMonthlyLimit = property.getMaxMonthlyLimit();
+        // 납입 한도가 없거나 월최대납입한도보다 희망납입액이 적으면 100%
         if (maxMonthlyLimit == null) return 1.0;
         if (monthlyDeposit <= maxMonthlyLimit) return 1.0;
+        // 아니면 월최대납입한도 / 희망납입액
         return (double) maxMonthlyLimit / monthlyDeposit;
     }
 
+    // 은행 거래 조건 점수 계산
     private double calcBankCondScore(
             List<KeywordValueEnum> selected,
             List<KeywordValueEnum> propertyKeywords,
@@ -263,22 +230,27 @@ public class MatchScoreService {
         return (double) matched / selected.size();
     }
 
+    // 은행 거래 조건이 매칭되는지 검사
     private boolean matchesBankCondition(
             KeywordValueEnum keyword,
             List<KeywordValueEnum> propertyKeywords,
             ProductProperty property,
             SearchRequestDto request
     ) {
+        // 상품 속성이 해당 키워드를 포함하고 있지 않으면 false
         if (!propertyKeywords.contains(keyword)) {
             return false;
         }
 
         // 첫거래·재예치는 단계2 거래이력으로 추론된 은행에만 매칭 (PRD: 단계2 자동 추론 전용).
         // 은행 리스트가 비면 매칭 인정하지 않는다.
+
+        // 첫거래
         if (keyword == BANK_FIRST_TRANSACTION) {
             return isProviderSelected(property, neverUsedBanks(request));
         }
 
+        // 재예치
         if (keyword == BANK_REDEPOSIT) {
             return isProviderSelected(property, maturedSavingBanks(request));
         }
@@ -286,20 +258,25 @@ public class MatchScoreService {
         return true;
     }
 
+    // 활성화된 은행 키워드 계산
     private List<KeywordValueEnum> activeBankConditions(
             List<KeywordValueEnum> selected,
             SearchRequestDto request,
             boolean includeTransactionHistory
     ) {
+        // 선택된 은행 키워드
         List<KeywordValueEnum> active = new ArrayList<>(selected);
+        // 거래 내역 미포함시 계산하지 않음
         if (!includeTransactionHistory) {
             return active;
         }
-
+        
+        // neverUsedBanks가 하나 이상 선택되었고 BANK_FIRST_TRANSACTION이 포함되어 있지 않다면
         if (hasAny(neverUsedBanks(request)) && !active.contains(BANK_FIRST_TRANSACTION)) {
             active.add(BANK_FIRST_TRANSACTION);
         }
 
+        // maturedSavingBanks가 하나 이상 선택되었고 BANK_REDEPOSITE이 포함되어 있지 않다면
         if (hasAny(maturedSavingBanks(request)) && !active.contains(BANK_REDEPOSIT)) {
             active.add(BANK_REDEPOSIT);
         }
@@ -307,32 +284,39 @@ public class MatchScoreService {
         return active;
     }
 
+    // 리스트가 값을 가지고 있는지 검사
     private boolean hasAny(List<String> values) {
         return values != null && !values.isEmpty();
     }
 
+    // 사용자가 선택한 Provider인지 확인
     private boolean isProviderSelected(ProductProperty property, List<String> selectedProviders) {
+        // 상품속성이 null이거나, 상품의 provider가 null이거나, 사용자가 선택한 provider 목록이 null이면 false
         if (property == null || property.getProvider() == null || selectedProviders == null) {
             return false;
         }
 
+        // 선택한 provider 코드와 매칭되면 true
         String providerCode = property.getProvider().getCode();
         return selectedProviders.stream()
                 .anyMatch(selected -> selected != null && selected.equals(providerCode));
     }
 
+    // 미사용 은행
     private List<String> neverUsedBanks(SearchRequestDto request) {
         return request.detailedOptions() != null
                 ? request.detailedOptions().neverUsedBanks()
                 : null;
     }
-
+    
+    // 만기이력 있는 은행
     private List<String> maturedSavingBanks(SearchRequestDto request) {
         return request.detailedOptions() != null
                 ? request.detailedOptions().maturedSavingBanks()
                 : null;
     }
 
+    // 가중치 분배 
     private Map<String, Double> distributeWeights(
             List<KeywordValueEnum> coreBenefits,
             List<KeywordValueEnum> identities,
@@ -371,16 +355,24 @@ public class MatchScoreService {
             inactive.add(weightKey(isGov, ScoreWeightEnum.GOV_BANK_COND, ScoreWeightEnum.BANK_BANK_COND));
         }
 
+        // inactive 없으면 기본 가중치 바로 반환
         if (inactive.isEmpty()) return weights;
 
+        // inactive로 인해 채점되지 않는 점수들의 총합
         double removedTotal = inactive.stream().mapToDouble(weights::get).sum();
+        // inactive들의 가중치를 0으로 설정
         inactive.forEach(k -> weights.put(k, 0.0));
+        // 활성화된 점수 총합
         double activeTotal = weights.values().stream().mapToDouble(Double::doubleValue).sum();
+        // active들의 가중치를 비율대로 조정
+        // new_weight = weight + ( removedTotal * (v / activeTotal) )
         weights.replaceAll((k, v) -> v > 0 ? v + removedTotal * (v / activeTotal) : 0.0);
 
         return weights;
     }
 
+
+    // 정부상품 여부에 따라 적용가능한 핵심 혜택 키워드를 반환
     private List<KeywordValueEnum> applicableBenefitKeywords(List<KeywordValueEnum> selected, boolean isGov) {
         if (isGov) return selected;
 
@@ -393,6 +385,8 @@ public class MatchScoreService {
         return isGov;
     }
 
+
+    // 저축기간을 반환
     private int[] periodRange(KeywordValueEnum kw) {
         return switch (kw) {
             case TERM_AROUND_1_YEAR -> new int[]{6, 12};
@@ -402,6 +396,7 @@ public class MatchScoreService {
         };
     }
 
+    // ProductProperty의 저축 기간이 사용자가 선택한 기간과 인접한지 여부를 판별
     private boolean isAdjacentOption(ProductProperty property, KeywordValueEnum selected) {
         int trm = property.getSaveTrm();
         return switch (selected) {
@@ -412,10 +407,12 @@ public class MatchScoreService {
         };
     }
 
+    // 특화 키워드 여부를 판별
     private boolean isSpecializedKeyword(KeywordValueEnum kw) {
         return kw == STATUS_MILITARY || kw == STATUS_SME_WORKER || kw == STATUS_UNEMPLOYED;
     }
 
+    // 상품 제공자 이름을 반환
     private String providerName(ProductProperty property) {
         return property != null && property.getProvider() != null
                 ? property.getProvider().getName()

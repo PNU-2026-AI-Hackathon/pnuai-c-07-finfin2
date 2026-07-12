@@ -30,6 +30,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -81,41 +82,29 @@ public class SearchService {
         Double bankMaxInterestThreshold = topRateThreshold(bankList);
 
         // 정부상품 점수 계산 후 각 상품별로 총점이 가장 높은 (Product, ProductProperty) 쌍만 남긴 뒤 점수순 내림차순 정렬
-        List<ProductMatchDto> govRanked = govList.stream()
-                .map(option -> matchScoreService.score(
-                        option.product(),
-                        option.property(),
-                        request,
-                        resolvedKeywords,
-                        false
-                ))
-                .collect(Collectors.collectingAndThen(
-                        Collectors.toMap(
-                                ProductMatchDto::productId, // key
-                                Function.identity(),        // value (ProductMatchDto 자기자신)
-                                (left, right) -> left.totalScore() >= right.totalScore() ? left : right // 각 상품별 점수가 가장 큰 상품 하나만
-                        ),
-                        map -> sortedByTotalScore(map.values())  // Map에서 값들 뽑아서 점수순으로 정렬
-                ));
-                
+        List<ProductMatchDto> govRanked = collapseToBestPerProduct(
+                govList.stream()
+                        .map(option -> matchScoreService.score(
+                                option.product(),
+                                option.property(),
+                                request,
+                                resolvedKeywords,
+                                false
+                        ))
+        );
+
         // 은행상품 점수 계산 후 각 상품별로 총점이 가장 높은 (Product, ProductProperty) 쌍만 남긴 뒤 점수순 내림차순 정렬
-        List<ProductMatchDto> bankRanked = bankList.stream()
-                .map(option -> matchScoreService.score(
-                        option.product(),
-                        option.property(),
-                        request,
-                        resolvedKeywords,
-                        tabBEnabled,
-                        bankMaxInterestThreshold
-                ))
-                .collect(Collectors.collectingAndThen(
-                        Collectors.toMap(
-                                ProductMatchDto::productId,
-                                Function.identity(),
-                                (left, right) -> left.totalScore() >= right.totalScore() ? left : right
-                        ),
-                        map -> sortedByTotalScore(map.values())
-                ));
+        List<ProductMatchDto> bankRanked = collapseToBestPerProduct(
+                bankList.stream()
+                        .map(option -> matchScoreService.score(
+                                option.product(),
+                                option.property(),
+                                request,
+                                resolvedKeywords,
+                                tabBEnabled,
+                                bankMaxInterestThreshold
+                        ))
+        );
 
         // 탭별 활성화여부 계산
         TabAvailabilityDto tabs = TabAvailabilityDto.builder()
@@ -275,11 +264,19 @@ public class SearchService {
         return sortedDesc.get(cutoffIndex);
     }
 
-    // 총점 기준 내림차순 정렬
-    private List<ProductMatchDto> sortedByTotalScore(Collection<ProductMatchDto> products) {
-        return products.stream()
-                .sorted(Comparator.comparingDouble(ProductMatchDto::totalScore).reversed())
-                .toList();
+    // 상품별로 총점이 가장 높은 (Product, ProductProperty) 쌍만 남기고 총점 내림차순 정렬(순수 함수, 테스트 용이하도록 분리).
+    // 동점이면 먼저 계산된 항목을 유지(>=).
+    static List<ProductMatchDto> collapseToBestPerProduct(Stream<ProductMatchDto> scored) {
+        return scored.collect(Collectors.collectingAndThen(
+                Collectors.toMap(
+                        ProductMatchDto::productId,
+                        Function.identity(),
+                        (left, right) -> left.totalScore() >= right.totalScore() ? left : right
+                ),
+                map -> map.values().stream()
+                        .sorted(Comparator.comparingDouble(ProductMatchDto::totalScore).reversed())
+                        .toList()
+        ));
     }
 		
     // 달성 가능 금리 기준 내림차순 정렬

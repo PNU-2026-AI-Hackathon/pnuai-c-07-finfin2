@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.offset;
  */
 class PrdGoldenScenarioTest {
 
-    private final MatchScoreService matchScoreService = new MatchScoreService(null);
+    private final MatchScoreService matchScoreService = new MatchScoreService();
     private final RateCalculatorService rateCalculatorService = new RateCalculatorService();
 
     // ===== 1. 탭A 정부 상품 골든 시나리오 =====
@@ -50,6 +50,7 @@ class PrdGoldenScenarioTest {
 
         ProductMatchDto result = matchScoreService.score(
                 product,
+                product.getProperties().get(0),
                 createRequest(500_000L),
                 new ResolvedKeywords(
                         List.of(),
@@ -61,7 +62,8 @@ class PrdGoldenScenarioTest {
                                 KeywordValueEnum.BENEFIT_MAX_INTEREST
                         ),
                         List.of()
-                )
+                ),
+                false
         );
 
         // benefitScore = 40 × (2/3) = 26.6667
@@ -103,6 +105,7 @@ class PrdGoldenScenarioTest {
 
         ProductMatchDto result = matchScoreService.score(
                 product,
+                product.getProperties().get(0),
                 createRequest(300_000L),
                 new ResolvedKeywords(
                         List.of(),
@@ -110,7 +113,8 @@ class PrdGoldenScenarioTest {
                         KeywordValueEnum.TERM_AROUND_1_YEAR,
                         List.of(KeywordValueEnum.BENEFIT_MAX_INTEREST, KeywordValueEnum.BENEFIT_GOV_SUBSIDY),
                         List.of(KeywordValueEnum.BANK_AUTO_TRANSFER, KeywordValueEnum.BANK_SALARY_TRANSFER)
-                )
+                ),
+                false
         );
 
         // bankCondScore = 40 × 1/2 = 20.0
@@ -323,6 +327,7 @@ class PrdGoldenScenarioTest {
 
         ProductMatchDto result = matchScoreService.score(
                 product,
+                product.getProperties().get(0),
                 createRequest(300_000L),
                 new ResolvedKeywords(
                         List.of(),
@@ -330,7 +335,8 @@ class PrdGoldenScenarioTest {
                         null,
                         List.of(KeywordValueEnum.BENEFIT_GOV_SUBSIDY, KeywordValueEnum.BENEFIT_TAX_FREE, KeywordValueEnum.BENEFIT_MAX_INTEREST),
                         List.of()
-                )
+                ),
+                false
         );
 
         assertThat(result.totalScore()).isCloseTo(100.0, offset(0.0001));
@@ -349,6 +355,7 @@ class PrdGoldenScenarioTest {
 
         ProductMatchDto result = matchScoreService.score(
                 product,
+                product.getProperties().get(0),
                 createRequest(300_000L),
                 new ResolvedKeywords(
                         List.of(),
@@ -356,7 +363,8 @@ class PrdGoldenScenarioTest {
                         KeywordValueEnum.TERM_AROUND_1_YEAR,
                         List.of(KeywordValueEnum.BENEFIT_GOV_SUBSIDY, KeywordValueEnum.BENEFIT_TAX_FREE),
                         List.of()
-                )
+                ),
+                false
         );
 
         assertThat(result.totalScore()).isCloseTo(100.0, offset(0.0001));
@@ -376,6 +384,7 @@ class PrdGoldenScenarioTest {
 
         ProductMatchDto result = matchScoreService.score(
                 product,
+                product.getProperties().get(0),
                 createRequest(300_000L),
                 new ResolvedKeywords(
                         List.of(),
@@ -383,7 +392,8 @@ class PrdGoldenScenarioTest {
                         KeywordValueEnum.TERM_AROUND_1_YEAR,
                         List.of(KeywordValueEnum.BENEFIT_GOV_SUBSIDY, KeywordValueEnum.BENEFIT_TAX_FREE),
                         List.of()
-                )
+                ),
+                false
         );
 
         assertThat(result.totalScore()).isCloseTo(100.0, offset(0.0001));
@@ -401,6 +411,7 @@ class PrdGoldenScenarioTest {
 
         ProductMatchDto result = matchScoreService.score(
                 product,
+                product.getProperties().get(0),
                 createRequest(300_000L),
                 new ResolvedKeywords(
                         List.of(),
@@ -408,7 +419,8 @@ class PrdGoldenScenarioTest {
                         KeywordValueEnum.TERM_AROUND_1_YEAR,
                         List.of(),
                         List.of()
-                )
+                ),
+                false
         );
 
         assertThat(result.totalScore()).isCloseTo(100.0, offset(0.0001));
@@ -426,6 +438,7 @@ class PrdGoldenScenarioTest {
 
         ProductMatchDto result = matchScoreService.score(
                 product,
+                product.getProperties().get(0),
                 createRequest(300_000L),
                 new ResolvedKeywords(
                         List.of(),
@@ -433,7 +446,8 @@ class PrdGoldenScenarioTest {
                         null,
                         List.of(),
                         List.of()
-                )
+                ),
+                false
         );
 
         assertThat(result.totalScore()).isCloseTo(100.0, offset(0.0001));
@@ -455,6 +469,7 @@ class PrdGoldenScenarioTest {
 
         ProductMatchDto result = matchScoreService.score(
                 product,
+                product.getProperties().get(0),
                 createRequest(300_000L),
                 new ResolvedKeywords(
                         List.of(),
@@ -462,7 +477,8 @@ class PrdGoldenScenarioTest {
                         null,
                         List.of(),
                         List.of(KeywordValueEnum.BANK_CARD_USAGE)
-                )
+                ),
+                false
         );
 
         assertThat(result.totalScore()).isCloseTo(100.0, offset(0.0001));
@@ -482,6 +498,7 @@ class PrdGoldenScenarioTest {
 
         ProductMatchDto result = matchScoreService.score(
                 product,
+                product.getProperties().get(0),
                 createRequest(300_000L),
                 new ResolvedKeywords(
                         List.of(),
@@ -489,7 +506,8 @@ class PrdGoldenScenarioTest {
                         KeywordValueEnum.TERM_AROUND_1_YEAR,
                         List.of(KeywordValueEnum.BENEFIT_EASY_CONDITION),
                         List.of(KeywordValueEnum.BANK_CARD_USAGE)
-                )
+                ),
+                false
         );
 
         assertThat(result.totalScore()).isCloseTo(100.0, offset(0.0001));
@@ -507,6 +525,7 @@ class PrdGoldenScenarioTest {
 
         ProductMatchDto result = matchScoreService.score(
                 product,
+                product.getProperties().get(0),
                 createRequest(300_000L),
                 new ResolvedKeywords(
                         List.of(),
@@ -514,7 +533,8 @@ class PrdGoldenScenarioTest {
                         null,
                         List.of(KeywordValueEnum.BENEFIT_MAX_INTEREST),
                         List.of()
-                )
+                ),
+                false
         );
 
         assertThat(result.totalScore()).isCloseTo(100.0, offset(0.0001));
@@ -531,6 +551,7 @@ class PrdGoldenScenarioTest {
 
         ProductMatchDto result = matchScoreService.score(
                 product,
+                product.getProperties().get(0),
                 createRequest(300_000L),
                 new ResolvedKeywords(
                         List.of(),
@@ -538,7 +559,8 @@ class PrdGoldenScenarioTest {
                         KeywordValueEnum.TERM_AROUND_1_YEAR,
                         List.of(),
                         List.of()
-                )
+                ),
+                false
         );
 
         assertThat(result.totalScore()).isCloseTo(100.0, offset(0.0001));
