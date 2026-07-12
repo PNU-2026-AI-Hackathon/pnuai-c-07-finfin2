@@ -36,8 +36,8 @@ class PrdGoldenScenarioTest {
     @Test
     void 정부상품_탭A_선택혜택_2개_신분_기간_납입_구성() {
         // User selects 3 core benefits: BENEFIT_GOV_SUBSIDY, BENEFIT_TAX_FREE, BENEFIT_MAX_INTEREST
-        // Property keywords contain only BENEFIT_GOV_SUBSIDY, BENEFIT_TAX_FREE (2/3)
-        // benefitScore = 40 × 2/3 = 26.6667
+        // A1: 정부 상품은 #최고이율_중심을 혜택 매칭에서 제외(금리 미공시로 판정 불가)하므로
+        //     적용 대상은 {GOV_SUBSIDY, TAX_FREE} 2개뿐이고 상품이 둘 다 보유 → benefitScore = 40 × 2/2 = 40.0
         Product product = createProduct("ONTONG", createProperty(
                 10L,
                 "정책기관",
@@ -66,8 +66,8 @@ class PrdGoldenScenarioTest {
                 false
         );
 
-        // benefitScore = 40 × (2/3) = 26.6667
-        assertThat(result.benefitScore()).isCloseTo(26.6667, offset(0.0001));
+        // benefitScore = 40 × (2/2) = 40.0 (A1: 정부에서 #최고이율_중심 분모 제외)
+        assertThat(result.benefitScore()).isCloseTo(40.0, offset(0.0001));
 
         // periodScore = 22 × 0.5 (adjacent: saveTrm=12, selected=TERM_2_TO_3_YEARS range 24-36)
         assertThat(result.periodScore()).isCloseTo(11.0, offset(0.0001));
@@ -81,8 +81,8 @@ class PrdGoldenScenarioTest {
         // bankCondScore = 0 for government products
         assertThat(result.bankCondScore()).isZero();
 
-        // totalScore = 26.6667 + 11.0 + 10.0 + 10.8 + 0 = 58.4667
-        assertThat(result.totalScore()).isCloseTo(58.4667, offset(0.0001));
+        // totalScore = 40.0 + 11.0 + 10.0 + 10.8 + 0 = 71.8
+        assertThat(result.totalScore()).isCloseTo(71.8, offset(0.0001));
     }
 
     // ===== 2. 탭A 은행 상품 골든 시나리오 =====

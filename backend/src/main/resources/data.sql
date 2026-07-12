@@ -116,7 +116,6 @@ INSERT INTO category_option (category_id, value, code) VALUES
 (4, '비과세', 'BENEFIT_TAX_FREE'),
 (4, '우대조건 간편', 'BENEFIT_EASY_CONDITION'),
 (4, '정부기여금', 'BENEFIT_GOV_SUBSIDY'),
-(4, '내집마련', 'BENEFIT_HOUSE_PREPARE'),
 (5, '저축', 'INTEREST_SAVINGS'),
 (5, '대출', 'INTEREST_LOAN'),
 (6, '첫거래 고객', 'BANK_FIRST_TRANSACTION'),

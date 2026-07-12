@@ -242,12 +242,9 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
             throw new IllegalArgumentException("maxAge is smaller than minAge");
         }
 
-        for (String keyword : enrichment.keywords()) {
-            KeywordValueEnum keywordValue = KeywordValueEnum.from(keyword);
-            if (keywordValue == null || keywordValue.name().startsWith("TERM_")) {
-                throw new IllegalArgumentException("Unsupported LLM keyword: " + keyword);
-            }
-        }
+        // 미지원/TERM_ 키워드는 예외 대신 조용히 무시한다(실제 필터링은 mergeKeywords가 담당).
+        // stray 키워드 하나가 상품 enrichment 전체를 실패시키지 않도록 한다.
+        // requiredKeywords·preferentialRates 검증은 의미가 있으므로 아래에서 그대로 유지한다.
         for (RequiredKeywordDraft requiredKeyword : enrichment.requiredKeywords()) {
             if (requiredKeyword.keywordCode() == null
                     || !requiredKeyword.keywordCode().name().startsWith("STATUS_")

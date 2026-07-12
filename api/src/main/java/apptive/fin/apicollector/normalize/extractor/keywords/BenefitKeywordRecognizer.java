@@ -18,9 +18,6 @@ public class BenefitKeywordRecognizer implements KeywordRecognizer {
         addIfContains(keywords, content, KeywordValueEnum.BENEFIT_TAX_FREE,
                 "비과세"
         );
-        addIfContains(keywords, content, KeywordValueEnum.BENEFIT_HOUSE_PREPARE,
-                "내집마련", "주택"
-        );
         addIfContains(keywords, content, KeywordValueEnum.BENEFIT_GOV_SUBSIDY,
                 "기여금", "지원금", "장려금"
         );
