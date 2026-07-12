@@ -27,6 +27,28 @@ CREATE TABLE refresh_tokens (
 CREATE INDEX idx_refresh_tokens_user_id ON refresh_tokens(user_id);
 CREATE INDEX idx_refresh_tokens_expires_at ON refresh_tokens(expires_at);
 
+CREATE TABLE user_profiles (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    birthdate DATE,
+    annual_income BIGINT,
+    household_size INT,
+    household_income_percent INT,
+    tenure_months INT,
+    is_first_job BOOLEAN,
+    is_homeless BOOLEAN,
+    is_householder BOOLEAN,
+    monthly_savings_goal BIGINT,
+    main_banks TEXT,
+    never_used_banks TEXT,
+    matured_saving_banks TEXT,
+    selected_option_ids TEXT,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_user_profiles_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT uq_user_profiles_user UNIQUE (user_id)
+);
+
 CREATE TABLE median_incomes (
     id BIGSERIAL PRIMARY KEY,
     year INT NOT NULL CHECK (year > 0),
