@@ -1,9 +1,12 @@
 package apptive.fin.user.controller;
 
 import apptive.fin.auth.security.AuthUserDetails;
+import apptive.fin.user.dto.UserProfileRequestDto;
 import apptive.fin.user.dto.UserResponseDto;
+import apptive.fin.user.service.UserProfileService;
 import apptive.fin.user.service.UserService;
 import apptive.fin.user.dto.UserUpdateRequestDto;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final UserProfileService userProfileService;
 
     @GetMapping("/me")
     public UserResponseDto getMyInfo(@AuthenticationPrincipal AuthUserDetails userDetails){
@@ -26,6 +30,14 @@ public class UserController {
             @AuthenticationPrincipal AuthUserDetails userDetails
     ){
         userService.updateUser(userDetails.getId(), request);
+    }
+
+    @PutMapping("/me/profile")
+    public void updateProfile(
+            @Valid @RequestBody UserProfileRequestDto request,
+            @AuthenticationPrincipal AuthUserDetails userDetails
+    ){
+        userProfileService.upsert(userDetails.getId(), request);
     }
 
 }
