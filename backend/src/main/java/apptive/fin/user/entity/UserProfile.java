@@ -3,9 +3,9 @@ package apptive.fin.user.entity;
 import apptive.fin.global.converter.LongListJsonConverter;
 import apptive.fin.global.converter.StringListJsonConverter;
 import apptive.fin.global.entity.BaseTimeEntity;
+import apptive.fin.user.dto.UserProfileRequestDto;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.OnDelete;
@@ -78,46 +78,26 @@ public class UserProfile extends BaseTimeEntity {
     @Column(name = "selected_option_ids", columnDefinition = "TEXT")
     private List<Long> selectedOptionIds;
 
-    @Builder
-    public UserProfile(User user, LocalDate birthdate, Long annualIncome, Integer householdSize,
-                       Integer householdIncomePercent, Integer tenureMonths, Boolean isFirstJob,
-                       Boolean isHomeless, Boolean isHouseholder, Long monthlySavingsGoal,
-                       List<String> mainBanks, List<String> neverUsedBanks, List<String> maturedSavingBanks,
-                       List<Long> selectedOptionIds) {
+    public UserProfile(User user) {
         this.user = user;
-        this.birthdate = birthdate;
-        this.annualIncome = annualIncome;
-        this.householdSize = householdSize;
-        this.householdIncomePercent = householdIncomePercent;
-        this.tenureMonths = tenureMonths;
-        this.isFirstJob = isFirstJob;
-        this.isHomeless = isHomeless;
-        this.isHouseholder = isHouseholder;
-        this.monthlySavingsGoal = monthlySavingsGoal;
-        this.mainBanks = mainBanks;
-        this.neverUsedBanks = neverUsedBanks;
-        this.maturedSavingBanks = maturedSavingBanks;
-        this.selectedOptionIds = selectedOptionIds;
     }
 
-    /** upsert 시 기존 행 전체 갱신(정보 입력 화면 저장은 전량 덮어쓰기). */
-    public void update(LocalDate birthdate, Long annualIncome, Integer householdSize,
-                       Integer householdIncomePercent, Integer tenureMonths, Boolean isFirstJob,
-                       Boolean isHomeless, Boolean isHouseholder, Long monthlySavingsGoal,
-                       List<String> mainBanks, List<String> neverUsedBanks, List<String> maturedSavingBanks,
-                       List<Long> selectedOptionIds) {
-        this.birthdate = birthdate;
-        this.annualIncome = annualIncome;
-        this.householdSize = householdSize;
-        this.householdIncomePercent = householdIncomePercent;
-        this.tenureMonths = tenureMonths;
-        this.isFirstJob = isFirstJob;
-        this.isHomeless = isHomeless;
-        this.isHouseholder = isHouseholder;
-        this.monthlySavingsGoal = monthlySavingsGoal;
-        this.mainBanks = mainBanks;
-        this.neverUsedBanks = neverUsedBanks;
-        this.maturedSavingBanks = maturedSavingBanks;
-        this.selectedOptionIds = selectedOptionIds;
+    /**
+     * 정보 입력값 전량 덮어쓰기(생성/수정 공통). 필드 매핑 단일 지점 — 필드 추가 시 여기 한 곳만 갱신.
+     */
+    public void apply(UserProfileRequestDto request) {
+        this.birthdate = request.birthdate();
+        this.annualIncome = request.annualIncome();
+        this.householdSize = request.householdSize();
+        this.householdIncomePercent = request.householdIncomePercent();
+        this.tenureMonths = request.tenureMonths();
+        this.isFirstJob = request.isFirstJob();
+        this.isHomeless = request.isHomeless();
+        this.isHouseholder = request.isHouseholder();
+        this.monthlySavingsGoal = request.monthlySavingsGoal();
+        this.mainBanks = request.mainBanks();
+        this.neverUsedBanks = request.neverUsedBanks();
+        this.maturedSavingBanks = request.maturedSavingBanks();
+        this.selectedOptionIds = request.selectedOptionIds();
     }
 }

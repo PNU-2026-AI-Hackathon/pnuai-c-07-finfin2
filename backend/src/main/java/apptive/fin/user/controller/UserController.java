@@ -2,6 +2,7 @@ package apptive.fin.user.controller;
 
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.user.dto.UserProfileRequestDto;
+import apptive.fin.user.dto.UserProfileResponseDto;
 import apptive.fin.user.dto.UserResponseDto;
 import apptive.fin.user.service.UserProfileService;
 import apptive.fin.user.service.UserService;
@@ -30,6 +31,11 @@ public class UserController {
             @AuthenticationPrincipal AuthUserDetails userDetails
     ){
         userService.updateUser(userDetails.getId(), request);
+    }
+
+    @GetMapping("/me/profile")
+    public UserProfileResponseDto getProfile(@AuthenticationPrincipal AuthUserDetails userDetails){
+        return userProfileService.getProfile(userDetails.getId());
     }
 
     @PutMapping("/me/profile")
