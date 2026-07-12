@@ -105,4 +105,18 @@ public class ProductProperty {
     @BatchSize(size = 100)
     @OneToMany(mappedBy = "productProperty", fetch = FetchType.LAZY)
     private List<ProductPreferentialRate> preferentialRates = new ArrayList<>();
+
+    // 제공자(은행/기관) 이름. provider 미설정 시 null.
+    public String providerName() {
+        return provider != null ? provider.getName() : null;
+    }
+
+    // 이 property의 provider 코드가 주어진 코드 목록에 포함되는지(별칭 아닌 코드 기준).
+    public boolean matchesAnyProvider(List<String> providerCodes) {
+        if (provider == null || providerCodes == null) {
+            return false;
+        }
+        String code = provider.getCode();
+        return providerCodes.stream().anyMatch(c -> c != null && c.equals(code));
+    }
 }

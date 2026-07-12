@@ -64,4 +64,14 @@ public class Product extends BaseTimeEntity {
     @BatchSize(size = 100)
     @OneToMany(mappedBy = "product", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     private List<ProductProperty> properties = new ArrayList<>();
+
+    // 정부(온통청년) 상품 여부.
+    public boolean isGovernment() {
+        return source != null && ProductSource.GOVERNMENT_CODE.equals(source.getCode());
+    }
+
+    // 은행(FSS 공시) 상품 여부.
+    public boolean isBank() {
+        return source != null && ProductSource.BANK_CODE.equals(source.getCode());
+    }
 }

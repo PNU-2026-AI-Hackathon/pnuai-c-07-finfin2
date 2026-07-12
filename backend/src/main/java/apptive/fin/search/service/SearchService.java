@@ -61,18 +61,18 @@ public class SearchService {
         if (!resolvedKeywords.regions().isEmpty()) {
             // 은행 상품이거나 해당 지역 키워드를 가진 상품만 필터링하여 eligible한 상품 업데이트
             eligible = eligible.stream()
-                    .filter(option -> isBankProduct(option.product()) || hasMatchingRegion(option, resolvedKeywords.regions()))
+                    .filter(option -> option.product().isBank() || hasMatchingRegion(option, resolvedKeywords.regions()))
                     .toList();
         }
 
 	// 정부상품 목록
         List<EligibleProductOption> govList = eligible.stream()
-                .filter(option -> option.product().getSource().getCode().equals("ONTONG"))
+                .filter(option -> option.product().isGovernment())
                 .toList();
 
         // 은행상품 목록
         List<EligibleProductOption> bankList = eligible.stream()
-                .filter(option -> option.product().getSource().getCode().equals("FSS"))
+                .filter(option -> option.product().isBank())
                 .toList();
 
         // tabB 활성화 여부 판별
@@ -199,7 +199,7 @@ public class SearchService {
                             .productId(p.getId())
                             .productName(p.getProductName())
                             .source(p.getSource().getCode())
-                            .providerName(providerName(bestProperty))
+                            .providerName(bestProperty != null ? bestProperty.providerName() : null)
                             .baseRate(bestProperty != null && bestProperty.getBaseRate() != null
                                     ? bestProperty.getBaseRate().doubleValue() : null)
                             .maxRate(bestProperty != null && bestProperty.getMaxRate() != null
@@ -298,15 +298,5 @@ public class SearchService {
                 || selectedRegions.stream().anyMatch(productRegions::contains);
     }
 
-    // 은행 상품인지 확인하는 함수
-    private boolean isBankProduct(Product product) {
-        return product.getSource().getCode().equals("FSS");
-    }
 		
-    // 상품 제공자의 이름 확인하는 함수
-    private String providerName(ProductProperty property) {
-        return property != null && property.getProvider() != null
-                ? property.getProvider().getName()
-                : null;
-    }
 }

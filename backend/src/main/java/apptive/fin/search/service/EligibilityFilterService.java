@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.Period;
 import java.util.HashSet;
 import java.util.List;
 
@@ -87,9 +86,7 @@ public class EligibilityFilterService {
             DetailedOptionsDto detail,
             ResolvedKeywords keywords
     ) {
-        Integer age = detail.birthdate() != null
-                ? Period.between(detail.birthdate(), LocalDate.now()).getYears()
-                : null;
+        Integer age = detail.age(LocalDate.now());
         Long annualIncome = detail.annualIncome();
         Integer tenureMonths = new HashSet<>(keywords.identities())
                 .contains(KeywordValueEnum.STATUS_UNEMPLOYED)

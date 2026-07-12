@@ -39,8 +39,7 @@ public class MatchScoreService {
             boolean includeTransactionHistory,
             Double bankMaxInterestThreshold
     ) {
-        var detail = request.detailedOptions(); // 상세옵션
-        boolean isGov = product.getSource().getCode().equals("ONTONG");  // 정부상품 여부
+        boolean isGov = product.isGovernment();  // 정부상품 여부
 
         // ProductProperty에 대한 점수 계산
         ProductPropertyScore score = scoreProperty(
@@ -49,7 +48,7 @@ public class MatchScoreService {
                 keywords.identities(),
                 keywords.bankConditions(),
                 keywords.savingPeriod(),
-                detail != null ? detail.monthlySavingsGoal() : null,
+                request.monthlySavingsGoal(),
                 isGov,
                 request,
                 includeTransactionHistory,
@@ -60,7 +59,7 @@ public class MatchScoreService {
                 .productId(product.getId())
                 .productPropertyId(property.getId())
                 .productName(product.getProductName())
-                .providerName(providerName(property))
+                .providerName(property.providerName())
                 .source(product.getSource().getCode())
                 .totalScore(score.totalScore())
                 .benefitScore(score.benefitScore())
@@ -247,12 +246,12 @@ public class MatchScoreService {
 
         // 첫거래
         if (keyword == BANK_FIRST_TRANSACTION) {
-            return isProviderSelected(property, neverUsedBanks(request));
+            return property.matchesAnyProvider(request.neverUsedBanks());
         }
 
         // 재예치
         if (keyword == BANK_REDEPOSIT) {
-            return isProviderSelected(property, maturedSavingBanks(request));
+            return property.matchesAnyProvider(request.maturedSavingBanks());
         }
 
         return true;
@@ -272,12 +271,12 @@ public class MatchScoreService {
         }
         
         // neverUsedBanks가 하나 이상 선택되었고 BANK_FIRST_TRANSACTION이 포함되어 있지 않다면
-        if (hasAny(neverUsedBanks(request)) && !active.contains(BANK_FIRST_TRANSACTION)) {
+        if (hasAny(request.neverUsedBanks()) && !active.contains(BANK_FIRST_TRANSACTION)) {
             active.add(BANK_FIRST_TRANSACTION);
         }
 
         // maturedSavingBanks가 하나 이상 선택되었고 BANK_REDEPOSITE이 포함되어 있지 않다면
-        if (hasAny(maturedSavingBanks(request)) && !active.contains(BANK_REDEPOSIT)) {
+        if (hasAny(request.maturedSavingBanks()) && !active.contains(BANK_REDEPOSIT)) {
             active.add(BANK_REDEPOSIT);
         }
 
@@ -289,34 +288,7 @@ public class MatchScoreService {
         return values != null && !values.isEmpty();
     }
 
-    // 사용자가 선택한 Provider인지 확인
-    private boolean isProviderSelected(ProductProperty property, List<String> selectedProviders) {
-        // 상품속성이 null이거나, 상품의 provider가 null이거나, 사용자가 선택한 provider 목록이 null이면 false
-        if (property == null || property.getProvider() == null || selectedProviders == null) {
-            return false;
-        }
-
-        // 선택한 provider 코드와 매칭되면 true
-        String providerCode = property.getProvider().getCode();
-        return selectedProviders.stream()
-                .anyMatch(selected -> selected != null && selected.equals(providerCode));
-    }
-
-    // 미사용 은행
-    private List<String> neverUsedBanks(SearchRequestDto request) {
-        return request.detailedOptions() != null
-                ? request.detailedOptions().neverUsedBanks()
-                : null;
-    }
-    
-    // 만기이력 있는 은행
-    private List<String> maturedSavingBanks(SearchRequestDto request) {
-        return request.detailedOptions() != null
-                ? request.detailedOptions().maturedSavingBanks()
-                : null;
-    }
-
-    // 가중치 분배 
+    // 가중치 분배
     private Map<String, Double> distributeWeights(
             List<KeywordValueEnum> coreBenefits,
             List<KeywordValueEnum> identities,
@@ -410,13 +382,6 @@ public class MatchScoreService {
     // 특화 키워드 여부를 판별
     private boolean isSpecializedKeyword(KeywordValueEnum kw) {
         return kw == STATUS_MILITARY || kw == STATUS_SME_WORKER || kw == STATUS_UNEMPLOYED;
-    }
-
-    // 상품 제공자 이름을 반환
-    private String providerName(ProductProperty property) {
-        return property != null && property.getProvider() != null
-                ? property.getProvider().getName()
-                : null;
     }
 
     private record ProductPropertyScore(
