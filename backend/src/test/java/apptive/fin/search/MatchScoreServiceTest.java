@@ -328,6 +328,40 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    void 정부상품은_최고이율_키워드를_혜택매칭에서_제외하고_재배분한다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        // 정부 상품은 금리 미공시로 #최고이율_중심 매칭이 불가하므로 혜택 분모에서 제외되어야 한다.
+        // 상품은 정부기여금 태그만 보유. 사용자가 [정부기여금, 최고이율]을 선택해도
+        // 최고이율이 분모에 포함되지 않아 혜택 점수는 만점(40)이어야 한다.
+        Product product = createProduct("ONTONG", createProperty(
+                10L,
+                "policy-provider",
+                500_000L,
+                12,
+                KeywordValueEnum.BENEFIT_GOV_SUBSIDY,
+                KeywordValueEnum.STATUS_MILITARY
+        ));
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                product.getProperties().get(0),
+                createRequest(300_000L),
+                new ResolvedKeywords(
+                        List.of(),
+                        List.of(KeywordValueEnum.STATUS_MILITARY),
+                        KeywordValueEnum.TERM_AROUND_1_YEAR,
+                        List.of(KeywordValueEnum.BENEFIT_GOV_SUBSIDY, KeywordValueEnum.BENEFIT_MAX_INTEREST),
+                        List.of()
+                ),
+                false
+        );
+
+        // 최고이율이 분모에서 빠져 1/1 매칭 → 혜택 만점, 총점 100
+        assertThat(result.benefitScore()).isCloseTo(40.0, offset(0.001));
+        assertThat(result.totalScore()).isCloseTo(100.0, offset(0.001));
+    }
+
+    @Test
     void 정부상품은_일반_신분_키워드가_일치하면_신분점수를_절반만_부여한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         Product product = createProduct("ONTONG", createProperty(

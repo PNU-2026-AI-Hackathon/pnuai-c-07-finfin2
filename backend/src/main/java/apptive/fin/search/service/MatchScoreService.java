@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static apptive.fin.search.KeywordValueEnum.*;
 
@@ -345,11 +346,18 @@ public class MatchScoreService {
 
 
     // 정부상품 여부에 따라 적용가능한 핵심 혜택 키워드를 반환
-    private List<KeywordValueEnum> applicableBenefitKeywords(List<KeywordValueEnum> selected, boolean isGov) {
-        if (isGov) return selected;
+    // 상품 유형별로 실제 매칭 가능한 혜택 키워드만 남긴다.
+    // 정부: 정부기여금·비과세·우대조건간편 (최고이율은 정부 금리 미공시로 매칭 불가하여 제외)
+    // 은행: 최고이율·우대조건간편 (정부기여금·비과세는 은행 상품에 해당 없음)
+    private static final Set<KeywordValueEnum> GOV_APPLICABLE_BENEFITS =
+            Set.of(BENEFIT_GOV_SUBSIDY, BENEFIT_TAX_FREE, BENEFIT_EASY_CONDITION);
+    private static final Set<KeywordValueEnum> BANK_APPLICABLE_BENEFITS =
+            Set.of(BENEFIT_MAX_INTEREST, BENEFIT_EASY_CONDITION);
 
+    private List<KeywordValueEnum> applicableBenefitKeywords(List<KeywordValueEnum> selected, boolean isGov) {
+        Set<KeywordValueEnum> applicable = isGov ? GOV_APPLICABLE_BENEFITS : BANK_APPLICABLE_BENEFITS;
         return selected.stream()
-                .filter(kw -> kw == BENEFIT_MAX_INTEREST || kw == BENEFIT_EASY_CONDITION)
+                .filter(applicable::contains)
                 .toList();
     }
 
