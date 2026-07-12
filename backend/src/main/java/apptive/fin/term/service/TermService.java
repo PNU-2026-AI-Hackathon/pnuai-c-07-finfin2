@@ -34,6 +34,11 @@ public class TermService {
         return termRepository.getTermResponseDtosByUserId(userId);
     }
 
+    /** 특정 약관(code)에 대해 현재 버전 기준으로 동의(agreed=true)한 상태인지 확인. */
+    public boolean hasAgreed(Long userId, String termCode) {
+        return userTermAgreementRepository.existsCurrentAgreement(userId, termCode);
+    }
+
     public boolean didUserAgreeAllRequiredTerms(Long userId) {
         long notAgreedNum = termRepository.getTermResponseDtosByUserId(userId)
                 .stream()

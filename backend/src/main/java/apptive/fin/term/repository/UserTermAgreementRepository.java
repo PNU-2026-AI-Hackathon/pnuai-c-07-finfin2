@@ -19,4 +19,16 @@ public interface UserTermAgreementRepository extends  JpaRepository<UserTermAgre
     List<UserTermAgreement> findAllByUserAndTermVersionIn(User user, List<TermVersion> termVersion);
 
     Optional<UserTermAgreement> findByUserAndTermVersion(User user, TermVersion termVersion);
+
+    @Query("""
+        SELECT CASE WHEN COUNT(uta) > 0 THEN true ELSE false END
+        FROM UserTermAgreement uta
+        JOIN uta.termVersion tv
+        JOIN tv.term t
+        WHERE uta.user.id = :userId
+          AND t.code = :code
+          AND tv.isCurrent = true
+          AND uta.agreed = true
+    """)
+    boolean existsCurrentAgreement(Long userId, String code);
 }
