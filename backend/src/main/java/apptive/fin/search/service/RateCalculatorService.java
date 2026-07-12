@@ -188,6 +188,7 @@ public class RateCalculatorService {
                 .build();
     }
 
+    // 은행상품 금리 계산해 반환
     private ProductRateDto calculateBankProperty(
             Product product,
             ProductProperty property,
@@ -202,6 +203,7 @@ public class RateCalculatorService {
                 .build();
     }
 
+    // ProductRateDto의 기본형태를 반환하는 헬퍼함수
     private ProductRateDto.ProductRateDtoBuilder baseDto(Product product, ProductProperty property) {
         return ProductRateDto.builder()
                 .productId(product.getId())
@@ -269,7 +271,9 @@ public class RateCalculatorService {
         return Math.min(monthlySavingsGoal, maxMonthlyLimit);
     }
 
+    // 기여기간(월)을 반환
     private Integer contributionMonths(ProductProperty property) {
+        // property.getGovContributionPeriodMonths() != null 이면 기여기간(월)을 사용하고, 아니면 saveTrm을 사용
         Integer periodMonths = property.getGovContributionPeriodMonths() != null
                 ? property.getGovContributionPeriodMonths()
                 : property.getSaveTrm();
@@ -281,6 +285,7 @@ public class RateCalculatorService {
         return periodMonths;
     }
 
+    // 기여년수 반환
     private Double contributionYears(ProductProperty property) {
         Integer months = contributionMonths(property);
         return months == null ? null : months / 12.0;
@@ -292,16 +297,19 @@ public class RateCalculatorService {
                 : null;
     }
 
+    // 정부상품 여부 반환
     private boolean isGovernmentProduct(Product product) {
         return product.getSource().getCode().equals(ONTONG_SOURCE);
     }
 
+    // 기본금리 반환
     private double baseRate(ProductProperty property) {
         return property != null && property.getBaseRate() != null
                 ? property.getBaseRate().doubleValue()
                 : 0.0;
     }
 
+    // 달성 가능한 최대 금리 반환
     private double achievableBankRate(ProductProperty property, SearchRequestDto request, ResolvedKeywords keywords) {
         if (property == null) {
             return 0.0;
@@ -315,6 +323,7 @@ public class RateCalculatorService {
         return Math.min(calculatedRate, property.getMaxRate().doubleValue());
     }
 
+    // 우대금리의 총합
     private double preferentialRateSum(ProductProperty property, SearchRequestDto request, ResolvedKeywords keywords) {
         Set<KeywordValueEnum> applicableConditions = applicableBankConditions(property, request, keywords);
         return property.getPreferentialRates().stream()
@@ -326,6 +335,7 @@ public class RateCalculatorService {
                 .sum();
     }
 
+    // 적용 가능한 은행 우대금리 조건들의 집합을 반환
     private Set<KeywordValueEnum> applicableBankConditions(
             ProductProperty property,
             SearchRequestDto request,
@@ -349,6 +359,7 @@ public class RateCalculatorService {
         return conditions;
     }
 
+    // 나이 조건 만족여부
     private boolean isAgeConditionSatisfied(ProductPreferentialRate rate, SearchRequestDto request) {
         if (rate.getKeywordCode() != KeywordValueEnum.BANK_AGE) {
             return true;
@@ -364,6 +375,7 @@ public class RateCalculatorService {
         return minSatisfied && maxSatisfied;
     }
 
+    // provider 선택여부
     private boolean isProviderSelected(ProductProperty property, List<String> selectedProviders) {
         if (property == null || property.getProvider() == null || selectedProviders == null) {
             return false;
@@ -374,18 +386,21 @@ public class RateCalculatorService {
                 .anyMatch(selected -> selected != null && selected.equals(providerCode));
     }
 
+    // 사용해본 적 없는 은행 목록 반환
     private List<String> neverUsedBanks(SearchRequestDto request) {
         return request.detailedOptions() != null
                 ? request.detailedOptions().neverUsedBanks()
                 : null;
     }
 
+    // 만기 이력 있는 은행 목록 반환
     private List<String> maturedSavingBanks(SearchRequestDto request) {
         return request.detailedOptions() != null
                 ? request.detailedOptions().maturedSavingBanks()
                 : null;
     }
 
+    // 나이 계산
     private Integer age(SearchRequestDto request) {
         if (request.detailedOptions() == null || request.detailedOptions().birthdate() == null) {
             return null;
@@ -394,12 +409,14 @@ public class RateCalculatorService {
         return Period.between(request.detailedOptions().birthdate(), LocalDate.now()).getYears();
     }
 
+    // 제공자 이름 반환
     private String providerName(ProductProperty property) {
         return property != null && property.getProvider() != null
                 ? property.getProvider().getName()
                 : null;
     }
 
+    // 빈 ResolvedKeywords 반환
     private ResolvedKeywords emptyKeywords() {
         return new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of());
     }
