@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -66,6 +67,17 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         WHERE k.keywordCode IN :keywords
     """)
     List<Product> findByKeywords(@Param("keywords") List<KeywordValueEnum> keywords);
+
+    // 특정 소스(예: 은행=FSS)의 가입가능(joinable) 상품 속성 non-null maxRate 목록.
+    // 상세 페이지 "최고이율" 칩을 상위 30% 기준으로 동적 판정할 때 사용(정적 태그 미사용).
+    // 검색(topRateThreshold)이 eligible=joinable 상품으로 컷을 계산하는 것과 맞춰, 비활성(deactivated) 상품은 제외한다.
+    @Query("""
+        SELECT pp.maxRate FROM ProductProperty pp
+        WHERE pp.product.source.code = :sourceCode
+          AND pp.isJoinable = true
+          AND pp.maxRate IS NOT NULL
+    """)
+    List<BigDecimal> findJoinableMaxRatesBySourceCode(@Param("sourceCode") String sourceCode);
 
     // 상품명 검색
     @Query("""

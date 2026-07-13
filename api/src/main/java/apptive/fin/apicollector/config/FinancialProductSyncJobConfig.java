@@ -78,14 +78,12 @@ public class FinancialProductSyncJobConfig {
     public Flow fssSyncFlow(
             Step fetchFssRawStep,
             Step normalizeFssRawProductStep,
-            Step deactivateMissingProductStep,
-            Step addHighInterestStep
+            Step deactivateMissingProductStep
     ) {
         return new FlowBuilder<Flow>("fssSyncFlow")
                 .start(fetchFssRawStep)
                 .next(normalizeFssRawProductStep)
                 .next(deactivateMissingProductStep)
-                .next(addHighInterestStep)
                 .build();
     }
 
@@ -93,14 +91,12 @@ public class FinancialProductSyncJobConfig {
     public Flow ontongYouthSyncFlow(
             Step fetchOntongYouthRawStep,
             Step normalizeOntongRawProductStep,
-            Step deactivateMissingProductStep,
-            Step addHighInterestStep
+            Step deactivateMissingProductStep
     ) {
         return new FlowBuilder<Flow>("ontongYouthSyncFlow")
                 .start(fetchOntongYouthRawStep)
                 .next(normalizeOntongRawProductStep)
                 .next(deactivateMissingProductStep)
-                .next(addHighInterestStep)
                 .build();
     }
 
@@ -110,8 +106,7 @@ public class FinancialProductSyncJobConfig {
             Step fetchFssRawStep,
             Step normalizeOntongRawProductStep,
             Step normalizeFssRawProductStep,
-            Step deactivateMissingProductStep,
-            Step addHighInterestStep
+            Step deactivateMissingProductStep
     ) {
         return new FlowBuilder<Flow>("allSyncFlow")
                 .start(fetchOntongYouthRawStep)
@@ -119,7 +114,6 @@ public class FinancialProductSyncJobConfig {
                 .next(normalizeOntongRawProductStep)
                 .next(normalizeFssRawProductStep)
                 .next(deactivateMissingProductStep)
-                .next(addHighInterestStep)
                 .build();
     }
 
@@ -189,17 +183,6 @@ public class FinancialProductSyncJobConfig {
     ) {
         return new StepBuilder("deactivateMissingProductStep", jobRepository)
                 .tasklet(deactivateMissingProductTasklet, transactionManager)
-                .build();
-    }
-
-    @Bean
-    public Step addHighInterestStep(
-            JobRepository jobRepository,
-            PlatformTransactionManager transactionManager,
-            Tasklet addHighInterest
-    ) {
-        return new StepBuilder("addHighInterestStep", jobRepository)
-                .tasklet(addHighInterest, transactionManager)
                 .build();
     }
 

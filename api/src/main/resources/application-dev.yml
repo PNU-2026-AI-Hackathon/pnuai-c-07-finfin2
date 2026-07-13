@@ -29,7 +29,7 @@ collector:
   enabled: true
   source: FSS
   mode: SYNC
-  normalizer-version: 17
+  normalizer-version: 18
   reader-page-size : 500
   unseen-disable-period : 1
 

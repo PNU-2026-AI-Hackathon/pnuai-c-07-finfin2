@@ -404,7 +404,11 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
         keywords.addAll(property.keywords());
         for (String keyword : enrichment.keywords()) {
             KeywordValueEnum keywordValue = KeywordValueEnum.from(keyword);
-            if (keywordValue != null && !keywordValue.name().startsWith("TERM_")) {
+            // TERM_*는 saveTerm으로 별도 산출하고, BENEFIT_MAX_INTEREST는 정적 태깅하지 않는다
+            // (최고이율은 검색 시점 동적 판정, PRD A-2). LLM이 넣어도 무시.
+            if (keywordValue != null
+                    && !keywordValue.name().startsWith("TERM_")
+                    && keywordValue != KeywordValueEnum.BENEFIT_MAX_INTEREST) {
                 keywords.add(keywordValue);
             }
         }
