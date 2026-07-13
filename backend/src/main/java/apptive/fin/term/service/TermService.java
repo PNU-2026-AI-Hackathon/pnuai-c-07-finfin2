@@ -11,14 +11,11 @@ import apptive.fin.term.dto.TermResponseDto;
 import apptive.fin.term.dto.UserTermRequestDto;
 import apptive.fin.user.UserErrorCode;
 import apptive.fin.user.entity.User;
-import apptive.fin.user.repository.UserProfileRepository;
 import apptive.fin.user.repository.UserRepository;
-import apptive.fin.user.service.UserProfileService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.swing.text.html.Option;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,15 +28,9 @@ public class TermService {
     private final TermVersionRepository termVersionRepository;
     private final UserTermAgreementRepository userTermAgreementRepository;
     private final UserRepository userRepository;
-    private final UserProfileRepository userProfileRepository;
 
     public List<TermResponseDto> getTermsForUser(Long userId) {
         return termRepository.getTermResponseDtosByUserId(userId);
-    }
-
-    /** 특정 약관(code)에 대해 현재 버전 기준으로 동의(agreed=true)한 상태인지 확인. */
-    public boolean hasAgreed(Long userId, String termCode) {
-        return userTermAgreementRepository.existsCurrentAgreement(userId, termCode);
     }
 
     public boolean didUserAgreeAllRequiredTerms(Long userId) {
@@ -110,14 +101,6 @@ public class TermService {
         }
 
         userTermAgreementRepository.saveAll(finalAgreements);
-
-        // 개인정보 저장 동의를 철회(agreed=false)하면 저장된 프로필을 삭제(개인정보 최소보관).
-        boolean storageConsentWithdrawn = termsToAgree.stream().anyMatch(tv ->
-                UserProfileService.STORAGE_CONSENT_CODE.equals(tv.getTerm().getCode())
-                        && Boolean.FALSE.equals(agreementRequestMap.get(tv.getId())));
-        if (storageConsentWithdrawn) {
-            userProfileRepository.deleteByUserId(userId);
-        }
     }
 
 }

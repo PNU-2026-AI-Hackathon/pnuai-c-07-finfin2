@@ -8,7 +8,6 @@ import apptive.fin.provider.entity.Provider;
 import apptive.fin.provider.repository.ProviderRepository;
 import apptive.fin.search.dto.MedianIncomesDto;
 import apptive.fin.search.service.MedianIncomeService;
-import apptive.fin.term.service.TermService;
 import apptive.fin.user.UserErrorCode;
 import apptive.fin.user.dto.UserProfileRequestDto;
 import apptive.fin.user.dto.UserProfileResponseDto;
@@ -33,30 +32,22 @@ import java.util.stream.Stream;
 @Transactional(readOnly = true)
 public class UserProfileService {
 
-    /** 개인정보 저장 동의 약관 code (data.sql seed). */
-    public static final String STORAGE_CONSENT_CODE = "PRIVACY_STORAGE_CONSENT";
-
     private static final String REGION_CODE_PREFIX = "REGION_";
     private static final String PREFERENTIAL_OPTION_CODE_PREFIX = "BANK_";
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
 
     private final UserProfileRepository userProfileRepository;
     private final UserRepository userRepository;
-    private final TermService termService;
     private final CategoryOptionRepository categoryOptionRepository;
     private final ProviderRepository providerRepository;
     private final MedianIncomeService medianIncomeService;
 
     /**
-     * 정보 입력값 저장(upsert). 저장 전 개인정보 저장 동의 여부를 확인하고,
-     * 미동의면 저장하지 않고 403을 던진다. 한 번 동의하면 이후 저장은 통과.
+     * 정보 입력값 저장(upsert). 저장에 대한 법적 근거(개인정보 수집·이용 동의)는 회원가입 필수 약관으로
+     * 확보되며, 엔드포인트 접근 권한은 컨트롤러 권한 설정(추후 RECOMMENDATION 역할)에서 통제한다.
      */
     @Transactional
     public void upsert(Long userId, UserProfileRequestDto request) {
-        if (!termService.hasAgreed(userId, STORAGE_CONSENT_CODE)) {
-            throw new BusinessException(UserErrorCode.PROFILE_CONSENT_REQUIRED);
-        }
-
         UserProfile profile = userProfileRepository.findByUserId(userId).orElse(null);
         if (profile == null) {
             User user = userRepository.findById(userId)
@@ -66,6 +57,12 @@ public class UserProfileService {
 
         profile.apply(request);          // 생성/수정 공통 매핑 단일 지점
         userProfileRepository.save(profile);
+    }
+
+    /** 저장된 프로필 삭제(사용자 주도). 저장된 프로필이 없으면 no-op. */
+    @Transactional
+    public void deleteProfile(Long userId) {
+        userProfileRepository.deleteByUserId(userId);
     }
 
     /**

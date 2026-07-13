@@ -1,13 +1,11 @@
 package apptive.fin.user;
 
 import apptive.fin.category.entity.CategoryOption;
-import apptive.fin.global.error.BusinessException;
 import apptive.fin.provider.entity.Provider;
 import apptive.fin.provider.repository.ProviderRepository;
 import apptive.fin.search.dto.MedianIncomesDto;
 import apptive.fin.search.service.MedianIncomeService;
 import apptive.fin.category.repository.CategoryOptionRepository;
-import apptive.fin.term.service.TermService;
 import apptive.fin.user.dto.UserProfileRequestDto;
 import apptive.fin.user.dto.UserProfileResponseDto;
 import apptive.fin.user.entity.User;
@@ -31,13 +29,11 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,7 +44,6 @@ class UserProfileServiceTest {
 
     @Mock private UserProfileRepository userProfileRepository;
     @Mock private UserRepository userRepository;
-    @Mock private TermService termService;
     @Mock private CategoryOptionRepository categoryOptionRepository;
     @Mock private ProviderRepository providerRepository;
     @Mock private MedianIncomeService medianIncomeService;
@@ -57,23 +52,10 @@ class UserProfileServiceTest {
 
     @Captor private ArgumentCaptor<UserProfile> profileCaptor;
 
-    // ── upsert (저장 + 동의 게이트) ──
+    // ── upsert (저장) ──
 
     @Test
-    void upsert_저장동의가_없으면_예외를_던지고_저장하지_않는다() {
-        when(termService.hasAgreed(USER_ID, UserProfileService.STORAGE_CONSENT_CODE)).thenReturn(false);
-
-        assertThatThrownBy(() -> userProfileService.upsert(USER_ID, sampleRequest()))
-                .isInstanceOf(BusinessException.class)
-                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
-                        .isEqualTo(UserErrorCode.PROFILE_CONSENT_REQUIRED));
-
-        verifyNoInteractions(userProfileRepository, userRepository);
-    }
-
-    @Test
-    void upsert_동의했고_기존_프로필이_없으면_새로_생성해_저장한다() {
-        when(termService.hasAgreed(USER_ID, UserProfileService.STORAGE_CONSENT_CODE)).thenReturn(true);
+    void upsert_기존_프로필이_없으면_새로_생성해_저장한다() {
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.empty());
         when(userRepository.findById(USER_ID)).thenReturn(Optional.of(mockUser()));
 
@@ -89,11 +71,10 @@ class UserProfileServiceTest {
     }
 
     @Test
-    void upsert_동의했고_기존_프로필이_있으면_덮어쓰고_유저조회는_하지_않는다() {
+    void upsert_기존_프로필이_있으면_덮어쓰고_유저조회는_하지_않는다() {
         UserProfile existing = new UserProfile(mockUser());
         existing.apply(sampleRequest());
 
-        when(termService.hasAgreed(USER_ID, UserProfileService.STORAGE_CONSENT_CODE)).thenReturn(true);
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(existing));
 
         UserProfileRequestDto updated = new UserProfileRequestDto(
@@ -108,6 +89,13 @@ class UserProfileServiceTest {
         assertThat(existing.getHouseholdIncomePercent()).isEqualTo(120);
         assertThat(existing.getSelectedOptionIds()).containsExactly(300L);
         verify(userRepository, never()).findById(eq(USER_ID));
+    }
+
+    @Test
+    void deleteProfile_리포지토리_삭제를_위임한다() {
+        userProfileService.deleteProfile(USER_ID);
+
+        verify(userProfileRepository).deleteByUserId(USER_ID);
     }
 
     // ── getProfile (조회 + 서버 계산) ──

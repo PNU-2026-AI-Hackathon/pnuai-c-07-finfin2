@@ -46,4 +46,9 @@ public class UserController {
         userProfileService.upsert(userDetails.getId(), request);
     }
 
+    @DeleteMapping("/me/profile")
+    public void deleteProfile(@AuthenticationPrincipal AuthUserDetails userDetails){
+        userProfileService.deleteProfile(userDetails.getId());
+    }
+
 }
