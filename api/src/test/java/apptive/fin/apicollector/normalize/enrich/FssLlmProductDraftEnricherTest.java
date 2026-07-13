@@ -185,6 +185,54 @@ class FssLlmProductDraftEnricherTest {
     }
 
     @Test
+    void nullsMonthlyLimitsForDepositProducts() {
+        // 정기예금(DEPOSIT)은 월 납입 개념이 없다. LLM이 가입금액을 min/maxMonthlyLimit에 채워도,
+        // 결정적 FSS max가 있어도 두 필드는 모두 null로 강제되어야 한다.
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                1_000_000L,
+                2_000_000L,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductDraft result = enricher.enrich(raw(), depositDraft());
+        ProductPropertyDraft property = result.properties().getFirst();
+
+        assertThat(property.minMonthlyLimit()).isNull();
+        assertThat(property.maxMonthlyLimit()).isNull();
+        verify(cacheRepository).save(any(LlmEnrichmentCache.class));
+    }
+
+    @Test
     void dropsFittedRequiredKeywordsWhenEligibilityTextDoesNotExplicitlyMatch() {
         LlmProviderClient providerClient = mock(LlmProviderClient.class);
         LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
@@ -450,6 +498,13 @@ class FssLlmProductDraftEnricherTest {
                         .maxMonthlyLimit(300_000L)
                         .keywords(List.of(KeywordValueEnum.REGION_SEOUL))
                         .build()))
+                .build();
+    }
+
+    private ProductDraft depositDraft() {
+        return draft().toBuilder()
+                .type(ProductType.DEPOSIT)
+                .productCode("FSS:DEPOSIT:001:ABC")
                 .build();
     }
 

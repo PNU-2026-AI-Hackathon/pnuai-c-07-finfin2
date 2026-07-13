@@ -9,6 +9,7 @@ import apptive.fin.apicollector.normalize.dto.PreferentialRateDraft;
 import apptive.fin.apicollector.normalize.dto.RequiredKeywordDraft;
 import apptive.fin.apicollector.product.ExtractionConfidence;
 import apptive.fin.apicollector.product.KeywordValueEnum;
+import apptive.fin.apicollector.product.ProductType;
 import apptive.fin.apicollector.product.RequiredKeywordEffect;
 import apptive.fin.apicollector.raw.ProductRaw;
 import lombok.RequiredArgsConstructor;
@@ -147,9 +148,9 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
                 - 응답은 schema에 맞는 JSON만 반환한다.
                 - 원문에 명시되지 않은 값은 null 또는 false로 둔다.
                 - 금리, 기간, 은행명, 상품명, 상품코드, 신청 URL은 생성하지 않는다.
-                - 제한 없음, 한도 없음은 maxMonthlyLimit=null로 둔다.
-                - minMonthlyLimit은 최소 가입금액 또는 최소 월 납입액이 명시된 경우만 채운다.
-                - maxMonthlyLimit은 유한한 최대 가입한도 또는 월 납입한도가 명시된 경우만 채운다.
+                - minMonthlyLimit, maxMonthlyLimit은 월 납입액(적금의 월 정기 납입) 전용 필드이다.
+                - productType이 SAVING(적금)일 때만, 최소/최대 월 납입액이 명시된 경우 채운다. 없거나 제한 없음이면 null로 둔다.
+                - productType이 DEPOSIT(정기예금)이면 minMonthlyLimit, maxMonthlyLimit은 항상 null로 둔다. 일시납 가입금액·가입한도는 여기에 넣지 않는다.
                 - keywords에는 기간 키워드(TERM_*)를 넣지 않는다.
                 - summaryContent는 마케팅 문구 없이 가입방법, 우대조건, 가입대상, 유의사항을 짧게 정리한다.
                 - requiredKeywords에는 가입 가능 여부를 제한하는 STATUS_* 필수/제외 조건만 넣는다.
@@ -345,7 +346,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
         List<ProductPropertyDraft> properties = new ArrayList<>();
         String eligibilityText = eligibilityText(rawProduct);
         for (ProductPropertyDraft property : draft.properties()) {
-            properties.add(merge(property, enrichment, eligibilityText));
+            properties.add(merge(property, enrichment, eligibilityText, draft.type()));
         }
 
         return draft.toBuilder()
@@ -357,11 +358,15 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
     private ProductPropertyDraft merge(
             ProductPropertyDraft property,
             LlmProductEnrichment enrichment,
-            String eligibilityText
+            String eligibilityText,
+            ProductType type
     ) {
+        // 정기예금(DEPOSIT)은 월 납입 개념이 없다. min/maxMonthlyLimit은 월 납입액 전용 필드이므로
+        // 일시납 가입금액이 잘못 채워지지 않도록 null로 강제한다(LLM 준수 여부와 무관하게 보장).
+        boolean isDeposit = type == ProductType.DEPOSIT;
         return property.toBuilder()
-                .minMonthlyLimit(firstNonNull(property.minMonthlyLimit(), enrichment.minMonthlyLimit()))
-                .maxMonthlyLimit(firstNonNull(property.maxMonthlyLimit(), enrichment.maxMonthlyLimit()))
+                .minMonthlyLimit(isDeposit ? null : firstNonNull(property.minMonthlyLimit(), enrichment.minMonthlyLimit()))
+                .maxMonthlyLimit(isDeposit ? null : firstNonNull(property.maxMonthlyLimit(), enrichment.maxMonthlyLimit()))
                 .minAge(firstNonNull(property.minAge(), enrichment.minAge()))
                 .maxAge(firstNonNull(property.maxAge(), enrichment.maxAge()))
                 .earnMaxAmt(firstNonNull(property.earnMaxAmt(), enrichment.earnMaxAmt()))

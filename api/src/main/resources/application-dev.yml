@@ -47,7 +47,7 @@ collector:
     enabled: ${LLM_ENABLED:false}
     provider: GEMINI
     model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
-    prompt-version: 4
+    prompt-version: 5
     schema-version: 10
     chunk-size: ${LLM_CHUNK_SIZE:10}
     max-concurrency: ${LLM_MAX_CONCURRENCY:3}
