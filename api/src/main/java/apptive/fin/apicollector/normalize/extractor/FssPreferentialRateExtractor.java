@@ -23,6 +23,8 @@ public class FssPreferentialRateExtractor {
         }
 
         Map<KeywordValueEnum, PreferentialRateDraft> bestByKeyword = new LinkedHashMap<>();
+        // 기타(BANK_ETC)는 keyword당 1건으로 합치지 않고 라인별로 보존한다. 완전 중복(동일 description)만 최고금리로 정리.
+        Map<String, PreferentialRateDraft> etcByDescription = new LinkedHashMap<>();
         for (String rawLine : preferentialCondition.split("\\R")) {
             String line = normalize(rawLine);
             if (line.isBlank() || isAggregateLine(line)) {
@@ -42,10 +44,18 @@ public class FssPreferentialRateExtractor {
                         .minAge(minAge(line))
                         .maxAge(maxAge(line))
                         .build();
-                keepHighest(bestByKeyword, candidate);
+                if (keyword == KeywordValueEnum.BANK_ETC) {
+                    keepHighestByDescription(etcByDescription, candidate);
+                }
+                else {
+                    keepHighest(bestByKeyword, candidate);
+                }
             }
         }
-        return List.copyOf(bestByKeyword.values());
+
+        List<PreferentialRateDraft> result = new ArrayList<>(bestByKeyword.values());
+        result.addAll(etcByDescription.values());
+        return List.copyOf(result);
     }
 
     private void keepHighest(Map<KeywordValueEnum, PreferentialRateDraft> bestByKeyword, PreferentialRateDraft candidate) {
@@ -55,12 +65,26 @@ public class FssPreferentialRateExtractor {
         }
     }
 
+    // 기타(BANK_ETC) 전용: 동일 description은 최고금리 1건으로, 다른 description은 각각 별도 보존.
+    private void keepHighestByDescription(Map<String, PreferentialRateDraft> etcByDescription, PreferentialRateDraft candidate) {
+        PreferentialRateDraft existing = etcByDescription.get(candidate.description());
+        if (existing == null || candidate.rate().compareTo(existing.rate()) > 0) {
+            etcByDescription.put(candidate.description(), candidate);
+        }
+    }
+
     private boolean isAggregateLine(String line) {
         return line.contains("최대우대금리")
                 || line.contains("최고우대금리")
                 || line.contains("최대 우대금리")
                 || line.contains("최고 우대금리")
-                || line.matches(".*항목별.*최고.*");
+                || line.contains("우대금리 합계")
+                || line.contains("우대이율 합계")
+                || line.matches(".*항목별.*최고.*")
+                // "우대이율 최고 연 1.0%", "우대금리 최고 …" 등 총합 표현
+                || line.matches(".*우대(금리|이율)\\s*최고.*")
+                // "최고 연 1.0%", "최대 연 1.0%p" 등 상한/총합 표현(특정 조건 없이 상한만 명시)
+                || line.matches(".*(최고|최대)\\s*연\\s*\\d.*%.*");
     }
 
     private List<KeywordValueEnum> keywords(String line) {
@@ -74,6 +98,10 @@ public class FssPreferentialRateExtractor {
         addIfContains(keywords, line, KeywordValueEnum.BANK_ONLINE_JOIN, "인터넷", "스마트폰", "비대면", "모바일");
         if (minAge(line) != null || maxAge(line) != null || line.contains("나이") || line.contains("연령")) {
             keywords.add(KeywordValueEnum.BANK_AGE);
+        }
+        // 화이트리스트 토큰에 하나도 매칭되지 않으면 기타(BANK_ETC)로 수집한다.
+        if (keywords.isEmpty()) {
+            keywords.add(KeywordValueEnum.BANK_ETC);
         }
         return List.copyOf(keywords);
     }

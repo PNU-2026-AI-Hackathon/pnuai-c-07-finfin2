@@ -171,7 +171,8 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
                   * BANK_REDEPOSIT: 재예치/재가입 조건
                   * BANK_ONLINE_JOIN: 인터넷/모바일/비대면/온라인 가입 조건. 모바일메시지/알림 수신동의는 온라인 가입이 아니다.
                   * BANK_AGE: 나이/연령 조건
-                - 위 매핑으로 정확히 표현할 수 없는 우대금리는 preferentialRates에서 제외한다.
+                  * BANK_ETC: 위 조건 중 어디에도 정확히 해당하지 않지만 조건별 가산금리가 명시된 우대금리(기타)
+                - 위 매핑으로 정확히 표현할 수 없는 우대금리는 BANK_ETC로 매핑한다. (단, 최고/최대 우대금리 총합만 있으면 여전히 제외)
                 - 재예치/재가입이라는 단어가 있어도 조건의 핵심이 가입금액, 가입잔액, 요구불평잔, 평균잔액이면 BANK_REDEPOSIT에 매핑하지 않는다.
                 - 예: 요구불평잔, 평균잔액, 가입금액, 예금/적금 보유, 특정 상품 만기/해지 고객, 추천/쿠폰/이벤트, 앱 로그인, 알림 수신 등은 억지로 BANK_*에 매핑하지 않는다.
                 - FSS 원문에 정부기여금/병역연장/비교제외가 명시되지 않았으면 관련 필드는 null 또는 false로 둔다.
@@ -286,8 +287,22 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
             case BANK_AGE -> preferentialRate.minAge() != null
                     || preferentialRate.maxAge() != null
                     || containsAny(description, "나이", "연령");
+            // 기타: 고유 토큰은 없지만, 기존 8개 키워드에 명백히 해당하면(LLM 오분류) 기타로 인정하지 않는다.
+            case BANK_ETC -> !looksLikeModeledCondition(preferentialRate);
             default -> false;
         };
+    }
+
+    // description이 기존 8개 BANK_* 키워드 중 하나에 명확히 매칭되는지(= BANK_ETC로 두면 안 되는지) 판정
+    private boolean looksLikeModeledCondition(PreferentialRateDraft preferentialRate) {
+        for (KeywordValueEnum keyword : KeywordValueEnum.values()) {
+            if (keyword != KeywordValueEnum.BANK_ETC
+                    && isPreferentialRateKeyword(keyword)
+                    && matchesPreferentialRateKeyword(preferentialRate.toBuilder().keywordCode(keyword).build())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean containsAny(String value, String... tokens) {
@@ -515,16 +530,32 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
             List<PreferentialRateDraft> enrichment
     ) {
         Map<KeywordValueEnum, PreferentialRateDraft> merged = new LinkedHashMap<>();
+        // 기타(BANK_ETC)는 keyword당 1건으로 합치지 않고 라인별로 보존. 완전 중복(동일 description)만 최고금리로 정리.
+        Map<String, PreferentialRateDraft> etcByDescription = new LinkedHashMap<>();
         for (PreferentialRateDraft draft : existing) {
-            keepHighest(merged, draft);
+            keepHighest(merged, etcByDescription, draft);
         }
         for (PreferentialRateDraft draft : enrichment) {
-            keepHighest(merged, draft);
+            keepHighest(merged, etcByDescription, draft);
         }
-        return List.copyOf(merged.values());
+
+        List<PreferentialRateDraft> result = new ArrayList<>(merged.values());
+        result.addAll(etcByDescription.values());
+        return List.copyOf(result);
     }
 
-    private void keepHighest(Map<KeywordValueEnum, PreferentialRateDraft> merged, PreferentialRateDraft draft) {
+    private void keepHighest(
+            Map<KeywordValueEnum, PreferentialRateDraft> merged,
+            Map<String, PreferentialRateDraft> etcByDescription,
+            PreferentialRateDraft draft
+    ) {
+        if (draft.keywordCode() == KeywordValueEnum.BANK_ETC) {
+            PreferentialRateDraft existing = etcByDescription.get(draft.description());
+            if (existing == null || draft.rate().compareTo(existing.rate()) > 0) {
+                etcByDescription.put(draft.description(), draft);
+            }
+            return;
+        }
         PreferentialRateDraft existing = merged.get(draft.keywordCode());
         if (existing == null || draft.rate().compareTo(existing.rate()) > 0) {
             merged.put(draft.keywordCode(), draft);

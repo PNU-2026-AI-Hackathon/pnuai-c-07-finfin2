@@ -54,6 +54,7 @@ public enum KeywordValueEnum {
     BANK_REDEPOSIT("BANK_REDEPOSIT"), // 재예치
     BANK_ONLINE_JOIN("BANK_ONLINE_JOIN"),
     BANK_AGE("BANK_AGE"),
+    BANK_ETC("BANK_ETC"), // 기타(키워드 미분류 우대금리, 기본 불충족)
     ;
 
     private final String code;
