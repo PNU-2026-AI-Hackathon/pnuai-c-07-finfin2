@@ -41,26 +41,26 @@ public class RegionKeywordRecognizer implements KeywordRecognizer {
         if (!keywords.isEmpty())
             return keywords.stream().toList();
 
-
-        return List.of(
-                KeywordValueEnum.REGION_SEOUL,
-                KeywordValueEnum.REGION_BUSAN,
-                KeywordValueEnum.REGION_DAEGU,
-                KeywordValueEnum.REGION_INCHEON,
-                KeywordValueEnum.REGION_GWANGJU,
-                KeywordValueEnum.REGION_DAEJEON,
-                KeywordValueEnum.REGION_ULSAN,
-                KeywordValueEnum.REGION_SEJONG,
-                KeywordValueEnum.REGION_GYEONGGI,
-                KeywordValueEnum.REGION_GANGWON,
-                KeywordValueEnum.REGION_CHUNGBUK,
-                KeywordValueEnum.REGION_CHUNGNAM,
-                KeywordValueEnum.REGION_JEONBUK,
-                KeywordValueEnum.REGION_JEONNAM,
-                KeywordValueEnum.REGION_GYEONGBUK,
-                KeywordValueEnum.REGION_GYEONGNAM,
-                KeywordValueEnum.REGION_JEJU
-        );
+        return List.of();
+        // return List.of(
+        //         KeywordValueEnum.REGION_SEOUL,
+        //         KeywordValueEnum.REGION_BUSAN,
+        //         KeywordValueEnum.REGION_DAEGU,
+        //         KeywordValueEnum.REGION_INCHEON,
+        //         KeywordValueEnum.REGION_GWANGJU,
+        //         KeywordValueEnum.REGION_DAEJEON,
+        //         KeywordValueEnum.REGION_ULSAN,
+        //         KeywordValueEnum.REGION_SEJONG,
+        //         KeywordValueEnum.REGION_GYEONGGI,
+        //         KeywordValueEnum.REGION_GANGWON,
+        //         KeywordValueEnum.REGION_CHUNGBUK,
+        //         KeywordValueEnum.REGION_CHUNGNAM,
+        //         KeywordValueEnum.REGION_JEONBUK,
+        //         KeywordValueEnum.REGION_JEONNAM,
+        //         KeywordValueEnum.REGION_GYEONGBUK,
+        //         KeywordValueEnum.REGION_GYEONGNAM,
+        //         KeywordValueEnum.REGION_JEJU
+        // );
     }
 
 

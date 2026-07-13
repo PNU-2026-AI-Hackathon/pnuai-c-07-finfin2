@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS product_properties (
                                     is_joinable BOOLEAN NOT NULL DEFAULT TRUE,
                                     apply_url VARCHAR(500),
                                     intr_rate_type VARCHAR(30),
-                                    installment_type VARCHAR(50),
+                                    rsrv_type VARCHAR(30),
                                     save_trm INT
 );
 

@@ -4,6 +4,7 @@ import apptive.fin.apicollector.batch.AsyncProductItemProcessor;
 import apptive.fin.apicollector.batch.AsyncProductItemWriter;
 import apptive.fin.apicollector.batch.RawProductItemReader;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
+import apptive.fin.apicollector.normalize.enrich.FssLlmProductDraftEnricher;
 import apptive.fin.apicollector.raw.ProductRaw;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.job.Job;
@@ -126,7 +127,8 @@ public class FinancialProductSyncJobConfig {
             ItemProcessor<ProductRaw, ProductDraft> rawProductItemProcessor,
             ItemWriter<ProductDraft> productDraftItemWriter,
             CollectorProperties properties,
-            ExecutorService fssLlmExecutor
+            ExecutorService fssLlmExecutor,
+            FssLlmProductDraftEnricher fssLlmProductDraftEnricher
     ) {
         if (llmEnabled(properties)) {
             return new StepBuilder("normalizeFssRawProductStep", jobRepository)
@@ -135,6 +137,7 @@ public class FinancialProductSyncJobConfig {
                     .processor(new AsyncProductItemProcessor(rawProductItemProcessor, fssLlmExecutor))
                     .writer(new AsyncProductItemWriter(productDraftItemWriter))
                     .transactionManager(transactionManager)
+                    .listener(fssLlmProductDraftEnricher)
                     .build();
         }
 
@@ -144,6 +147,7 @@ public class FinancialProductSyncJobConfig {
                 .processor(rawProductItemProcessor)
                 .writer(productDraftItemWriter)
                 .transactionManager(transactionManager)
+                .listener(fssLlmProductDraftEnricher)
                 .build();
     }
 

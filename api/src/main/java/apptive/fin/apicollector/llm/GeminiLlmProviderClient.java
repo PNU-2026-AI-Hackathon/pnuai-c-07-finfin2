@@ -327,20 +327,56 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
             return parseJsonText(outputText, "output_text");
         }
 
-        JsonNode stepText = response
-                .path("steps")
-                .path(1)
-                .path("content")
-                .path(0)
-                .path("text");
-        if (!stepText.isMissingNode() && !stepText.isNull()) {
-            String value = stepText.asString(null);
-            if (value != null && !value.isBlank()) {
-                return parseJsonText(value, "steps[1].content[0].text");
+        JsonNode steps = response.path("steps");
+        if (!steps.isMissingNode() && !steps.isNull() && steps.isArray()) {
+            String stepText = findStepText(steps);
+            if (stepText != null) {
+                return parseJsonText(stepText, "steps content text");
             }
+
+            throw new IllegalStateException(
+                    "Gemini response steps contain no text content. response=" + preview(response));
         }
 
         return response;
+    }
+
+    private String findStepText(JsonNode steps) {
+        List<JsonNode> candidates = new ArrayList<>();
+        for (JsonNode step : steps) {
+            if ("model_output".equals(text(step, "type"))) {
+                candidates.add(step);
+            }
+        }
+        if (candidates.isEmpty()) {
+            for (JsonNode step : steps) {
+                candidates.add(step);
+            }
+        }
+
+        String result = null;
+        for (JsonNode step : candidates) {
+            String value = firstContentText(step);
+            if (value != null) {
+                result = value;
+            }
+        }
+        return result;
+    }
+
+    private String firstContentText(JsonNode step) {
+        JsonNode content = step.path("content");
+        if (!content.isArray()) {
+            return null;
+        }
+
+        for (JsonNode item : content) {
+            String value = text(item, "text");
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private JsonNode parseJsonText(String value, String fieldName) {
@@ -471,17 +507,18 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
                 log.debug("Dropping Gemini preferentialRates item with invalid age range. response={}", preview(item));
                 continue;
             }
-            if (!matchesPreferentialRateKeyword(keyword, description, minAge, maxAge)) {
-                log.debug("Dropping Gemini preferentialRates item with unsupported condition. response={}", preview(item));
-                continue;
-            }
-            result.add(PreferentialRateDraft.builder()
+            PreferentialRateDraft draft = PreferentialRateDraft.builder()
                     .keywordCode(keyword)
                     .rate(rate)
                     .description(description)
                     .minAge(minAge)
                     .maxAge(maxAge)
-                    .build());
+                    .build();
+            if (!draft.matchesKeywordCondition()) {
+                log.debug("Dropping Gemini preferentialRates item with unsupported condition. response={}", preview(item));
+                continue;
+            }
+            result.add(draft);
         }
         return List.copyOf(result);
     }

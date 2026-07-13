@@ -32,17 +32,24 @@ public class Provider {
     @Column(nullable = false)
     private String name;
 
-    private Provider(ProductSource source, String code, String name) {
+    private String applyUrl;
+
+    private Provider(ProductSource source, String code, String name, String applyUrl) {
         this.source = source;
         this.code = code;
         this.name = name;
+        this.applyUrl = applyUrl;
     }
 
-    public static Provider create(ProductSource source, String code, String name) {
-        return new Provider(source, code, name);
+    public static Provider create(ProductSource source, String code, String name, String applyUrl) {
+        return new Provider(source, code, name, applyUrl);
     }
 
     public void updateName(String name) {
         this.name = name;
+    }
+
+    public void updateApplyUrl(String applyUrl) {
+        this.applyUrl = applyUrl;
     }
 }

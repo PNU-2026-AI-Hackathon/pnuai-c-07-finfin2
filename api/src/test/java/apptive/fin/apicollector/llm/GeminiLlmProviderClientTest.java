@@ -11,6 +11,7 @@ import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class GeminiLlmProviderClientTest {
 
@@ -105,6 +106,109 @@ class GeminiLlmProviderClientTest {
         assertThat(result.summaryContent()).isEqualTo("요약");
         assertThat(result.keywords()).containsExactly("INTEREST_SAVINGS");
         assertThat(result.maxMonthlyLimit()).isEqualTo(1_000_000L);
+    }
+
+    @Test
+    void parsesInteractionsModelOutputStepWithoutThoughtStep() {
+        String output = """
+                {
+                  "summaryContent": "요약",
+                  "keywords": ["INTEREST_SAVINGS"],
+                  "minMonthlyLimit": null,
+                  "maxMonthlyLimit": 500000,
+                  "minAge": null,
+                  "maxAge": null,
+                  "earnMaxAmt": null,
+                  "earnPercent": null,
+                  "requiresHomeless": false,
+                  "requiresHouseholder": false,
+                  "govContributionRate": null,
+                  "govContributionType": null,
+                  "govMatchingRatio": null,
+                  "govMonthlyFixedContribution": null,
+                  "govContributionPeriodMonths": null,
+                  "excludeFromRateComparison": false,
+                  "allowsMilitaryAgeExtension": false,
+                  "militaryMaxAge": null,
+                  "requiredKeywords": [],
+                  "preferentialRates": []
+                }
+                """;
+
+        LlmProductEnrichment result = client.parseResponse(objectMapper.createObjectNode()
+                .put("id", "v1_test")
+                .put("status", "completed")
+                .set("steps", objectMapper.createArrayNode()
+                        .add(objectMapper.createObjectNode()
+                                .put("type", "model_output")
+                                .set("content", objectMapper.createArrayNode()
+                                        .add(objectMapper.createObjectNode()
+                                                .put("type", "text")
+                                                .put("text", output))))));
+
+        assertThat(result.summaryContent()).isEqualTo("요약");
+        assertThat(result.keywords()).containsExactly("INTEREST_SAVINGS");
+        assertThat(result.maxMonthlyLimit()).isEqualTo(500_000L);
+    }
+
+    @Test
+    void parsesInteractionsModelOutputStepWithNonTextContentBeforeTextItem() {
+        String output = """
+                {
+                  "summaryContent": "요약",
+                  "keywords": ["INTEREST_SAVINGS"],
+                  "minMonthlyLimit": null,
+                  "maxMonthlyLimit": 700000,
+                  "minAge": null,
+                  "maxAge": null,
+                  "earnMaxAmt": null,
+                  "earnPercent": null,
+                  "requiresHomeless": false,
+                  "requiresHouseholder": false,
+                  "govContributionRate": null,
+                  "govContributionType": null,
+                  "govMatchingRatio": null,
+                  "govMonthlyFixedContribution": null,
+                  "govContributionPeriodMonths": null,
+                  "excludeFromRateComparison": false,
+                  "allowsMilitaryAgeExtension": false,
+                  "militaryMaxAge": null,
+                  "requiredKeywords": [],
+                  "preferentialRates": []
+                }
+                """;
+
+        LlmProductEnrichment result = client.parseResponse(objectMapper.createObjectNode()
+                .put("id", "v1_test")
+                .put("status", "completed")
+                .set("steps", objectMapper.createArrayNode()
+                        .add(objectMapper.createObjectNode()
+                                .put("type", "model_output")
+                                .set("content", objectMapper.createArrayNode()
+                                        .add(objectMapper.createObjectNode()
+                                                .put("type", "thought_signature"))
+                                        .add(objectMapper.createObjectNode()
+                                                .put("type", "text")
+                                                .put("text", output))))));
+
+        assertThat(result.summaryContent()).isEqualTo("요약");
+        assertThat(result.keywords()).containsExactly("INTEREST_SAVINGS");
+        assertThat(result.maxMonthlyLimit()).isEqualTo(700_000L);
+    }
+
+    @Test
+    void throwsWhenInteractionsStepsContainNoTextContent() {
+        assertThatThrownBy(() -> client.parseResponse(objectMapper.createObjectNode()
+                .put("id", "v1_test")
+                .put("status", "completed")
+                .set("steps", objectMapper.createArrayNode()
+                        .add(objectMapper.createObjectNode().put("type", "thought"))
+                        .add(objectMapper.createObjectNode()
+                                .put("type", "model_output")
+                                .set("content", objectMapper.createArrayNode()
+                                        .add(objectMapper.createObjectNode()
+                                                .put("type", "thought_signature")))))))
+                .isInstanceOf(IllegalStateException.class);
     }
 
     @Test

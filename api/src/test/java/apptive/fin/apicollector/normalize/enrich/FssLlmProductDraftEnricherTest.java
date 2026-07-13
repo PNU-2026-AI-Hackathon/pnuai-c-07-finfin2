@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.List;
 import java.util.Optional;
 
@@ -460,6 +462,133 @@ class FssLlmProductDraftEnricherTest {
         assertThat(result).isSameAs(draft);
         verify(providerClient, never()).enrich(any());
         verify(cacheRepository, never()).save(any());
+    }
+
+    @Test
+    void callsProviderWhenSuccessCacheHashMismatches() {
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+
+        LlmEnrichmentCache cache = LlmEnrichmentCache.create(
+                Source.FSS,
+                "FSS:SAVING:001:ABC",
+                "hash",
+                "GEMINI",
+                "gemini-test",
+                1,
+                1,
+                "wrong-hash"
+        );
+        cache.markSuccess("wrong-hash", "{\"summaryContent\":\"요약\",\"keywords\":[],\"minMonthlyLimit\":null,\"maxMonthlyLimit\":null,\"minAge\":null,\"maxAge\":null,\"earnMaxAmt\":null,\"earnPercent\":null,\"requiresHomeless\":false,\"requiresHouseholder\":false,\"govContributionRate\":null,\"govContributionType\":null,\"govMatchingRatio\":null,\"govMonthlyFixedContribution\":null,\"govContributionPeriodMonths\":null,\"excludeFromRateComparison\":false,\"allowsMilitaryAgeExtension\":false,\"militaryMaxAge\":null,\"requiredKeywords\":[],\"preferentialRates\":[]}");
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.of(cache));
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+        ProductDraft draft = draft();
+
+        ProductDraft result = enricher.enrich(raw(), draft);
+
+        verify(providerClient).enrich(any());
+        verify(cacheRepository).save(any());
+    }
+
+    @Test
+    void skipsProviderWhenSuccessCacheHashMatches() throws Exception {
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductRaw raw = raw();
+        ProductDraft draft = draft();
+
+        // Compute requestHash using reflection to match what enricher will compute
+        var promptMethod = FssLlmProductDraftEnricher.class.getDeclaredMethod("prompt", ProductRaw.class, ProductDraft.class);
+        promptMethod.setAccessible(true);
+        String prompt = (String) promptMethod.invoke(enricher, raw, draft);
+
+        var sha256Method = FssLlmProductDraftEnricher.class.getDeclaredMethod("sha256", String.class);
+        sha256Method.setAccessible(true);
+        String requestHash = (String) sha256Method.invoke(enricher, prompt);
+
+        LlmProductEnrichment enrichment = new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        );
+
+        LlmEnrichmentCache cache = LlmEnrichmentCache.create(
+                Source.FSS,
+                "FSS:SAVING:001:ABC",
+                "hash",
+                "GEMINI",
+                "gemini-test",
+                1,
+                1,
+                requestHash
+        );
+        cache.markSuccess(requestHash, objectMapper.writeValueAsString(enrichment));
+
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.of(cache));
+
+        ProductDraft result = enricher.enrich(raw, draft);
+
+        verify(providerClient, never()).enrich(any());
+        assertThat(result.contentSummary()).isEqualTo("요약");
     }
 
     private ProductRaw raw() {

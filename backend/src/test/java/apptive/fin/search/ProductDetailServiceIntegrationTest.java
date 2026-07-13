@@ -178,8 +178,8 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
                 "UPDATE product SET join_method = ?, eligibility_text = ?, caution_text = ?, recruitment_period = ? WHERE id = ?",
                 "읍·면·동 행정복지센터", "만 15세 이상 ~ 39세 이하", "3년 통장 유지 필요", "2026.5.4. ~ 2026.5.20.", productId);
         jdbcTemplate.update(
-                "UPDATE product_properties SET installment_type = ? WHERE id = ?",
-                "정액적립식", propertyId);
+                "UPDATE product_properties SET rsrv_type = ? WHERE id = ?",
+                ReserveType.FIXED.name(), propertyId);
 
         ProductDetailResponseDto locked = productDetailService.getProductDetail(
                 productId, request(propertyId, 100L), null);
@@ -192,7 +192,8 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
             assertThat(detail.eligibilityText()).isEqualTo("만 15세 이상 ~ 39세 이하");
             assertThat(detail.cautionText()).isEqualTo("3년 통장 유지 필요");
             assertThat(detail.recruitmentPeriod()).isEqualTo("2026.5.4. ~ 2026.5.20.");
-            assertThat(detail.installmentType()).isEqualTo("정액적립식");
+            assertThat(detail.reserveType()).isEqualTo(ReserveType.FIXED);
+            assertThat(detail.reserveTypeName()).isEqualTo("정액적립식");
         }
     }
 

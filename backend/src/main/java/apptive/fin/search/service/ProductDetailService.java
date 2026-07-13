@@ -113,7 +113,9 @@ public class ProductDetailService {
                 .eligibilityText(product.getEligibilityText())
                 .cautionText(product.getCautionText())
                 .recruitmentPeriod(product.getRecruitmentPeriod())
-                .installmentType(selected != null ? selected.getInstallmentType() : null)
+                .reserveType(selected != null ? selected.getReserveType() : null)
+                .reserveTypeName(selected != null && selected.getReserveType() != null
+                        ? selected.getReserveType().getLabel() : null)
                 .applyUrl(resolveApplyUrl(product, selected))
                 .metricsLocked(metricsLocked)
                 .lockMessage(metricsLocked ? METRICS_LOCK_MESSAGE : null)
