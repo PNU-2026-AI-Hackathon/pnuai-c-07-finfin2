@@ -314,7 +314,7 @@ public class RateCalculatorService {
     }
 
     private Long monthlySavingsGoal(SearchRequestDto request) {
-        return request.detailedOptions() != null
+        return request != null && request.detailedOptions() != null
                 ? request.detailedOptions().monthlySavingsGoal()
                 : null;
     }
@@ -402,19 +402,19 @@ public class RateCalculatorService {
     }
 
     private List<String> neverUsedBanks(SearchRequestDto request) {
-        return request.detailedOptions() != null
+        return request != null && request.detailedOptions() != null
                 ? request.detailedOptions().neverUsedBanks()
                 : null;
     }
 
     private List<String> maturedSavingBanks(SearchRequestDto request) {
-        return request.detailedOptions() != null
+        return request != null && request.detailedOptions() != null
                 ? request.detailedOptions().maturedSavingBanks()
                 : null;
     }
 
     private Integer age(SearchRequestDto request) {
-        if (request.detailedOptions() == null || request.detailedOptions().birthdate() == null) {
+        if (request == null || request.detailedOptions() == null || request.detailedOptions().birthdate() == null) {
             return null;
         }
 
