@@ -1,10 +1,10 @@
-package apptive.fin.mypage.service;
+package apptive.fin.myfin.service;
 
 import apptive.fin.global.error.BusinessException;
-import apptive.fin.mypage.MyFinErrorCode;
-import apptive.fin.mypage.dto.MyfinResponseDto;
-import apptive.fin.mypage.entity.MyFin;
-import apptive.fin.mypage.repository.MyFinRepository;
+import apptive.fin.myfin.MyFinErrorCode;
+import apptive.fin.myfin.dto.MyfinResponseDto;
+import apptive.fin.myfin.entity.MyFin;
+import apptive.fin.myfin.repository.MyFinRepository;
 import apptive.fin.search.dto.BankDetailDto;
 import apptive.fin.search.dto.GovernmentDetailDto;
 import apptive.fin.search.dto.ProductMatchDto;

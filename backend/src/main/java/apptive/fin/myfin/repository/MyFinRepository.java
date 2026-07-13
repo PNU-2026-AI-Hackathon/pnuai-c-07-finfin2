@@ -1,6 +1,6 @@
-package apptive.fin.mypage.repository;
+package apptive.fin.myfin.repository;
 
-import apptive.fin.mypage.entity.MyFin;
+import apptive.fin.myfin.entity.MyFin;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

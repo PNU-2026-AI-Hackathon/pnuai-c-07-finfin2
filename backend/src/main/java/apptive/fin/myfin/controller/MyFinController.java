@@ -1,9 +1,9 @@
-package apptive.fin.mypage.controller;
+package apptive.fin.myfin.controller;
 
 import apptive.fin.auth.security.AuthUserDetails;
-import apptive.fin.mypage.dto.MyfinRequestDto;
-import apptive.fin.mypage.dto.MyfinResponseDto;
-import apptive.fin.mypage.service.MyFinService;
+import apptive.fin.myfin.dto.MyfinRequestDto;
+import apptive.fin.myfin.dto.MyfinResponseDto;
+import apptive.fin.myfin.service.MyFinService;
 import apptive.fin.search.dto.SearchRequestDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

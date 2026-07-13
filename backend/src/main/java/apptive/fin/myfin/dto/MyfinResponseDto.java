@@ -1,4 +1,4 @@
-package apptive.fin.mypage.dto;
+package apptive.fin.myfin.dto;
 
 import java.util.List;
 

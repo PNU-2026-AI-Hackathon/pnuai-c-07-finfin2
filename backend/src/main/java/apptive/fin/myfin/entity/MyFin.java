@@ -1,4 +1,4 @@
-package apptive.fin.mypage.entity;
+package apptive.fin.myfin.entity;
 
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.user.entity.User;

@@ -1,4 +1,4 @@
-package apptive.fin.mypage;
+package apptive.fin.myfin;
 
 import apptive.fin.global.error.ErrorCode;
 import lombok.Getter;
