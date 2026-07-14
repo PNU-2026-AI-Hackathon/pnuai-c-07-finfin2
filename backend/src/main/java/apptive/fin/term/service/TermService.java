@@ -10,6 +10,7 @@ import apptive.fin.term.repository.UserTermAgreementRepository;
 import apptive.fin.term.dto.TermResponseDto;
 import apptive.fin.term.dto.UserTermRequestDto;
 import apptive.fin.user.UserErrorCode;
+import apptive.fin.user.UserRole;
 import apptive.fin.user.entity.User;
 import apptive.fin.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -44,7 +45,7 @@ public class TermService {
     }
 
     @Transactional
-    public void saveTermAgreementResults(Long userId, UserTermRequestDto request) {
+    public UserRole saveTermAgreementResults(Long userId, UserTermRequestDto request) {
 
         Map<Long, Boolean> agreementRequestMap = request.agreements().stream()
                 .collect(Collectors.toMap(
@@ -102,6 +103,13 @@ public class TermService {
         }
 
         userTermAgreementRepository.saveAll(finalAgreements);
+
+        // 필수 약관 모두 동의 시 UserRole을 RECOMMENDATION으로 업데이트
+        if (didUserAgreeAllRequiredTerms(userId) && user.getUserRole() == UserRole.BEFORE_AGREED) {
+            user.updateUserRole(UserRole.RECOMMENDATION);
+        }
+
+        return user.getUserRole();
     }
 
 }

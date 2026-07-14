@@ -1,9 +1,11 @@
 package apptive.fin.term.controller;
 
 import apptive.fin.auth.security.AuthUserDetails;
+import apptive.fin.term.dto.TermAgreementResponseDto;
 import apptive.fin.term.dto.TermResponseDto;
 import apptive.fin.term.service.TermService;
 import apptive.fin.term.dto.UserTermRequestDto;
+import apptive.fin.user.UserRole;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,9 +27,10 @@ public class TermController {
 
     // 약관 동의
     @PostMapping
-    public void saveTermAgreementResults(@AuthenticationPrincipal AuthUserDetails authUserDetails,
+    public TermAgreementResponseDto saveTermAgreementResults(@AuthenticationPrincipal AuthUserDetails authUserDetails,
                            @Valid @RequestBody UserTermRequestDto request){
-        termService.saveTermAgreementResults(authUserDetails.getId(), request);
+        UserRole userRole = termService.saveTermAgreementResults(authUserDetails.getId(), request);
+        return new TermAgreementResponseDto(userRole);
     }
 
 
