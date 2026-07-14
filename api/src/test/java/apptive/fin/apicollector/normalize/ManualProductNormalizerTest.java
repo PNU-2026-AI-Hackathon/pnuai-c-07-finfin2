@@ -8,9 +8,12 @@ import apptive.fin.apicollector.normalize.normalizer.ManualProductNormalizer;
 import apptive.fin.apicollector.product.ProductType;
 import apptive.fin.apicollector.raw.ProductRaw;
 import org.junit.jupiter.api.Test;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -114,22 +117,56 @@ class ManualProductNormalizerTest {
                 );
     }
 
+    @Test
+    void actualManualProductsResourceContainsAndNormalizesPolicy001Through016() throws Exception {
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode products = loadProducts(objectMapper);
+        List<String> productCodes = new ArrayList<>();
+
+        for (JsonNode product : products) {
+            String productCode = product.path("productCode").asString();
+            productCodes.add(productCode);
+            ProductDraft draft = normalizer.normalize(new ProductRaw(
+                    Source.ONTONG,
+                    productCode,
+                    "hash",
+                    objectMapper.writeValueAsString(product),
+                    ProductType.POLICY
+            ));
+
+            assertThat(draft.sourceCode()).isEqualTo("ONTONG");
+            assertThat(draft.productCode()).isEqualTo(productCode);
+            assertThat(draft.properties()).isNotEmpty();
+        }
+
+        assertThat(productCodes).containsExactly(
+                "POLICY001", "POLICY002", "POLICY003", "POLICY004",
+                "POLICY005", "POLICY006", "POLICY007", "POLICY008",
+                "POLICY009", "POLICY010", "POLICY011", "POLICY012",
+                "POLICY013", "POLICY014", "POLICY015", "POLICY016"
+        );
+    }
+
     private ProductRaw raw(String json, ProductType type) {
         return new ProductRaw(Source.ONTONG, "POLICY002", "hash", json, type);
     }
 
     private JsonNodeHolder loadPolicy002() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
-        try (InputStream input = getClass().getResourceAsStream("/manual-products.json")) {
-            assertThat(input).isNotNull();
-            var products = objectMapper.readTree(input);
-            for (var product : products) {
-                if ("POLICY002".equals(product.path("productCode").asString())) {
-                    return new JsonNodeHolder(objectMapper, product);
-                }
+        var products = loadProducts(objectMapper);
+        for (var product : products) {
+            if ("POLICY002".equals(product.path("productCode").asString())) {
+                return new JsonNodeHolder(objectMapper, product);
             }
         }
         throw new AssertionError("POLICY002 not found in manual-products.json");
+    }
+
+    private JsonNode loadProducts(ObjectMapper objectMapper) throws Exception {
+        try (InputStream input = getClass().getResourceAsStream("/manual-products.json")) {
+            assertThat(input).isNotNull();
+            return objectMapper.readTree(input);
+        }
     }
 
     private CollectorProperties properties() {
