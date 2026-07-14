@@ -9,10 +9,14 @@ import apptive.fin.apicollector.normalize.dto.PreferentialRateDraft;
 import apptive.fin.apicollector.normalize.dto.RequiredKeywordDraft;
 import apptive.fin.apicollector.product.ExtractionConfidence;
 import apptive.fin.apicollector.product.KeywordValueEnum;
+import apptive.fin.apicollector.product.ProductType;
 import apptive.fin.apicollector.product.RequiredKeywordEffect;
 import apptive.fin.apicollector.raw.ProductRaw;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.batch.core.ExitStatus;
+import org.springframework.batch.core.listener.StepExecutionListener;
+import org.springframework.batch.core.step.StepExecution;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -28,11 +32,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
+public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExecutionListener {
 
     private static final Duration FAILED_RETRY_COOLDOWN = Duration.ofHours(6);
 
@@ -40,6 +45,34 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
     private final List<LlmProviderClient> providerClients;
     private final LlmEnrichmentCacheRepository cacheRepository;
     private final ObjectMapper objectMapper;
+
+    private final AtomicInteger cacheHits = new AtomicInteger();
+    private final AtomicInteger llmCalls = new AtomicInteger();
+    private final AtomicInteger llmFailures = new AtomicInteger();
+    private final AtomicInteger cooldownSkips = new AtomicInteger();
+    private final AtomicInteger invalidCacheEntries = new AtomicInteger();
+
+    @Override
+    public void beforeStep(StepExecution stepExecution) {
+        cacheHits.set(0);
+        llmCalls.set(0);
+        llmFailures.set(0);
+        cooldownSkips.set(0);
+        invalidCacheEntries.set(0);
+    }
+
+    @Override
+    public ExitStatus afterStep(StepExecution stepExecution) {
+        log.info(
+                "FSS LLM enrichment summary. cacheHits={}, llmCalls={}, llmFailures={}, cooldownSkips={}, invalidCache={}",
+                cacheHits.get(),
+                llmCalls.get(),
+                llmFailures.get(),
+                cooldownSkips.get(),
+                invalidCacheEntries.get()
+        );
+        return null;
+    }
 
     @Override
     public boolean supports(Source source) {
@@ -57,10 +90,14 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
         String requestHash = sha256(prompt);
         LlmEnrichmentCache cache = cache(rawProduct, requestHash);
 
-        if (cache.getStatus() == LlmEnrichmentCacheStatus.SUCCESS && cache.getResponseJson() != null) {
+        if (cache.getStatus() == LlmEnrichmentCacheStatus.SUCCESS
+                && cache.getResponseJson() != null
+                && requestHash.equals(cache.getRequestHash())) {
+            cacheHits.incrementAndGet();
             return fromCache(cache, rawProduct, draft);
         }
         if (cache.isFailedRetryBlocked(Instant.now(), FAILED_RETRY_COOLDOWN)) {
+            cooldownSkips.incrementAndGet();
             log.debug(
                     "Skipping FSS LLM enrichment during failed retry cooldown. rawId={}, externalId={}, failureCount={}",
                     rawProduct.getId(),
@@ -71,6 +108,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
         }
 
         try {
+            llmCalls.incrementAndGet();
             LlmProductEnrichment enrichment = providerClient.enrich(new LlmProductEnrichmentRequest(
                     properties.llm().model(),
                     prompt,
@@ -83,6 +121,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
             return merge(rawProduct, draft, enrichment);
         }
         catch (Exception e) {
+            llmFailures.incrementAndGet();
             log.warn("FSS LLM enrichment failed. rawId={}, externalId={}", rawProduct.getId(), rawProduct.getExternalId(), e);
             cache.markFailed(requestHash, truncate(e.getMessage()));
             cacheRepository.save(cache);
@@ -97,6 +136,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
             return merge(rawProduct, draft, enrichment);
         }
         catch (Exception e) {
+            invalidCacheEntries.incrementAndGet();
             log.warn("FSS LLM enrichment cache is invalid. cacheId={}", cache.getId(), e);
             return draft;
         }
@@ -147,9 +187,9 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
                 - 응답은 schema에 맞는 JSON만 반환한다.
                 - 원문에 명시되지 않은 값은 null 또는 false로 둔다.
                 - 금리, 기간, 은행명, 상품명, 상품코드, 신청 URL은 생성하지 않는다.
-                - 제한 없음, 한도 없음은 maxMonthlyLimit=null로 둔다.
-                - minMonthlyLimit은 최소 가입금액 또는 최소 월 납입액이 명시된 경우만 채운다.
-                - maxMonthlyLimit은 유한한 최대 가입한도 또는 월 납입한도가 명시된 경우만 채운다.
+                - minMonthlyLimit, maxMonthlyLimit은 월 납입액(적금의 월 정기 납입) 전용 필드이다.
+                - productType이 SAVING(적금)일 때만, 최소/최대 월 납입액이 명시된 경우 채운다. 없거나 제한 없음이면 null로 둔다.
+                - productType이 DEPOSIT(정기예금)이면 minMonthlyLimit, maxMonthlyLimit은 항상 null로 둔다. 일시납 가입금액·가입한도는 여기에 넣지 않는다.
                 - keywords에는 기간 키워드(TERM_*)를 넣지 않는다.
                 - summaryContent는 마케팅 문구 없이 가입방법, 우대조건, 가입대상, 유의사항을 짧게 정리한다.
                 - requiredKeywords에는 가입 가능 여부를 제한하는 STATUS_* 필수/제외 조건만 넣는다.
@@ -171,7 +211,8 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
                   * BANK_REDEPOSIT: 재예치/재가입 조건
                   * BANK_ONLINE_JOIN: 인터넷/모바일/비대면/온라인 가입 조건. 모바일메시지/알림 수신동의는 온라인 가입이 아니다.
                   * BANK_AGE: 나이/연령 조건
-                - 위 매핑으로 정확히 표현할 수 없는 우대금리는 preferentialRates에서 제외한다.
+                  * BANK_ETC: 위 조건 중 어디에도 정확히 해당하지 않지만 조건별 가산금리가 명시된 우대금리(기타)
+                - 위 매핑으로 정확히 표현할 수 없는 우대금리는 BANK_ETC로 매핑한다. (단, 최고/최대 우대금리 총합만 있으면 여전히 제외)
                 - 재예치/재가입이라는 단어가 있어도 조건의 핵심이 가입금액, 가입잔액, 요구불평잔, 평균잔액이면 BANK_REDEPOSIT에 매핑하지 않는다.
                 - 예: 요구불평잔, 평균잔액, 가입금액, 예금/적금 보유, 특정 상품 만기/해지 고객, 추천/쿠폰/이벤트, 앱 로그인, 알림 수신 등은 억지로 BANK_*에 매핑하지 않는다.
                 - FSS 원문에 정부기여금/병역연장/비교제외가 명시되지 않았으면 관련 필드는 null 또는 false로 둔다.
@@ -242,12 +283,9 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
             throw new IllegalArgumentException("maxAge is smaller than minAge");
         }
 
-        for (String keyword : enrichment.keywords()) {
-            KeywordValueEnum keywordValue = KeywordValueEnum.from(keyword);
-            if (keywordValue == null || keywordValue.name().startsWith("TERM_")) {
-                throw new IllegalArgumentException("Unsupported LLM keyword: " + keyword);
-            }
-        }
+        // 미지원/TERM_ 키워드는 예외 대신 조용히 무시한다(실제 필터링은 mergeKeywords가 담당).
+        // stray 키워드 하나가 상품 enrichment 전체를 실패시키지 않도록 한다.
+        // requiredKeywords·preferentialRates 검증은 의미가 있으므로 아래에서 그대로 유지한다.
         for (RequiredKeywordDraft requiredKeyword : enrichment.requiredKeywords()) {
             if (requiredKeyword.keywordCode() == null
                     || !requiredKeyword.keywordCode().name().startsWith("STATUS_")
@@ -265,7 +303,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
                     && preferentialRate.maxAge() < preferentialRate.minAge()) {
                 throw new IllegalArgumentException("preferentialRate maxAge is smaller than minAge");
             }
-            if (!matchesPreferentialRateKeyword(preferentialRate)) {
+            if (!preferentialRate.matchesKeywordCondition()) {
                 throw new IllegalArgumentException("Unsupported LLM preferential condition: " + preferentialRate);
             }
         }
@@ -289,8 +327,22 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
             case BANK_AGE -> preferentialRate.minAge() != null
                     || preferentialRate.maxAge() != null
                     || containsAny(description, "나이", "연령");
+            // 기타: 고유 토큰은 없지만, 기존 8개 키워드에 명백히 해당하면(LLM 오분류) 기타로 인정하지 않는다.
+            case BANK_ETC -> !looksLikeModeledCondition(preferentialRate);
             default -> false;
         };
+    }
+
+    // description이 기존 8개 BANK_* 키워드 중 하나에 명확히 매칭되는지(= BANK_ETC로 두면 안 되는지) 판정
+    private boolean looksLikeModeledCondition(PreferentialRateDraft preferentialRate) {
+        for (KeywordValueEnum keyword : KeywordValueEnum.values()) {
+            if (keyword != KeywordValueEnum.BANK_ETC
+                    && isPreferentialRateKeyword(keyword)
+                    && matchesPreferentialRateKeyword(preferentialRate.toBuilder().keywordCode(keyword).build())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean containsAny(String value, String... tokens) {
@@ -304,10 +356,6 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
             }
         }
         return false;
-    }
-
-    private boolean hasAmountOrBalanceCondition(String value) {
-        return containsAny(value, "금액", "잔액", "평잔", "평균잔액", "요구불", "만원", "백만원", "억원");
     }
 
     private void validateAmount(Long value, String fieldName) {
@@ -333,7 +381,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
         List<ProductPropertyDraft> properties = new ArrayList<>();
         String eligibilityText = eligibilityText(rawProduct);
         for (ProductPropertyDraft property : draft.properties()) {
-            properties.add(merge(property, enrichment, eligibilityText));
+            properties.add(merge(property, enrichment, eligibilityText, draft.type()));
         }
 
         return draft.toBuilder()
@@ -345,11 +393,15 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
     private ProductPropertyDraft merge(
             ProductPropertyDraft property,
             LlmProductEnrichment enrichment,
-            String eligibilityText
+            String eligibilityText,
+            ProductType type
     ) {
+        // 정기예금(DEPOSIT)은 월 납입 개념이 없다. min/maxMonthlyLimit은 월 납입액 전용 필드이므로
+        // 일시납 가입금액이 잘못 채워지지 않도록 null로 강제한다(LLM 준수 여부와 무관하게 보장).
+        boolean isDeposit = type == ProductType.DEPOSIT;
         return property.toBuilder()
-                .minMonthlyLimit(firstNonNull(property.minMonthlyLimit(), enrichment.minMonthlyLimit()))
-                .maxMonthlyLimit(firstNonNull(property.maxMonthlyLimit(), enrichment.maxMonthlyLimit()))
+                .minMonthlyLimit(isDeposit ? null : firstNonNull(property.minMonthlyLimit(), enrichment.minMonthlyLimit()))
+                .maxMonthlyLimit(isDeposit ? null : firstNonNull(property.maxMonthlyLimit(), enrichment.maxMonthlyLimit()))
                 .minAge(firstNonNull(property.minAge(), enrichment.minAge()))
                 .maxAge(firstNonNull(property.maxAge(), enrichment.maxAge()))
                 .earnMaxAmt(firstNonNull(property.earnMaxAmt(), enrichment.earnMaxAmt()))
@@ -387,7 +439,11 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
         keywords.addAll(property.keywords());
         for (String keyword : enrichment.keywords()) {
             KeywordValueEnum keywordValue = KeywordValueEnum.from(keyword);
-            if (keywordValue != null && !keywordValue.name().startsWith("TERM_")) {
+            // TERM_*는 saveTerm으로 별도 산출하고, BENEFIT_MAX_INTEREST는 정적 태깅하지 않는다
+            // (최고이율은 검색 시점 동적 판정, PRD A-2). LLM이 넣어도 무시.
+            if (keywordValue != null
+                    && !keywordValue.name().startsWith("TERM_")
+                    && keywordValue != KeywordValueEnum.BENEFIT_MAX_INTEREST) {
                 keywords.add(keywordValue);
             }
         }
@@ -428,11 +484,11 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
         List<RequiredKeywordDraft> result = new ArrayList<>();
         for (RequiredKeywordDraft draft : enrichment) {
             if (draft.confidence() != ExtractionConfidence.HIGH) {
-                log.debug("Dropping low-confidence LLM required keyword. keyword={}", draft);
+                log.info("Dropping low-confidence LLM required keyword. keyword={}", draft);
                 continue;
             }
             if (!matchesRequiredKeyword(draft, eligibilityText)) {
-                log.debug("Dropping unsupported LLM required keyword. keyword={}, eligibilityText={}", draft, eligibilityText);
+                log.info("Dropping unsupported LLM required keyword. keyword={}, eligibilityText={}", draft, eligibilityText);
                 continue;
             }
             result.add(draft);
@@ -518,16 +574,32 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher {
             List<PreferentialRateDraft> enrichment
     ) {
         Map<KeywordValueEnum, PreferentialRateDraft> merged = new LinkedHashMap<>();
+        // 기타(BANK_ETC)는 keyword당 1건으로 합치지 않고 라인별로 보존. 완전 중복(동일 description)만 최고금리로 정리.
+        Map<String, PreferentialRateDraft> etcByDescription = new LinkedHashMap<>();
         for (PreferentialRateDraft draft : existing) {
-            keepHighest(merged, draft);
+            keepHighest(merged, etcByDescription, draft);
         }
         for (PreferentialRateDraft draft : enrichment) {
-            keepHighest(merged, draft);
+            keepHighest(merged, etcByDescription, draft);
         }
-        return List.copyOf(merged.values());
+
+        List<PreferentialRateDraft> result = new ArrayList<>(merged.values());
+        result.addAll(etcByDescription.values());
+        return List.copyOf(result);
     }
 
-    private void keepHighest(Map<KeywordValueEnum, PreferentialRateDraft> merged, PreferentialRateDraft draft) {
+    private void keepHighest(
+            Map<KeywordValueEnum, PreferentialRateDraft> merged,
+            Map<String, PreferentialRateDraft> etcByDescription,
+            PreferentialRateDraft draft
+    ) {
+        if (draft.keywordCode() == KeywordValueEnum.BANK_ETC) {
+            PreferentialRateDraft existing = etcByDescription.get(draft.description());
+            if (existing == null || draft.rate().compareTo(existing.rate()) > 0) {
+                etcByDescription.put(draft.description(), draft);
+            }
+            return;
+        }
         PreferentialRateDraft existing = merged.get(draft.keywordCode());
         if (existing == null || draft.rate().compareTo(existing.rate()) > 0) {
             merged.put(draft.keywordCode(), draft);

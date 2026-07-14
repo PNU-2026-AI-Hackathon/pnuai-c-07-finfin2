@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.List;
 import java.util.Optional;
 
@@ -185,6 +187,54 @@ class FssLlmProductDraftEnricherTest {
     }
 
     @Test
+    void nullsMonthlyLimitsForDepositProducts() {
+        // 정기예금(DEPOSIT)은 월 납입 개념이 없다. LLM이 가입금액을 min/maxMonthlyLimit에 채워도,
+        // 결정적 FSS max가 있어도 두 필드는 모두 null로 강제되어야 한다.
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                1_000_000L,
+                2_000_000L,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductDraft result = enricher.enrich(raw(), depositDraft());
+        ProductPropertyDraft property = result.properties().getFirst();
+
+        assertThat(property.minMonthlyLimit()).isNull();
+        assertThat(property.maxMonthlyLimit()).isNull();
+        verify(cacheRepository).save(any(LlmEnrichmentCache.class));
+    }
+
+    @Test
     void dropsFittedRequiredKeywordsWhenEligibilityTextDoesNotExplicitlyMatch() {
         LlmProviderClient providerClient = mock(LlmProviderClient.class);
         LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
@@ -303,6 +353,59 @@ class FssLlmProductDraftEnricherTest {
     }
 
     @Test
+    void dropsUnsupportedKeywordsWithoutFailingEnrichment() {
+        // 지원하지 않는 키워드(예: 삭제된 BENEFIT_HOUSE_PREPARE)가 섞여도 enrichment 전체를 실패시키지 않고,
+        // 해당 항목만 조용히 드롭한 뒤 유효 키워드는 보존해야 한다.
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of("BANK_CARD_USAGE", "NOT_A_REAL_KEYWORD"),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductDraft result = enricher.enrich(raw(), draft());
+
+        // enrichment이 적용됨(폴백 아님) → 요약이 채워지고 캐시가 성공 저장된다.
+        assertThat(result.contentSummary()).isEqualTo("요약");
+        // 유효 키워드는 유지, 미지원 키워드는 드롭(존재하지 않음).
+        assertThat(result.properties().getFirst().keywords()).containsExactlyInAnyOrder(
+                KeywordValueEnum.BANK_CARD_USAGE,
+                KeywordValueEnum.REGION_SEOUL,
+                KeywordValueEnum.TERM_AROUND_1_YEAR
+        );
+        verify(cacheRepository).save(any(LlmEnrichmentCache.class));
+    }
+
+    @Test
     void fallsBackToOriginalDraftWhenProviderFails() {
         LlmProviderClient providerClient = mock(LlmProviderClient.class);
         LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
@@ -361,6 +464,133 @@ class FssLlmProductDraftEnricherTest {
         verify(cacheRepository, never()).save(any());
     }
 
+    @Test
+    void callsProviderWhenSuccessCacheHashMismatches() {
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+
+        LlmEnrichmentCache cache = LlmEnrichmentCache.create(
+                Source.FSS,
+                "FSS:SAVING:001:ABC",
+                "hash",
+                "GEMINI",
+                "gemini-test",
+                1,
+                1,
+                "wrong-hash"
+        );
+        cache.markSuccess("wrong-hash", "{\"summaryContent\":\"요약\",\"keywords\":[],\"minMonthlyLimit\":null,\"maxMonthlyLimit\":null,\"minAge\":null,\"maxAge\":null,\"earnMaxAmt\":null,\"earnPercent\":null,\"requiresHomeless\":false,\"requiresHouseholder\":false,\"govContributionRate\":null,\"govContributionType\":null,\"govMatchingRatio\":null,\"govMonthlyFixedContribution\":null,\"govContributionPeriodMonths\":null,\"excludeFromRateComparison\":false,\"allowsMilitaryAgeExtension\":false,\"militaryMaxAge\":null,\"requiredKeywords\":[],\"preferentialRates\":[]}");
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.of(cache));
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+        ProductDraft draft = draft();
+
+        ProductDraft result = enricher.enrich(raw(), draft);
+
+        verify(providerClient).enrich(any());
+        verify(cacheRepository).save(any());
+    }
+
+    @Test
+    void skipsProviderWhenSuccessCacheHashMatches() throws Exception {
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductRaw raw = raw();
+        ProductDraft draft = draft();
+
+        // Compute requestHash using reflection to match what enricher will compute
+        var promptMethod = FssLlmProductDraftEnricher.class.getDeclaredMethod("prompt", ProductRaw.class, ProductDraft.class);
+        promptMethod.setAccessible(true);
+        String prompt = (String) promptMethod.invoke(enricher, raw, draft);
+
+        var sha256Method = FssLlmProductDraftEnricher.class.getDeclaredMethod("sha256", String.class);
+        sha256Method.setAccessible(true);
+        String requestHash = (String) sha256Method.invoke(enricher, prompt);
+
+        LlmProductEnrichment enrichment = new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        );
+
+        LlmEnrichmentCache cache = LlmEnrichmentCache.create(
+                Source.FSS,
+                "FSS:SAVING:001:ABC",
+                "hash",
+                "GEMINI",
+                "gemini-test",
+                1,
+                1,
+                requestHash
+        );
+        cache.markSuccess(requestHash, objectMapper.writeValueAsString(enrichment));
+
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.of(cache));
+
+        ProductDraft result = enricher.enrich(raw, draft);
+
+        verify(providerClient, never()).enrich(any());
+        assertThat(result.contentSummary()).isEqualTo("요약");
+    }
+
     private ProductRaw raw() {
         return raw("실명의 개인", "월 1만원 이상 가입");
     }
@@ -397,6 +627,13 @@ class FssLlmProductDraftEnricherTest {
                         .maxMonthlyLimit(300_000L)
                         .keywords(List.of(KeywordValueEnum.REGION_SEOUL))
                         .build()))
+                .build();
+    }
+
+    private ProductDraft depositDraft() {
+        return draft().toBuilder()
+                .type(ProductType.DEPOSIT)
+                .productCode("FSS:DEPOSIT:001:ABC")
                 .build();
     }
 

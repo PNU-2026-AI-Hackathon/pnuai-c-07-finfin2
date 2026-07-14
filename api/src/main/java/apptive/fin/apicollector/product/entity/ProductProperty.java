@@ -6,6 +6,7 @@ import apptive.fin.apicollector.normalize.dto.RequiredKeywordDraft;
 import apptive.fin.apicollector.product.ContributionType;
 import apptive.fin.apicollector.product.InterestRateType;
 import apptive.fin.apicollector.product.KeywordValueEnum;
+import apptive.fin.apicollector.product.ReserveType;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -99,7 +100,9 @@ public class ProductProperty {
     @Enumerated(EnumType.STRING)
     private InterestRateType intrRateType;
 
-    private String installmentType;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "rsrv_type")
+    private ReserveType reserveType;
 
     private Integer saveTrm;
 
@@ -109,6 +112,26 @@ public class ProductProperty {
             ProductPropertyDraft propertyDraft
     ) {
         this.product = product;
+        applyDraft(provider, propertyDraft);
+    }
+
+    public static ProductProperty create(
+            Product product,
+            Provider provider,
+            ProductPropertyDraft propertyDraft
+    ) {
+        return new ProductProperty(product, provider, propertyDraft);
+    }
+
+    /**
+     * 기존 property를 id 유지한 채 draft 값으로 갱신한다(upsert의 update 경로).
+     * 자연키(provider, intrRateType, reserveType, saveTrm)로 매칭된 property에만 호출된다.
+     */
+    public void updateFrom(Provider provider, ProductPropertyDraft propertyDraft) {
+        applyDraft(provider, propertyDraft);
+    }
+
+    private void applyDraft(Provider provider, ProductPropertyDraft propertyDraft) {
         this.provider = provider;
         this.baseRate = propertyDraft.baseRate();
         this.maxRate = propertyDraft.maxRate();
@@ -132,19 +155,11 @@ public class ProductProperty {
         this.isJoinable = true;
         this.applyUrl = propertyDraft.applyUrl();
         this.intrRateType = InterestRateType.fromCode(propertyDraft.intrRateType());
-        this.installmentType = propertyDraft.installmentType();
+        this.reserveType = ReserveType.fromApiCode(propertyDraft.reserveType());
         this.saveTrm = propertyDraft.saveTerm();
         replaceKeywords(propertyDraft.keywords());
         replaceRequiredKeywords(propertyDraft.requiredKeywords());
         replacePreferentialRates(propertyDraft.preferentialRates());
-    }
-
-    public static ProductProperty create(
-            Product product,
-            Provider provider,
-            ProductPropertyDraft propertyDraft
-    ) {
-        return new ProductProperty(product, provider, propertyDraft);
     }
 
     public void replaceKeywords(List<KeywordValueEnum> keywordCodes) {

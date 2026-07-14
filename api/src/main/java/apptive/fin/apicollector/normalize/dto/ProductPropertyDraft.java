@@ -13,7 +13,7 @@ public record ProductPropertyDraft(
         String providerName,
         String intrRateType,
         String intrRateTypeName,
-        String installmentType,
+        String reserveType,
         Integer saveTerm,
         BigDecimal baseRate,
         BigDecimal maxRate,
@@ -35,6 +35,7 @@ public record ProductPropertyDraft(
         Boolean requiresHomeless,
         Boolean requiresHouseholder,
         String applyUrl,
+        String providerApplyUrl,
         List<KeywordValueEnum> keywords,
         List<RequiredKeywordDraft> requiredKeywords,
         List<PreferentialRateDraft> preferentialRates

@@ -16,11 +16,14 @@ import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
+import apptive.fin.search.entity.ProductSource;
 import apptive.fin.search.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -110,7 +113,9 @@ public class ProductDetailService {
                 .eligibilityText(product.getEligibilityText())
                 .cautionText(product.getCautionText())
                 .recruitmentPeriod(product.getRecruitmentPeriod())
-                .installmentType(selected != null ? selected.getInstallmentType() : null)
+                .reserveType(selected != null ? selected.getReserveType() : null)
+                .reserveTypeName(selected != null && selected.getReserveType() != null
+                        ? selected.getReserveType().getLabel() : null)
                 .applyUrl(resolveApplyUrl(product, selected))
                 .metricsLocked(metricsLocked)
                 .lockMessage(metricsLocked ? METRICS_LOCK_MESSAGE : null)
@@ -172,12 +177,45 @@ public class ProductDetailService {
     }
 
     private List<KeywordValueEnum> distinctKeywords(Product product) {
-        return product.getProperties().stream()
+        // 최고이율은 정적 태그가 아니라 검색과 동일 철학으로 동적 판정한다(PRD A-2).
+        // 영속된 레거시 BENEFIT_MAX_INTEREST(재정규화 전 데이터·구 정부상품 태그 등)는 먼저 걸러내고,
+        // 동적 기준(전체 은행상품 상위 30%)을 충족할 때만 다시 붙여 배지가 오로지 동적 결과만 반영하게 한다.
+        List<KeywordValueEnum> keywords = product.getProperties().stream()
                 .flatMap(property -> property.getKeywords().stream())
                 .map(ProductKeyword::getKeywordCode)
                 .filter(Objects::nonNull)
+                .filter(code -> code != KeywordValueEnum.BENEFIT_MAX_INTEREST)
                 .distinct()
-                .toList();
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+
+        if (isTopRateBank(product)) {
+            keywords.add(KeywordValueEnum.BENEFIT_MAX_INTEREST);
+        }
+        return keywords;
+    }
+
+    // 은행 상품이면서 그 상품의 (가입가능 속성 중) 최고 maxRate가 전체 은행상품 상위 30% 컷 이상이면 true.
+    // 컷 계산은 검색과 동일한 SearchService.computeTopRateThreshold를 재사용(읽기 전용, DB 미기록).
+    // 컷 모집단·상품 자체 금리 모두 joinable 속성만 사용해 검색(eligible 기준)과 일관성을 맞춘다.
+    private boolean isTopRateBank(Product product) {
+        if (!product.isBank()) {
+            return false;
+        }
+        Double productMaxRate = product.getProperties().stream()
+                .filter(property -> Boolean.TRUE.equals(property.getIsJoinable()))
+                .map(ProductProperty::getMaxRate)
+                .filter(Objects::nonNull)
+                .map(BigDecimal::doubleValue)
+                .max(Double::compareTo)
+                .orElse(null);
+        if (productMaxRate == null) {
+            return false;
+        }
+        Double threshold = SearchService.computeTopRateThreshold(
+                productRepository.findJoinableMaxRatesBySourceCode(ProductSource.BANK_CODE).stream()
+                        .map(BigDecimal::doubleValue)
+                        .toList());
+        return threshold != null && productMaxRate >= threshold;
     }
 
     private List<Integer> saveTrms(Product product) {

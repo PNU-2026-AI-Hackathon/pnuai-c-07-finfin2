@@ -14,6 +14,8 @@ import apptive.fin.apicollector.normalize.extractor.keywords.InterestKeywordReco
 import apptive.fin.apicollector.normalize.extractor.keywords.RegionKeywordRecognizer;
 import apptive.fin.apicollector.normalize.extractor.keywords.StatusKeywordRecognizer;
 import apptive.fin.apicollector.normalize.extractor.keywords.TermKeywordRecognizer;
+import apptive.fin.apicollector.normalize.normalizer.FssBankNameNormalizer;
+import apptive.fin.apicollector.normalize.normalizer.FssBankUrlNormalizer;
 import apptive.fin.apicollector.normalize.normalizer.FssProductNormalizer;
 import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.product.ProductType;
@@ -34,7 +36,8 @@ class FssProductNormalizerTest {
             keywordExtractor(),
             new FssPreferentialRateExtractor(),
             new FssRequiredKeywordExtractor(),
-            new FssBankNameNormalizer()
+            new FssBankNameNormalizer(),
+            new FssBankUrlNormalizer()
     );
 
     @Test
@@ -127,6 +130,29 @@ class FssProductNormalizerTest {
         ProductDraft draft = normalizer.normalize(raw);
 
         assertThat(draft.properties().getFirst().providerName()).isEqualTo("하나은행");
+        assertThat(draft.properties().getFirst().providerApplyUrl())
+                .isEqualTo("https://www.kebhana.com/cont/mall/index.jsp");
+    }
+
+    @Test
+    void leavesProviderApplyUrlNullForUnknownCompanyCode() {
+        ProductRaw raw = new ProductRaw(Source.FSS, "FSS:SAVING:001:ABC", "hash", """
+                {
+                  "source": "FSS",
+                  "productType": "SAVING",
+                  "financialGroupName": "은행",
+                  "base": {
+                    "fin_co_no": "001",
+                    "kor_co_nm": "테스트은행",
+                    "fin_prdt_nm": "청년 적금"
+                  },
+                  "options": []
+                }
+                """, ProductType.SAVING);
+
+        ProductDraft draft = normalizer.normalize(raw);
+
+        assertThat(draft.properties().getFirst().providerApplyUrl()).isNull();
     }
 
     @Test
@@ -195,7 +221,7 @@ class FssProductNormalizerTest {
         assertThat(draft.joinMethod()).isEqualTo("영업점,인터넷,스마트폰");
         assertThat(draft.eligibilityText()).isEqualTo("실명의 개인");
         assertThat(draft.cautionText()).isEqualTo("만기 후 이자율은 기본이율의 50%로 낮아집니다.");
-        assertThat(draft.properties().getFirst().installmentType()).isEqualTo("자유적립식");
+        assertThat(draft.properties().getFirst().reserveType()).isEqualTo("F");
     }
 
     private CollectorProperties properties() {

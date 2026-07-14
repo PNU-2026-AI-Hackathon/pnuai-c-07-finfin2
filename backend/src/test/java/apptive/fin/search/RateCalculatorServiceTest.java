@@ -36,7 +36,7 @@ class RateCalculatorServiceTest {
         ProductProperty property = createProperty(10L, "KB", "KB국민은행", "2.75", null);
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, createRequest(), emptyKeywords());
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), emptyKeywords());
 
         assertThat(result.productId()).isEqualTo(1L);
         assertThat(result.productPropertyId()).isEqualTo(10L);
@@ -57,6 +57,7 @@ class RateCalculatorServiceTest {
 
         ProductRateDto result = rateCalculatorService.calculate(
                 product,
+                property,
                 createRequest(),
                 keywords(List.of(KeywordValueEnum.BANK_SALARY_TRANSFER))
         );
@@ -72,7 +73,7 @@ class RateCalculatorServiceTest {
         addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_ONLINE_JOIN, "0.10"));
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, createRequest(), emptyKeywords());
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), emptyKeywords());
 
         assertThat(result.achievableRate()).isEqualTo(3.6);
     }
@@ -86,6 +87,7 @@ class RateCalculatorServiceTest {
 
         ProductRateDto result = rateCalculatorService.calculate(
                 product,
+                property,
                 createRequest(null, null, List.of("KB"), List.of()),
                 emptyKeywords()
         );
@@ -102,6 +104,7 @@ class RateCalculatorServiceTest {
 
         ProductRateDto result = rateCalculatorService.calculate(
                 product,
+                property,
                 createRequest(null, null, List.of("SHINHAN"), List.of()),
                 emptyKeywords()
         );
@@ -118,6 +121,7 @@ class RateCalculatorServiceTest {
 
         ProductRateDto result = rateCalculatorService.calculate(
                 product,
+                property,
                 createRequest(null, null, List.of(), List.of("KB")),
                 emptyKeywords()
         );
@@ -134,6 +138,7 @@ class RateCalculatorServiceTest {
 
         ProductRateDto result = rateCalculatorService.calculate(
                 product,
+                property,
                 createRequest(LocalDate.now().minusYears(25), null, List.of(), List.of()),
                 emptyKeywords()
         );
@@ -152,6 +157,7 @@ class RateCalculatorServiceTest {
 
         ProductRateDto result = rateCalculatorService.calculate(
                 product,
+                property,
                 createRequest(),
                 keywords(List.of(KeywordValueEnum.BANK_SALARY_TRANSFER))
         );
@@ -167,15 +173,38 @@ class RateCalculatorServiceTest {
         addPreferentialRates(second, preferentialRate(KeywordValueEnum.BANK_SALARY_TRANSFER, "0.60"));
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(first, second)));
 
-        ProductRateDto result = rateCalculatorService.calculate(
-                product,
-                createRequest(),
-                keywords(List.of(KeywordValueEnum.BANK_SALARY_TRANSFER))
-        );
+        SearchRequestDto request = createRequest();
+        ResolvedKeywords resolvedKeywords = keywords(List.of(KeywordValueEnum.BANK_SALARY_TRANSFER));
+        ProductProperty selected = rateCalculatorService.selectRepresentativeProperty(product, request, resolvedKeywords);
+        ProductRateDto result = rateCalculatorService.calculate(product, selected, request, resolvedKeywords);
 
         assertThat(result.productPropertyId()).isEqualTo(11L);
         assertThat(result.baseRate()).isEqualTo(3.5);
         assertThat(result.achievableRate()).isEqualTo(4.1);
+    }
+
+    @Test
+    void 은행상품은_기본금리와_우대금리_합계가_최고금리와_같으면_상한이_발동하지_않는다() {
+        Product product = createProduct("BANK_CAP_EQUAL", "cap boundary equal product", "FSS");
+        ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");
+        addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_ONLINE_JOIN, "1.50"));
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), emptyKeywords());
+
+        assertThat(result.achievableRate()).isEqualTo(5.0);
+    }
+
+    @Test
+    void 은행상품은_기본금리와_우대금리_합계가_최고금리를_초과하면_최고금리로_상한처리한다() {
+        Product product = createProduct("BANK_CAP_OVER", "cap boundary over product", "FSS");
+        ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");
+        addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_ONLINE_JOIN, "2.00"));
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), emptyKeywords());
+
+        assertThat(result.achievableRate()).isEqualTo(5.0);
     }
 
     @Test
@@ -185,7 +214,7 @@ class RateCalculatorServiceTest {
         ReflectionTestUtils.setField(product, "type", ProductType.SUBSCRIPTION);
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, createRequest(), emptyKeywords());
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), emptyKeywords());
 
         assertThat(result.isSubscription()).isTrue();
         assertThat(result.rateComparable()).isFalse();
@@ -200,7 +229,7 @@ class RateCalculatorServiceTest {
         ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 24);
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, createRequest(), emptyKeywords());
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), emptyKeywords());
 
         assertThat(result.baseRate()).isZero();
         assertThat(result.achievableRate()).isEqualTo(50.0);
@@ -221,7 +250,10 @@ class RateCalculatorServiceTest {
         ReflectionTestUtils.setField(preferential, "govContributionPeriodMonths", 36);
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(general, preferential)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, createRequest(), emptyKeywords());
+        SearchRequestDto request = createRequest();
+        ResolvedKeywords resolvedKeywords = emptyKeywords();
+        ProductProperty selected = rateCalculatorService.selectRepresentativeProperty(product, request, resolvedKeywords);
+        ProductRateDto result = rateCalculatorService.calculate(product, selected, request, resolvedKeywords);
 
         assertThat(result.productPropertyId()).isEqualTo(11L);
         assertThat(result.achievableRate()).isEqualTo(4.0);
@@ -237,7 +269,7 @@ class RateCalculatorServiceTest {
         ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 10);
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, createRequest(), emptyKeywords());
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), emptyKeywords());
 
         assertThat(result.achievableRate()).isEqualTo(120.0);
         assertThat(result.rateComparable()).isTrue();
@@ -252,7 +284,7 @@ class RateCalculatorServiceTest {
         ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 36);
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, createRequest(), emptyKeywords());
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), emptyKeywords());
 
         assertThat(result.achievableRate()).isEqualTo(50.0);
         assertThat(result.rateComparable()).isTrue();
@@ -267,7 +299,7 @@ class RateCalculatorServiceTest {
         ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 36);
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, createRequest(100_000L), emptyKeywords());
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(100_000L), emptyKeywords());
 
         assertThat(result.achievableRate()).isEqualTo(100.0);
         assertThat(result.rateComparable()).isTrue();
@@ -284,7 +316,7 @@ class RateCalculatorServiceTest {
         ReflectionTestUtils.setField(property, "maxMonthlyLimit", 150_000L);
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, createRequest(500_000L), emptyKeywords());
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(500_000L), emptyKeywords());
 
         assertThat(result.achievableRate()).isEqualTo(33.33333333333333);
         assertThat(result.rateComparable()).isTrue();
@@ -299,7 +331,7 @@ class RateCalculatorServiceTest {
         ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 36);
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, createRequest(), emptyKeywords());
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), emptyKeywords());
 
         assertThat(result.rateComparable()).isFalse();
         assertThat(result.achievableRate()).isZero();
@@ -316,7 +348,7 @@ class RateCalculatorServiceTest {
         ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 24);
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, createRequest(), emptyKeywords());
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), emptyKeywords());
 
         assertThat(result.rateComparable()).isFalse();
         assertThat(result.isSubscription()).isFalse();
@@ -412,6 +444,7 @@ class RateCalculatorServiceTest {
 
         ProductRateDto result = rateCalculatorService.calculate(
                 product,
+                property,
                 createRequest(null, null, List.of(KB_PROVIDER_CODE), List.of()),
                 emptyKeywords()
         );
@@ -428,6 +461,7 @@ class RateCalculatorServiceTest {
 
         ProductRateDto result = rateCalculatorService.calculate(
                 product,
+                property,
                 createRequest(null, null, List.of("KB"), List.of()),
                 emptyKeywords()
         );

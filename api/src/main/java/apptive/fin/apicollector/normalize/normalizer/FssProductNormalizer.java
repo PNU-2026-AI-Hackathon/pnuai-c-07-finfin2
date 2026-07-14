@@ -2,7 +2,6 @@ package apptive.fin.apicollector.normalize.normalizer;
 
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.config.CollectorProperties;
-import apptive.fin.apicollector.normalize.FssBankNameNormalizer;
 import apptive.fin.apicollector.normalize.ProductClassification;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
@@ -28,6 +27,7 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
     private final FssPreferentialRateExtractor preferentialRateExtractor;
     private final FssRequiredKeywordExtractor requiredKeywordExtractor;
     private final FssBankNameNormalizer bankNameNormalizer;
+    private final FssBankUrlNormalizer bankUrlNormalizer;
 
     @Override
     public Source source() {
@@ -88,6 +88,7 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
         );
         String providerCode = firstText(base, "fin_co_no", "kor_co_nm");
         String providerName = bankNameNormalizer.normalize(providerCode, firstText(base, "kor_co_nm", "fin_co_no"));
+        String providerApplyUrl = bankUrlNormalizer.normalize(providerCode).orElse(null);
         Long maxMonthlyLimit = longValue(base, "max_limit");
         var preferentialRates = preferentialRateExtractor.extract(text(base, "spcl_cnd"));
         var requiredKeywords = requiredKeywordExtractor.extract(text(base, "join_member"), text(base, "etc_note"));
@@ -96,6 +97,7 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
             return List.of(ProductPropertyDraft.builder()
                     .providerCode(providerCode)
                     .providerName(providerName)
+                    .providerApplyUrl(providerApplyUrl)
                     .maxMonthlyLimit(maxMonthlyLimit)
                     .requiresHomeless(false)
                     .requiresHouseholder(false)
@@ -110,9 +112,10 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
             properties.add(ProductPropertyDraft.builder()
                     .providerCode(providerCode)
                     .providerName(providerName)
+                    .providerApplyUrl(providerApplyUrl)
                     .intrRateType(firstText(option, "intr_rate_type"))
                     .intrRateTypeName(firstText(option, "intr_rate_type_nm"))
-                    .installmentType(firstText(option, "rsrv_type_nm"))
+                    .reserveType(firstText(option, "rsrv_type"))
                     .saveTerm(integer(option, "save_trm"))
                     .baseRate(decimal(option, "intr_rate"))
                     .maxRate(decimal(option, "intr_rate2"))

@@ -148,7 +148,6 @@ CREATE TABLE product_properties (
     apply_url VARCHAR(500),
     intr_rate_type VARCHAR(30),
     rsrv_type VARCHAR(30),
-    installment_type VARCHAR(50),
     save_trm INT
 );
 

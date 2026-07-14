@@ -2,6 +2,7 @@ package apptive.fin.search.dto;
 
 import apptive.fin.search.KeywordValueEnum;
 import apptive.fin.search.ProductType;
+import apptive.fin.search.ReserveType;
 import lombok.Builder;
 
 import java.util.List;
@@ -33,7 +34,8 @@ public record ProductDetailResponseDto(
         String eligibilityText,
         String cautionText,
         String recruitmentPeriod,
-        String installmentType,
+        ReserveType reserveType,
+        String reserveTypeName,
 
         // CTA (공개 정보 — 잠금과 무관하게 항상 반환, null = 비활성)
         String applyUrl,

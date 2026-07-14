@@ -1,6 +1,7 @@
 package apptive.fin.search.dto;
 
 import java.time.LocalDate;
+import java.time.Period;
 import java.util.List;
 
 public record DetailedOptionsDto(
@@ -46,5 +47,10 @@ public record DetailedOptionsDto(
                 null,
                 selectedInterestRateOptions
         );
+    }
+
+    // 기준일(today) 시점의 만 나이. 생일 미입력 시 null.
+    public Integer age(LocalDate today) {
+        return birthdate != null ? Period.between(birthdate, today).getYears() : null;
     }
 }

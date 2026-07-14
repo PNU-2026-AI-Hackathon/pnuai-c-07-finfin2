@@ -40,7 +40,6 @@ public enum KeywordValueEnum {
     BENEFIT_TAX_FREE("BENEFIT_TAX_FREE"),
     BENEFIT_EASY_CONDITION("BENEFIT_EASY_CONDITION"),
     BENEFIT_GOV_SUBSIDY("BENEFIT_GOV_SUBSIDY"),
-    BENEFIT_HOUSE_PREPARE("BENEFIT_HOUSE_PREPARE"),
 
     // 5. 상품 관심사
     INTEREST_SAVINGS("INTEREST_SAVINGS"),
@@ -54,7 +53,8 @@ public enum KeywordValueEnum {
     BANK_MARKETING("BANK_MARKETING"),
     BANK_REDEPOSIT("BANK_REDEPOSIT"),
     BANK_ONLINE_JOIN("BANK_ONLINE_JOIN"),
-    BANK_AGE("BANK_AGE");
+    BANK_AGE("BANK_AGE"),
+    BANK_ETC("BANK_ETC"); // 기타(키워드 미분류 우대금리, 기본 불충족)
 
     private final String code;
 
