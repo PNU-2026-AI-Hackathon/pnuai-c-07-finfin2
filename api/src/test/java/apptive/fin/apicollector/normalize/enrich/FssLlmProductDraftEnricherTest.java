@@ -187,6 +187,280 @@ class FssLlmProductDraftEnricherTest {
     }
 
     @Test
+    void dropsEarnMaxAmtAndEarnPercentWhenIncomeIsNotMentioned() {
+        // 원문(content/eligibilityText)에 "소득" 언급이 없으면 LLM이 채운 earnMaxAmt/earnPercent는
+        // 가입금액/한도를 착각한 오탐일 수 있으므로 신뢰하지 않고 버린다.
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                50_000_000L,
+                180,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductDraft result = enricher.enrich(raw("실명의 개인", "월 1만원 이상 가입"), draft());
+        ProductPropertyDraft property = result.properties().getFirst();
+
+        assertThat(property.earnMaxAmt()).isNull();
+        assertThat(property.earnPercent()).isNull();
+    }
+
+    @Test
+    void keepsEarnMaxAmtAndEarnPercentWhenIncomeIsMentionedInEligibilityText() {
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                50_000_000L,
+                180,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductDraft result = enricher.enrich(raw("연소득 5천만원 이하인 개인", "월 1만원 이상 가입"), draft());
+        ProductPropertyDraft property = result.properties().getFirst();
+
+        assertThat(property.earnMaxAmt()).isEqualTo(50_000_000L);
+        assertThat(property.earnPercent()).isEqualTo(180);
+    }
+
+    @Test
+    void dropsEarnMaxAmtAndEarnPercentWhenOnlyFinancialIncomeAggregateTaxationMentioned() {
+        // "금융소득종합과세"만 있고 실제 소득요건 언급이 없으면 소득 가드를 통과하지 못하고 버려야 한다.
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                50_000_000L,
+                180,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductDraft result = enricher.enrich(raw("실명의 개인", "금융소득종합과세 대상자는 가입이 제한됩니다"), draft());
+        ProductPropertyDraft property = result.properties().getFirst();
+
+        assertThat(property.earnMaxAmt()).isNull();
+        assertThat(property.earnPercent()).isNull();
+    }
+
+    @Test
+    void dropsEarnMaxAmtAndEarnPercentWhenOnlyIncomeDeductionMentioned() {
+        // "소득공제"만 있고 실제 소득요건 언급이 없으면 소득 가드를 통과하지 못하고 버려야 한다.
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                50_000_000L,
+                180,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductDraft result = enricher.enrich(raw("실명의 개인", "소득공제 혜택"), draft());
+        ProductPropertyDraft property = result.properties().getFirst();
+
+        assertThat(property.earnMaxAmt()).isNull();
+        assertThat(property.earnPercent()).isNull();
+    }
+
+    @Test
+    void keepsEarnMaxAmtWhenEligibilityTextMentionsTotalSalary() {
+        // "총급여" 표현도 소득요건 언급으로 인정해 earnMaxAmt를 유지해야 한다.
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                50_000_000L,
+                180,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductDraft result = enricher.enrich(raw("총급여 5천만원 이하인 자", "월 1만원 이상 가입"), draft());
+        ProductPropertyDraft property = result.properties().getFirst();
+
+        assertThat(property.earnMaxAmt()).isEqualTo(50_000_000L);
+    }
+
+    @Test
+    void keepsEarnMaxAmtWhenEligibilityTextMentionsAnnualSalary() {
+        // "연봉" 표현도 소득요건 언급으로 인정해 earnMaxAmt를 유지해야 한다.
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                50_000_000L,
+                180,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductDraft result = enricher.enrich(raw("연봉 4천만원 이하", "월 1만원 이상 가입"), draft());
+        ProductPropertyDraft property = result.properties().getFirst();
+
+        assertThat(property.earnMaxAmt()).isEqualTo(50_000_000L);
+    }
+
+    @Test
     void nullsMonthlyLimitsForDepositProducts() {
         // 정기예금(DEPOSIT)은 월 납입 개념이 없다. LLM이 가입금액을 min/maxMonthlyLimit에 채워도,
         // 결정적 FSS max가 있어도 두 필드는 모두 null로 강제되어야 한다.

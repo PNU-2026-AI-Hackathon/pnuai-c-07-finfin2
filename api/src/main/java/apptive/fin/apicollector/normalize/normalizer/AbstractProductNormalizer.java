@@ -118,6 +118,12 @@ public abstract class AbstractProductNormalizer {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
+    protected String collapseWhitespace(String value) {
+        if (value == null) return null;
+        String collapsed = value.replaceAll("\\s+", " ").trim();
+        return collapsed.isEmpty() ? null : collapsed;
+    }
+
 
     protected List<KeywordValueEnum> keywordsFromText(String... values) {
         Set<KeywordValueEnum> keywords = EnumSet.noneOf(KeywordValueEnum.class);

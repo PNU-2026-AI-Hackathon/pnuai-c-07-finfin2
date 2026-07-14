@@ -216,6 +216,8 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
                 - 재예치/재가입이라는 단어가 있어도 조건의 핵심이 가입금액, 가입잔액, 요구불평잔, 평균잔액이면 BANK_REDEPOSIT에 매핑하지 않는다.
                 - 예: 요구불평잔, 평균잔액, 가입금액, 예금/적금 보유, 특정 상품 만기/해지 고객, 추천/쿠폰/이벤트, 앱 로그인, 알림 수신 등은 억지로 BANK_*에 매핑하지 않는다.
                 - FSS 원문에 정부기여금/병역연장/비교제외가 명시되지 않았으면 관련 필드는 null 또는 false로 둔다.
+                - earnMaxAmt는 가입자격의 연소득 상한(소득요건)이 원문에 명시된 경우에만 채운다. 가입금액·예치한도·최고한도·월 납입한도 등 금액 한도는 earnMaxAmt에 절대 넣지 않는다.
+                - earnPercent는 소득기준(예: 기준중위소득 대비 %%)이 원문에 명시된 경우에만 채운다.
                 - 반드시 아래 JSON skeleton의 모든 top-level key를 포함한다. 모르는 값은 null, false, [] 중 schema에 맞는 기본값으로 둔다.
 
                 JSON skeleton:
@@ -384,8 +386,9 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
     private ProductDraft merge(ProductRaw rawProduct, ProductDraft draft, LlmProductEnrichment enrichment) {
         List<ProductPropertyDraft> properties = new ArrayList<>();
         String eligibilityText = eligibilityText(rawProduct);
+        boolean incomeMentioned = mentionsIncome(draft.content(), eligibilityText);
         for (ProductPropertyDraft property : draft.properties()) {
-            properties.add(merge(property, enrichment, eligibilityText, draft.type()));
+            properties.add(merge(property, enrichment, eligibilityText, draft.type(), incomeMentioned));
         }
 
         return draft.toBuilder()
@@ -394,11 +397,42 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
                 .build();
     }
 
+    // earnMaxAmt(연소득 상한)·earnPercent(소득기준 %)는 원문에 소득 요건 언급이 있을 때만 LLM 값을 신뢰한다.
+    // LLM이 가입금액/예치한도 등을 소득 상한으로 착각해 채우는 오류를 원천 차단하기 위한 보수적 가드.
+    // 1단계(sanitize): "소득공제", "소득세", "금융소득종합과세", "소득이체", "소득 이체" 등 소득요건과 무관한 문구를
+    //   먼저 제거해 오수용(false positive)을 차단한다 - 이 문구만 있고 실제 소득요건이 없는데 통과하는 것을 방지.
+    // 2단계: 남은 텍스트에 "소득", "총급여", "연봉" 중 하나라도 남아 있으면 소득요건 언급으로 인정한다
+    //   (오거부 방지 - 총급여/연봉 표현도 소득요건으로 수용).
+    private boolean mentionsIncome(String content, String eligibilityText) {
+        return mentionsIncomeToken(content) || mentionsIncomeToken(eligibilityText);
+    }
+
+    private static final String[] INCOME_IRRELEVANT_PHRASES = {
+            "소득공제", "소득세", "금융소득종합과세", "소득이체", "소득 이체"
+    };
+    private static final String[] INCOME_TOKENS = {"소득", "총급여", "연봉"};
+
+    private boolean mentionsIncomeToken(String value) {
+        return containsAny(sanitizeIncomeIrrelevantPhrases(value), INCOME_TOKENS);
+    }
+
+    private String sanitizeIncomeIrrelevantPhrases(String value) {
+        if (value == null) {
+            return null;
+        }
+        String sanitized = value;
+        for (String phrase : INCOME_IRRELEVANT_PHRASES) {
+            sanitized = sanitized.replace(phrase, "");
+        }
+        return sanitized;
+    }
+
     private ProductPropertyDraft merge(
             ProductPropertyDraft property,
             LlmProductEnrichment enrichment,
             String eligibilityText,
-            ProductType type
+            ProductType type,
+            boolean incomeMentioned
     ) {
         // 정기예금(DEPOSIT)은 월 납입 개념이 없다. min/maxMonthlyLimit은 월 납입액 전용 필드이므로
         // 일시납 가입금액이 잘못 채워지지 않도록 null로 강제한다(LLM 준수 여부와 무관하게 보장).
@@ -408,8 +442,8 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
                 .maxMonthlyLimit(isDeposit ? null : firstNonNull(property.maxMonthlyLimit(), enrichment.maxMonthlyLimit()))
                 .minAge(firstNonNull(property.minAge(), enrichment.minAge()))
                 .maxAge(firstNonNull(property.maxAge(), enrichment.maxAge()))
-                .earnMaxAmt(firstNonNull(property.earnMaxAmt(), enrichment.earnMaxAmt()))
-                .earnPercent(firstNonNull(property.earnPercent(), enrichment.earnPercent()))
+                .earnMaxAmt(firstNonNull(property.earnMaxAmt(), incomeMentioned ? enrichment.earnMaxAmt() : null))
+                .earnPercent(firstNonNull(property.earnPercent(), incomeMentioned ? enrichment.earnPercent() : null))
                 .govContributionRate(firstNonNull(property.govContributionRate(), enrichment.govContributionRate()))
                 .govContributionType(firstNonNull(property.govContributionType(), enrichment.govContributionType()))
                 .govMatchingRatio(firstNonNull(property.govMatchingRatio(), enrichment.govMatchingRatio()))

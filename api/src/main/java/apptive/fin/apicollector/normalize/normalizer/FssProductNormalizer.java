@@ -42,7 +42,7 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
         String joinMethod = text(base, "join_way");
         String eligibilityText = text(base, "join_member");
         String cautionText = text(base, "etc_note");
-        String productName = firstText(base, "fin_prdt_nm");
+        String productName = collapseWhitespace(firstText(base, "fin_prdt_nm"));
         List<ProductPropertyDraft> propertyDrafts = properties(raw, base, productName, content);
 
         var draft = ProductDraft.builder()
@@ -87,7 +87,7 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                 content
         );
         String providerCode = firstText(base, "fin_co_no", "kor_co_nm");
-        String providerName = bankNameNormalizer.normalize(providerCode, firstText(base, "kor_co_nm", "fin_co_no"));
+        String providerName = collapseWhitespace(bankNameNormalizer.normalize(providerCode, firstText(base, "kor_co_nm", "fin_co_no")));
         String providerApplyUrl = bankUrlNormalizer.normalize(providerCode).orElse(null);
         Long maxMonthlyLimit = longValue(base, "max_limit");
         var preferentialRates = preferentialRateExtractor.extract(text(base, "spcl_cnd"));
