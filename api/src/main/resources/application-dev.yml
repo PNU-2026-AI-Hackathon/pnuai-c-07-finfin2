@@ -27,7 +27,9 @@ logging:
 
 collector:
   enabled: true
-  source: FSS
+  # ONTONG = 수동 정부 정책상품(manual-products.json) 동기화. 온통청년 API 폐기로 FetchManualRawTasklet이 원천.
+  # FSS(은행 공시)까지 함께 돌리려면 ALL 로 변경.
+  source: ONTONG
   mode: SYNC
   normalizer-version: 18
   reader-page-size : 500

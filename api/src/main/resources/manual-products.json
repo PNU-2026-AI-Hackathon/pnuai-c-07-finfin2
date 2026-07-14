@@ -1,0 +1,68 @@
+[
+  {
+    "productCode": "POLICY001",
+    "productName": "청년내일저축계좌",
+    "content": "매칭 유형: 정액 | 본인 부담금: 월 10만~50만 원 본인 저축 | 매칭 기여금: 정부 근로소득장려금 중위소득 50% 이하 월 30만 원 정액(1:3) | 정부기여금 환산수익률: 연 100.0% (3년, 본인 월10만 기준)",
+    "eligibilityText": "만 15~39세, 기준 중위소득 50% 이하",
+    "cautionText": "전국 단일사업. 2026년부터 차상위 초과자 신규모집 중단",
+    "properties": [
+      {
+        "providerCode": "MOHW",
+        "providerName": "보건복지부",
+        "applyUrl": "https://www.bokjiro.go.kr/ssis-tbu/ssis-tbu/twataa/wlfareInfo/moveTWAT52011M.do?wlfareInfoId=WLF00000060",
+        "saveTerm": 36,
+        "govContributionRate": 100.00,
+        "govContributionType": "FIXED_AMOUNT",
+        "govMonthlyFixedContribution": 300000,
+        "govContributionPeriodMonths": 36,
+        "minMonthlyLimit": 100000,
+        "maxMonthlyLimit": 500000,
+        "minAge": 15,
+        "maxAge": 39,
+        "earnPercent": 50,
+        "keywords": ["BENEFIT_GOV_SUBSIDY"]
+      }
+    ]
+  },
+  {
+    "productCode": "POLICY003",
+    "productName": "부산청년 기쁨두배통장",
+    "content": "매칭 유형: 정률 1:1 | 본인 부담금: 월 10만 원, 24/36개월 | 매칭 기여금: 부산시 1:1 동일액 | 정부기여금 환산수익률: 연 50.0%(2년) / 33.3%(3년)",
+    "eligibilityText": "만 18~39세, 부산 거주 청년",
+    "cautionText": "부산시·부산은행 협약 (boogi2.kr)",
+    "properties": [
+      {
+        "providerCode": "BUSAN_CITY",
+        "providerName": "부산광역시",
+        "applyUrl": "https://young.busan.go.kr/index.nm?menuCd=53",
+        "saveTerm": 24,
+        "govContributionRate": 50.00,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 1.0000,
+        "govContributionPeriodMonths": 24,
+        "minMonthlyLimit": 100000,
+        "maxMonthlyLimit": 100000,
+        "minAge": 18,
+        "maxAge": 39,
+        "earnMaxAmt": 43068000,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_BUSAN"]
+      },
+      {
+        "providerCode": "BUSAN_CITY",
+        "providerName": "부산광역시",
+        "applyUrl": "https://young.busan.go.kr/index.nm?menuCd=53",
+        "saveTerm": 36,
+        "govContributionRate": 33.33,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 1.0000,
+        "govContributionPeriodMonths": 36,
+        "minMonthlyLimit": 100000,
+        "maxMonthlyLimit": 100000,
+        "minAge": 18,
+        "maxAge": 39,
+        "earnMaxAmt": 43068000,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_BUSAN"]
+      }
+    ]
+  }
+]

@@ -34,6 +34,21 @@ class ProductTest {
     }
 
     @Test
+    void replacePropertiesMarksFreshlyInsertedPropertiesJoinable() {
+        Product product = newProduct();
+        Provider provider = newProvider(product.getSource());
+
+        product.replaceProperties(
+                List.of(draft(12, "F", new BigDecimal("3.00")), draft(24, "F", new BigDecimal("3.20"))),
+                ignored -> provider
+        );
+
+        assertThat(product.getProperties()).hasSize(2);
+        assertThat(product.getProperties())
+                .allMatch(ProductProperty::getIsJoinable);
+    }
+
+    @Test
     void replacePropertiesUpdatesMatchingPropertyInPlaceKeepingInstance() {
         Product product = newProduct();
         Provider provider = newProvider(product.getSource());
