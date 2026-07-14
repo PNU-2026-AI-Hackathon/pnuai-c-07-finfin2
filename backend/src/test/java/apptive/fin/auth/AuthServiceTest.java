@@ -48,7 +48,7 @@ class AuthServiceTest {
 
     @Test
     void 리프레시_토큰을_발급하면_해시를_저장하고_raw_토큰을_반환한다() {
-        User user = createUser(1L, UserRole.BASIC_ACCESS);
+        User user = createUser(1L, UserRole.BEFORE_AGREED);
         byte[] rawRefreshToken = new byte[]{1, 2, 3, 4};
         Instant beforeCall = Instant.now();
 
@@ -118,7 +118,7 @@ class AuthServiceTest {
         RefreshToken inactiveToken = RefreshToken.builder()
                 .tokenHash("inactive-hash")
                 .expiresAt(Instant.now().plusSeconds(300))
-                .user(createUser(1L, UserRole.BASIC_ACCESS))
+                .user(createUser(1L, UserRole.BEFORE_AGREED))
                 .build();
         ReflectionTestUtils.setField(inactiveToken, "isActive", false);
 
@@ -135,7 +135,7 @@ class AuthServiceTest {
         RefreshToken expiredToken = RefreshToken.builder()
                 .tokenHash("expired-hash")
                 .expiresAt(Instant.now().minusSeconds(60))
-                .user(createUser(1L, UserRole.BASIC_ACCESS))
+                .user(createUser(1L, UserRole.BEFORE_AGREED))
                 .build();
 
         when(jwtUtil.hashToken(rawToken)).thenReturn("expired-hash");
@@ -168,7 +168,7 @@ class AuthServiceTest {
 
     @Test
     void 리프레시_토큰을_연속으로_발급하면_서로_다른_raw_토큰이_반환된다() {
-        User user = createUser(1L, UserRole.BASIC_ACCESS);
+        User user = createUser(1L, UserRole.BEFORE_AGREED);
         byte[] firstRawToken = new byte[]{1, 2, 3, 4};
         byte[] secondRawToken = new byte[]{4, 3, 2, 1};
 

@@ -44,7 +44,7 @@ public class User extends BaseTimeEntity {
         this.email = email;
         this.provider = provider;
         this.providerId = providerId;
-        this.userRole = userRole;
+        this.userRole = userRole != null ? userRole : UserRole.BEFORE_AGREED;
     }
 
 

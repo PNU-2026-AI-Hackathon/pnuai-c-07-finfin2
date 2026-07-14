@@ -50,7 +50,7 @@ class RefreshTokenTest {
                         .email("tester@example.com")
                         .provider("google")
                         .providerId("provider-id")
-                        .userRole(UserRole.BASIC_ACCESS)
+                        .userRole(UserRole.BEFORE_AGREED)
                         .build())
                 .build();
     }
