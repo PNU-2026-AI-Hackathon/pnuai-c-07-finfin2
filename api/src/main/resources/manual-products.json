@@ -113,5 +113,323 @@
         "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_BUSAN"]
       }
     ]
+  },
+  {
+    "productCode": "POLICY004",
+    "productName": "청년 노동자 통장 (경기도)",
+    "content": "매칭 유형: 정률 1:1 + 지역화폐 | 본인 부담금: 월 10만 원, 24개월 | 매칭 기여금: 경기도 1:1(현금 240만) + 지역화폐 100만 | 정부기여금 환산수익률: 연 50.0%(현금) / 70.8%(지역화폐 포함)",
+    "cautionText": "경기도미래세대재단 운영",
+    "properties": [
+      {
+        "providerCode": "GYEONGGI",
+        "providerName": "경기도",
+        "applyUrl": "https://account.ggwf.or.kr",
+        "saveTerm": 24,
+        "govContributionRate": 70.83,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 1.4167,
+        "govContributionPeriodMonths": 24,
+        "minMonthlyLimit": 100000,
+        "maxMonthlyLimit": 100000,
+        "minAge": 19,
+        "maxAge": 39,
+        "earnPercent": 120,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GYEONGGI"]
+      }
+    ]
+  },
+  {
+    "productCode": "POLICY005",
+    "productName": "드림For 청년통장 (인천시)",
+    "content": "매칭 유형: 정률 1:1 | 본인 부담금: 월 15만 원 x 36회 = 540만 원 | 매칭 기여금: 인천시 540만 원(3년 만기 일괄) | 정부기여금 환산수익률: 연 33.3% (3년)",
+    "cautionText": "인천시. 취급: 신한 청년DREAM적금",
+    "properties": [
+      {
+        "providerCode": "INCHEON",
+        "providerName": "인천광역시",
+        "applyUrl": "https://youth.incheon.go.kr/youthpolicy/youthPolicyInfoDetail.do?poly_seq=418",
+        "saveTerm": 36,
+        "govContributionRate": 33.33,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 1.0000,
+        "govContributionPeriodMonths": 36,
+        "minMonthlyLimit": 150000,
+        "maxMonthlyLimit": 150000,
+        "minAge": 18,
+        "maxAge": 39,
+        "allowsMilitaryAgeExtension": true,
+        "militaryMaxAge": 42,
+        "earnMaxAmt": 40000000,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_INCHEON"]
+      }
+    ]
+  },
+  {
+    "productCode": "POLICY006",
+    "productName": "청년발달장애인 자산형성지원 (행복씨앗통장, 인천)",
+    "content": "매칭 유형: 정액 | 본인 부담금: 월 15만 원 x 36개월 = 540만 원 | 매칭 기여금: 지원금 월 15만 원 정액(1:1) | 정부기여금 환산수익률: 연 33.3% (3년)",
+    "cautionText": "인천시, 청년 발달장애인 대상",
+    "properties": [
+      {
+        "providerCode": "INCHEON",
+        "providerName": "인천광역시",
+        "applyUrl": "https://www.incheon.go.kr/IC010101/view?nttNo=2043592&curPage=1",
+        "saveTerm": 36,
+        "govContributionRate": 33.33,
+        "govContributionType": "FIXED_AMOUNT",
+        "govMonthlyFixedContribution": 150000,
+        "govContributionPeriodMonths": 36,
+        "minMonthlyLimit": 150000,
+        "maxMonthlyLimit": 150000,
+        "minAge": 16,
+        "maxAge": 39,
+        "earnPercent": 100,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_INCHEON"]
+      }
+    ]
+  },
+  {
+    "productCode": "POLICY007",
+    "productName": "청년 재가 중증장애인 자산형성 지원 (강원도)",
+    "content": "매칭 유형: 정액 | 본인 부담금: 월 15만 원 이상, 3년 | 매칭 기여금: 지원금 월 15만 원 정액(1:1) | 정부기여금 환산수익률: 연 33.3% (3년)",
+    "cautionText": "강원도, 재가 중증장애 청년 대상",
+    "properties": [
+      {
+        "providerCode": "GANGWON",
+        "providerName": "강원특별자치도",
+        "saveTerm": 36,
+        "govContributionRate": 33.33,
+        "govContributionType": "FIXED_AMOUNT",
+        "govMonthlyFixedContribution": 150000,
+        "govContributionPeriodMonths": 36,
+        "minMonthlyLimit": 150000,
+        "minAge": 15,
+        "maxAge": 39,
+        "earnPercent": 100,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GANGWON"]
+      }
+    ]
+  },
+  {
+    "productCode": "POLICY008",
+    "productName": "광주 청년13(일+삶)통장",
+    "content": "매칭 유형: 정률 1:1 | 본인 부담금: 월 10만 원 x 10개월 = 100만 원 | 매칭 기여금: 광주시 100만 원(만기 일괄) | 정부기여금 환산수익률: 연 120.0% (10개월)",
+    "cautionText": "광주청년통합플랫폼 운영 (단기 10개월)",
+    "properties": [
+      {
+        "providerCode": "GWANGJU",
+        "providerName": "광주광역시",
+        "applyUrl": "https://youth.gwangju.go.kr/www/",
+        "saveTerm": 10,
+        "govContributionRate": 120.00,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 1.0000,
+        "govContributionPeriodMonths": 10,
+        "minMonthlyLimit": 100000,
+        "maxMonthlyLimit": 100000,
+        "minAge": 19,
+        "maxAge": 39,
+        "earnMaxAmt": 36960000,
+        "minTenureMonths": 3,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GWANGJU"]
+      }
+    ]
+  },
+  {
+    "productCode": "POLICY009",
+    "productName": "청년 희망디딤돌 통장 (전남)",
+    "content": "매칭 유형: 정률 1:1 | 본인 부담금: 월 10만 원 x 36개월 = 360만 원 | 매칭 기여금: 전남도(40%)+시군(60%) 동일액(1:1) | 정부기여금 환산수익률: 연 33.3% (3년)",
+    "cautionText": "전남. 도·시군 운영분 통합(구 9·19번)",
+    "properties": [
+      {
+        "providerCode": "JEONNAM",
+        "providerName": "전라남도",
+        "applyUrl": "https://www.jeonnam.go.kr/J0203/boardView.do?seq=23937&infoReturn=&menuId=jeonnam0203000000&displayHeader=&searchType=&searchText=&searchStDate=&searchEnDate=&pageIndex=1&boardId=J0203&displayHeader=",
+        "saveTerm": 36,
+        "govContributionRate": 33.33,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 1.0000,
+        "govContributionPeriodMonths": 36,
+        "minMonthlyLimit": 100000,
+        "maxMonthlyLimit": 100000,
+        "minAge": 18,
+        "maxAge": 45,
+        "earnPercent": 120,
+        "minTenureMonths": 3,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_JEONNAM"]
+      }
+    ]
+  },
+  {
+    "productCode": "POLICY010",
+    "productName": "모다드림 청년통장 (경남)",
+    "content": "매칭 유형: 정률 1:1 | 본인 부담금: 월 20만 원 x 24개월 = 480만 원 | 매칭 기여금: 경남도·시군 480만 원(1:1) | 정부기여금 환산수익률: 연 50.0% (2년)",
+    "cautionText": "경남. BNK경남은행. 도·시군 운영분 통합(구 10·20번)",
+    "properties": [
+      {
+        "providerCode": "GYEONGNAM",
+        "providerName": "경상남도",
+        "applyUrl": "https://www.modadream.kr/",
+        "saveTerm": 24,
+        "govContributionRate": 50.00,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 1.0000,
+        "govContributionPeriodMonths": 24,
+        "minMonthlyLimit": 200000,
+        "maxMonthlyLimit": 200000,
+        "minAge": 18,
+        "maxAge": 39,
+        "earnPercent": 130,
+        "minTenureMonths": 3,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GYEONGNAM"]
+      }
+    ]
+  },
+  {
+    "productCode": "POLICY011",
+    "productName": "청년 디딤돌 2배 적금 (강원도)",
+    "content": "매칭 유형: 정률 1:1 | 본인 부담금: 월 10만 원 x 36개월 = 360만 원 | 매칭 기여금: 기업 5만+도·시 5만 = 월 10만(1:1) | 정부기여금 환산수익률: 연 33.3% (3년)",
+    "cautionText": "강원특별자치도 경제진흥원",
+    "properties": [
+      {
+        "providerCode": "GANGWON",
+        "providerName": "강원특별자치도",
+        "applyUrl": "https://double.gwwell.kr/youth",
+        "saveTerm": 36,
+        "govContributionRate": 33.33,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 1.0000,
+        "govContributionPeriodMonths": 36,
+        "minMonthlyLimit": 100000,
+        "maxMonthlyLimit": 100000,
+        "minAge": 18,
+        "maxAge": 45,
+        "earnPercent": 150,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GANGWON", "STATUS_SME_WORKER"]
+      }
+    ]
+  },
+  {
+    "productCode": "POLICY012",
+    "productName": "전북청년 함께 두배적금 (전북)",
+    "content": "매칭 유형: 정률 1:1 | 본인 부담금: 월 10만 원 x 24개월 = 240만 원 | 매칭 기여금: 도·시군 240만 원(1:1) | 정부기여금 환산수익률: 연 50.0% (2년)",
+    "cautionText": "전북. 14개 시군 명의 통장",
+    "properties": [
+      {
+        "providerCode": "JEONBUK",
+        "providerName": "전북특별자치도",
+        "applyUrl": "https://double.jb2030.or.kr",
+        "saveTerm": 24,
+        "govContributionRate": 50.00,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 1.0000,
+        "govContributionPeriodMonths": 24,
+        "minMonthlyLimit": 100000,
+        "maxMonthlyLimit": 100000,
+        "minAge": 18,
+        "maxAge": 39,
+        "earnPercent": 140,
+        "minTenureMonths": 5,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_JEONBUK"]
+      }
+    ]
+  },
+  {
+    "productCode": "POLICY013",
+    "productName": "대구 청년희망적금",
+    "content": "매칭 유형: 정률 1:1 | 본인 부담금: 월 10만 원 x 12개월 = 120만 원 | 매칭 기여금: 대구시 120만 원(1:1) | 정부기여금 환산수익률: 연 100.0% (1년)",
+    "cautionText": "대구시. 8개월 이상 근로 조건 (단기 1년)",
+    "properties": [
+      {
+        "providerCode": "DAEGU",
+        "providerName": "대구광역시",
+        "applyUrl": "https://youthdream.daegu.go.kr",
+        "saveTerm": 12,
+        "govContributionRate": 100.00,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 1.0000,
+        "govContributionPeriodMonths": 12,
+        "minMonthlyLimit": 100000,
+        "maxMonthlyLimit": 100000,
+        "minAge": 19,
+        "maxAge": 39,
+        "earnPercent": 120,
+        "minTenureMonths": 8,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_DAEGU"]
+      }
+    ]
+  },
+  {
+    "productCode": "POLICY014",
+    "productName": "세종 청년미래적금 (청년희망적금)",
+    "content": "매칭 유형: 정률 1:1 | 본인 부담금: 월 15만 원 x 36개월 = 540만 원 | 매칭 기여금: 세종시 540만 원(1:1, 만기 일시지급) | 정부기여금 환산수익률: 연 33.3% (3년)",
+    "cautionText": "세종시. 금융위 상품과 별개 지자체 사업",
+    "properties": [
+      {
+        "providerCode": "SEJONG",
+        "providerName": "세종특별자치시",
+        "applyUrl": "https://sjyouth.sjepa.or.kr/",
+        "saveTerm": 36,
+        "govContributionRate": 33.33,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 1.0000,
+        "govContributionPeriodMonths": 36,
+        "minMonthlyLimit": 150000,
+        "maxMonthlyLimit": 150000,
+        "minAge": 19,
+        "maxAge": 39,
+        "earnPercent": 120,
+        "minTenureMonths": 6,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_SEJONG"]
+      }
+    ]
+  },
+  {
+    "productCode": "POLICY015",
+    "productName": "청년 사랑채움사업 (경북 내 22개 시·군)",
+    "content": "매칭 유형: 정률 1:1 + 결혼축하금 | 본인 부담금: 월 20만 원 x 24회 = 480만 원 | 매칭 기여금: 지자체 480만 원(1:1) + 결혼축하금 120만(조건부) | 정부기여금 환산수익률: 연 50.0% (2년, 축하금 환산 제외)",
+    "cautionText": "경북도경제진흥원 통합사업(구 15·16·17번)",
+    "properties": [
+      {
+        "providerCode": "GYEONGBUK",
+        "providerName": "경상북도",
+        "applyUrl": "https://gbwork.kr",
+        "saveTerm": 24,
+        "govContributionRate": 50.00,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 1.0000,
+        "govContributionPeriodMonths": 24,
+        "minMonthlyLimit": 200000,
+        "maxMonthlyLimit": 200000,
+        "minAge": 19,
+        "maxAge": 39,
+        "earnPercent": 150,
+        "minTenureMonths": 3,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GYEONGBUK", "STATUS_SME_WORKER"]
+      }
+    ]
+  },
+  {
+    "productCode": "POLICY016",
+    "productName": "함안정착 청년통장 (함안군)",
+    "content": "매칭 유형: 정률 1:1.5 | 본인 부담금: 월 20만 원 x 36개월 = 720만 원 | 매칭 기여금: 함안군 월 30만 x 36개월 = 1,080만 원(1.5배) | 정부기여금 환산수익률: 연 50.0% (3년)",
+    "cautionText": "경남 함안군. 2026년 청년·군 3년 적립으로 개편",
+    "properties": [
+      {
+        "providerCode": "HAMAN",
+        "providerName": "함안군",
+        "applyUrl": "https://www.haman.go.kr",
+        "saveTerm": 36,
+        "govContributionRate": 50.00,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 1.5000,
+        "govContributionPeriodMonths": 36,
+        "minMonthlyLimit": 200000,
+        "maxMonthlyLimit": 200000,
+        "minAge": 19,
+        "maxAge": 49,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GYEONGNAM", "STATUS_SME_WORKER"]
+      }
+    ]
   }
 ]
