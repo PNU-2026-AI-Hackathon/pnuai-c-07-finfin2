@@ -39,7 +39,7 @@ class UserServiceTest {
         when(user.getId()).thenReturn(1L);
         when(user.getEmail()).thenReturn("test@email.com");
         when(user.getName()).thenReturn("testUser");
-        when(user.getUserRole()).thenReturn(UserRole.BASIC_ACCESS);
+        when(user.getUserRole()).thenReturn(UserRole.BEFORE_AGREED);
     }
 
     @Test
@@ -99,5 +99,55 @@ class UserServiceTest {
         assertThrows(BusinessException.class, () -> {
             userService.updateUser(1L, request);
         });
+    }
+
+    @Test
+    void 유저권한_기본값_BEFORE_AGREED() {
+        User newUser = User.builder()
+                .name("newUser")
+                .email("new@email.com")
+                .provider("kakao")
+                .providerId("12345")
+                .build();
+
+        assertEquals(UserRole.BEFORE_AGREED, newUser.getUserRole());
+    }
+
+    @Test
+    void 유저권한_업데이트_RECOMMENDATION() {
+        User newUser = User.builder()
+                .name("newUser")
+                .email("new@email.com")
+                .provider("kakao")
+                .providerId("12345")
+                .build();
+
+        newUser.updateUserRole(UserRole.RECOMMENDATION);
+
+        assertEquals(UserRole.RECOMMENDATION, newUser.getUserRole());
+    }
+
+    @Test
+    void 유저권한_업데이트_ADMIN() {
+        User newUser = User.builder()
+                .name("newUser")
+                .email("new@email.com")
+                .provider("kakao")
+                .providerId("12345")
+                .build();
+
+        newUser.updateUserRole(UserRole.ADMIN);
+
+        assertEquals(UserRole.ADMIN, newUser.getUserRole());
+    }
+
+    @Test
+    void 내정보조회_권한포함() {
+        when(userRepository.findById(1L))
+                .thenReturn(Optional.of(user));
+
+        UserResponseDto response = userService.getMyInfo(1L);
+
+        assertEquals("BEFORE_AGREED", response.userRole());
     }
 }
