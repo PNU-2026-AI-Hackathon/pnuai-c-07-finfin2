@@ -24,12 +24,12 @@ public class RawProductSaveService {
 
         return productRawRepository.findBySourceAndExternalId(source, externalId)
                 .map(existing -> {
-                    if (existing.hasSameHash(hash)) {
+                    if (existing.hasSameHash(hash) && existing.hasSameType(productType)) {
                         existing.touchSeen();
                         return SaveResult.UNCHANGED;
                     }
 
-                    existing.updateRaw(hash, rawJson);
+                    existing.updateRaw(hash, rawJson, productType);
                     return SaveResult.UPDATED;
                 })
                 .orElseGet(()->{

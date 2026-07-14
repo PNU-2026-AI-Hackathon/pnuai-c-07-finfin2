@@ -65,7 +65,7 @@ public class FetchManualRawTasklet implements Tasklet {
                     Source.ONTONG,
                     externalId.trim(),
                     item,
-                    ProductType.POLICY
+                    productType(item, externalId)
             );
 
             switch (result) {
@@ -79,6 +79,32 @@ public class FetchManualRawTasklet implements Tasklet {
                 inserted, updated, unchanged, skipped);
 
         return RepeatStatus.FINISHED;
+    }
+
+    ProductType productType(JsonNode item, String externalId) {
+        String value = item.path("type").asString(null);
+        if (value == null || value.isBlank()) {
+            return ProductType.POLICY;
+        }
+
+        ProductType type;
+        try {
+            type = ProductType.valueOf(value.trim());
+        }
+        catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(
+                    "Unsupported manual product type. productCode=%s, type=%s".formatted(externalId, value),
+                    e
+            );
+        }
+
+        if (type != ProductType.POLICY && type != ProductType.SUBSCRIPTION) {
+            throw new IllegalArgumentException(
+                    "Manual product type must be POLICY or SUBSCRIPTION. productCode=%s, type=%s"
+                            .formatted(externalId, type)
+            );
+        }
+        return type;
     }
 
     private JsonNode load() {

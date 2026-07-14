@@ -9,6 +9,7 @@ import java.util.List;
 
 @Builder(toBuilder = true)
 public record ProductPropertyDraft(
+        String variantCode,
         String providerCode,
         String providerName,
         String intrRateType,

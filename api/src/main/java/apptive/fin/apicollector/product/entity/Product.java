@@ -153,7 +153,8 @@ public class Product extends BaseTimeEntity {
                 property.getProvider() == null ? null : property.getProvider().getCode(),
                 property.getIntrRateType(),
                 property.getReserveType(),
-                property.getSaveTrm()
+                property.getSaveTrm(),
+                property.getVariantCode()
         );
     }
 
@@ -162,7 +163,8 @@ public class Product extends BaseTimeEntity {
                 draft.providerCode(),
                 InterestRateType.fromCode(draft.intrRateType()),
                 ReserveType.fromApiCode(draft.reserveType()),
-                draft.saveTerm()
+                draft.saveTerm(),
+                draft.variantCode()
         );
     }
 
@@ -174,7 +176,8 @@ public class Product extends BaseTimeEntity {
             String providerCode,
             InterestRateType intrRateType,
             ReserveType reserveType,
-            Integer saveTrm
+            Integer saveTrm,
+            String variantCode
     ) {
     }
 

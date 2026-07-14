@@ -14,7 +14,9 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 수동 큐레이션 JSON({@code /manual-products.json})을 {@link ProductDraft}로 변환한다.
@@ -40,8 +42,21 @@ public class ManualProductNormalizer extends AbstractProductNormalizer implement
         JsonNode raw = read(rawProduct);
 
         List<ProductPropertyDraft> propertyDrafts = new ArrayList<>();
+        Set<ManualPropertyKey> propertyKeys = new HashSet<>();
         for (JsonNode propertyNode : raw.path("properties")) {
-            propertyDrafts.add(toPropertyDraft(propertyNode, rawProduct));
+            ProductPropertyDraft propertyDraft = toPropertyDraft(propertyNode, rawProduct);
+            ManualPropertyKey propertyKey = new ManualPropertyKey(
+                    propertyDraft.providerCode(),
+                    propertyDraft.saveTerm(),
+                    propertyDraft.variantCode()
+            );
+            if (!propertyKeys.add(propertyKey)) {
+                throw new IllegalArgumentException(
+                        "Duplicate manual product property key. rawId=%d, key=%s"
+                                .formatted(rawProduct.getId(), propertyKey)
+                );
+            }
+            propertyDrafts.add(propertyDraft);
         }
 
         return ProductDraft.builder()
@@ -66,6 +81,7 @@ public class ManualProductNormalizer extends AbstractProductNormalizer implement
 
     private ProductPropertyDraft toPropertyDraft(JsonNode node, ProductRaw rawProduct) {
         return ProductPropertyDraft.builder()
+                .variantCode(text(node, "variantCode"))
                 .providerCode(required(text(node, "providerCode"), "providerCode", rawProduct))
                 .providerName(required(text(node, "providerName"), "providerName", rawProduct))
                 .applyUrl(text(node, "applyUrl"))
@@ -127,5 +143,12 @@ public class ManualProductNormalizer extends AbstractProductNormalizer implement
             throw new IllegalArgumentException("Manual product " + fieldName + " is required. rawId=" + rawProduct.getId());
         }
         return value;
+    }
+
+    private record ManualPropertyKey(
+            String providerCode,
+            Integer saveTerm,
+            String variantCode
+    ) {
     }
 }

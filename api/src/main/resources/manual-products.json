@@ -25,6 +25,55 @@
     ]
   },
   {
+    "productCode": "POLICY002",
+    "productName": "청년 자산형성 지원 (청년미래적금)",
+    "content": "매칭 유형: 정률 (월 납입 비례, 만기 누적) | 본인 부담금: 월 최대 50만 원 자유 납입, 3년 | 매칭 기여금: 정부기여금 일반형 108만 원 / 우대형 216만 원 | 정부기여금 환산수익률: 일반형 연 2.0% / 우대형 연 4.0%",
+    "eligibilityText": "만 19~34세, 소득 조건에 따라 일반형 또는 우대형 적용",
+    "cautionText": "서민금융진흥원. 2026년 6월 출시 예정 (청년도약계좌 대체). 기본 5% + 기관별 우대 2~3%",
+    "properties": [
+      {
+        "variantCode": "GENERAL",
+        "providerCode": "KINFA",
+        "providerName": "서민금융진흥원",
+        "applyUrl": "https://ylaccount.kinfa.or.kr/main",
+        "saveTerm": 36,
+        "govContributionRate": 2.00,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 0.0600,
+        "govContributionPeriodMonths": 36,
+        "minMonthlyLimit": 1000,
+        "maxMonthlyLimit": 500000,
+        "minAge": 19,
+        "maxAge": 34,
+        "allowsMilitaryAgeExtension": true,
+        "militaryMaxAge": 40,
+        "earnMaxAmt": 60000000,
+        "earnPercent": 200,
+        "keywords": ["BENEFIT_GOV_SUBSIDY"]
+      },
+      {
+        "variantCode": "PREFERENTIAL",
+        "providerCode": "KINFA",
+        "providerName": "서민금융진흥원",
+        "applyUrl": "https://ylaccount.kinfa.or.kr/main",
+        "saveTerm": 36,
+        "govContributionRate": 4.00,
+        "govContributionType": "RATIO",
+        "govMatchingRatio": 0.1200,
+        "govContributionPeriodMonths": 36,
+        "minMonthlyLimit": 1000,
+        "maxMonthlyLimit": 500000,
+        "minAge": 19,
+        "maxAge": 34,
+        "allowsMilitaryAgeExtension": true,
+        "militaryMaxAge": 40,
+        "earnMaxAmt": 36000000,
+        "earnPercent": 150,
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "STATUS_SME_WORKER"]
+      }
+    ]
+  },
+  {
     "productCode": "POLICY003",
     "productName": "부산청년 기쁨두배통장",
     "content": "매칭 유형: 정률 1:1 | 본인 부담금: 월 10만 원, 24/36개월 | 매칭 기여금: 부산시 1:1 동일액 | 정부기여금 환산수익률: 연 50.0%(2년) / 33.3%(3년)",
