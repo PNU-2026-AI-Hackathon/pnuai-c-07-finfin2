@@ -41,6 +41,13 @@ public class ManualProductNormalizer extends AbstractProductNormalizer implement
     public ProductDraft normalize(ProductRaw rawProduct) {
         JsonNode raw = read(rawProduct);
 
+        // ONTONG 소스에는 과거 온통청년 API 응답 형식의 product_raw가 남아 있을 수 있다.
+        // 해당 형식만 제외 처리하여 normalizer 버전 변경 시
+        // 수동 상품 동기화 단계가 계속 실패하는 것을 방지한다.
+        if (isLegacyOntongYouthRaw(raw)) {
+            return skippedLegacyDraft(rawProduct);
+        }
+
         List<ProductPropertyDraft> propertyDrafts = new ArrayList<>();
         Set<ManualPropertyKey> propertyKeys = new HashSet<>();
         for (JsonNode propertyNode : raw.path("properties")) {
@@ -76,6 +83,22 @@ public class ManualProductNormalizer extends AbstractProductNormalizer implement
                 .cautionText(text(raw, "cautionText"))
                 .recruitmentPeriod(text(raw, "recruitmentPeriod"))
                 .properties(propertyDrafts)
+                .build();
+    }
+
+    private boolean isLegacyOntongYouthRaw(JsonNode raw) {
+        return !raw.has("productName")
+                && (raw.hasNonNull("plcyNo") || raw.hasNonNull("plcyNm"));
+    }
+
+    private ProductDraft skippedLegacyDraft(ProductRaw rawProduct) {
+        return ProductDraft.builder()
+                .rawId(rawProduct.getId())
+                .rawSource(rawProduct.getSource())
+                .normalizerVersion(properties.normalizerVersion())
+                .classification(ProductClassification.EXCLUDED)
+                .saveProduct(false)
+                .sourceCode(Source.ONTONG.name())
                 .build();
     }
 

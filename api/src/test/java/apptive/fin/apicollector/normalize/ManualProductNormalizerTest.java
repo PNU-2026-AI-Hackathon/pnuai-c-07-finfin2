@@ -93,6 +93,38 @@ class ManualProductNormalizerTest {
     }
 
     @Test
+    void excludesLegacyOntongYouthRawInsteadOfFailingRenormalization() {
+        ProductRaw raw = raw("""
+                {
+                  "plcyNo": "R202401010001",
+                  "plcyNm": "Legacy youth policy",
+                  "sprvsnInstCd": "LEGACY"
+                }
+                """, ProductType.POLICY);
+
+        ProductDraft draft = normalizer.normalize(raw);
+
+        assertThat(draft.classification()).isEqualTo(ProductClassification.EXCLUDED);
+        assertThat(draft.shouldSaveProduct()).isFalse();
+        assertThat(draft.normalizerVersion()).isEqualTo(19);
+        assertThat(draft.sourceCode()).isEqualTo("ONTONG");
+    }
+
+    @Test
+    void stillRejectsMalformedManualRaw() {
+        ProductRaw raw = raw("""
+                {
+                  "productCode": "POLICY999",
+                  "properties": []
+                }
+                """, ProductType.POLICY);
+
+        assertThatThrownBy(() -> normalizer.normalize(raw))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("productName is required");
+    }
+
+    @Test
     void normalizesPolicy002FromActualManualProductsResource() throws Exception {
         JsonNodeHolder resource = loadPolicy002();
         ProductDraft draft = normalizer.normalize(new ProductRaw(

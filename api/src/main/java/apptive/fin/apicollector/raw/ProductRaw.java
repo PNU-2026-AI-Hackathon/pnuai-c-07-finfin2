@@ -66,10 +66,6 @@ public class ProductRaw extends BaseTimeEntity {
         this.type = productType;
     }
 
-    public void updateRaw(String contentHash, String rawJson) {
-        updateRaw(contentHash, rawJson, this.type);
-    }
-
     public void updateRaw(String contentHash, String rawJson, ProductType productType) {
         this.contentHash = contentHash;
         this.rawJson = rawJson;
