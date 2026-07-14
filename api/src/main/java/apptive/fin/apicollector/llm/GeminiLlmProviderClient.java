@@ -85,8 +85,8 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         ObjectNode properties = objectMapper.createObjectNode();
         properties.set("summaryContent", stringSchema("상품 설명을 사용자에게 보여줄 수 있게 한국어로 간결히 정리한 내용"));
         properties.set("keywords", stringArraySchema("허용된 keyword enum 목록"));
-        properties.set("minMonthlyLimit", integerSchema("명시된 최소 월 납입액 또는 최소 가입금액. 없으면 null"));
-        properties.set("maxMonthlyLimit", integerSchema("명시된 유한 최대 월 납입액 또는 최대 가입한도. 제한 없음이면 null"));
+        properties.set("minMonthlyLimit", integerSchema("적금(SAVING)의 명시된 최소 월 납입액. 정기예금(DEPOSIT) 가입금액은 넣지 않는다. 없으면 null"));
+        properties.set("maxMonthlyLimit", integerSchema("적금(SAVING)의 명시된 유한 최대 월 납입한도. 정기예금(DEPOSIT) 가입한도는 넣지 않는다. 없거나 제한 없음이면 null"));
         properties.set("minAge", integerSchema("가입 가능 최소 나이. 없으면 null"));
         properties.set("maxAge", integerSchema("가입 가능 최대 나이. 없으면 null"));
         properties.set("earnMaxAmt", integerSchema("가입 소득 상한 금액. 없으면 null"));
@@ -160,8 +160,8 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         schema.put("type", "array");
         schema.put("description", """
                 조건별 명시 가산 우대금리. 총합/최고우대금리만 있으면 빈 배열.
-                제공된 BANK_* 키워드로 정확히 표현할 수 없는 우대조건은 제외한다.
-                요구불평잔, 평균잔액, 예금/적금 보유, 특정 상품 만기/해지 고객, 추천/쿠폰/이벤트 조건은 제외한다.
+                BANK_* 8개 키워드로 정확히 표현할 수 없지만 조건별 가산금리가 명시된 우대조건은 BANK_ETC로 매핑한다.
+                단, 요구불평잔, 평균잔액, 예금/적금 보유, 특정 상품 만기/해지 고객, 추천/쿠폰/이벤트처럼 우대금리 조건으로 보기 어려운 항목은 여전히 제외한다.
                 """);
 
         ObjectNode item = objectMapper.createObjectNode();
@@ -176,8 +176,9 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
                 BANK_FIRST_TRANSACTION=첫거래/최초거래/신규고객,
                 BANK_REDEPOSIT=재예치/재가입,
                 BANK_ONLINE_JOIN=인터넷/모바일/비대면 가입,
-                BANK_AGE=나이/연령 조건.
-                의미가 정확히 맞지 않으면 항목을 만들지 않는다.
+                BANK_AGE=나이/연령 조건,
+                BANK_ETC=위 8개 중 어디에도 정확히 해당하지 않지만 조건별 가산금리가 명시된 기타 우대조건.
+                위 8개 중 하나에 명확히 해당하면 그 키워드를 쓰고, 그렇지 않을 때만 BANK_ETC를 쓴다.
                 """, preferentialRateKeywordEnumValues()));
         properties.set("rate", numberSchema("가산 우대금리 percentage point"));
         properties.set("description", stringSchema("원문 근거 요약"));
@@ -528,6 +529,56 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
 
     private boolean isPreferentialRateKeyword(KeywordValueEnum keyword) {
         return keyword != null && keyword.name().startsWith("BANK_");
+    }
+
+    private boolean matchesPreferentialRateKeyword(
+            KeywordValueEnum keyword,
+            String description,
+            Integer minAge,
+            Integer maxAge
+    ) {
+        return switch (keyword) {
+            case BANK_SALARY_TRANSFER -> containsAny(description, "급여", "월급", "salary");
+            case BANK_CARD_USAGE -> containsAny(description, "카드", "체크카드", "신용카드", "결제실적", "전월결제", "card", "payment");
+            case BANK_AUTO_TRANSFER -> containsAny(description, "자동이체", "자동 이체");
+            case BANK_MARKETING -> containsAny(description, "마케팅", "상품서비스", "개인정보", "개인(신용)정보", "수집이용", "동의");
+            case BANK_FIRST_TRANSACTION -> containsAny(description, "첫거래", "최초거래", "신규고객", "신규 고객", "첫 예금거래", "입출금통장 최초");
+            case BANK_REDEPOSIT -> containsAny(description, "재예치", "재가입") && !hasAmountOrBalanceCondition(description);
+            case BANK_ONLINE_JOIN -> containsAny(description, "인터넷 가입", "스마트뱅킹 가입", "비대면 가입", "모바일 가입", "온라인 가입", "online join", "mobile join");
+            case BANK_AGE -> minAge != null || maxAge != null || containsAny(description, "나이", "연령");
+            // 기타: 고유 토큰은 없지만, 기존 8개 키워드에 명백히 해당하면(LLM 오분류) 기타로 인정하지 않는다.
+            case BANK_ETC -> !looksLikeModeledCondition(description, minAge, maxAge);
+            default -> false;
+        };
+    }
+
+    // description이 기존 8개 BANK_* 키워드 중 하나에 명확히 매칭되는지(= BANK_ETC로 두면 안 되는지) 판정
+    private boolean looksLikeModeledCondition(String description, Integer minAge, Integer maxAge) {
+        for (KeywordValueEnum keyword : KeywordValueEnum.values()) {
+            if (keyword != KeywordValueEnum.BANK_ETC
+                    && isPreferentialRateKeyword(keyword)
+                    && matchesPreferentialRateKeyword(keyword, description, minAge, maxAge)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean containsAny(String value, String... tokens) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String normalized = value.toLowerCase();
+        for (String token : tokens) {
+            if (normalized.contains(token.toLowerCase())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasAmountOrBalanceCondition(String value) {
+        return containsAny(value, "금액", "잔액", "평잔", "평균잔액", "요구불", "만원", "백만원", "억원");
     }
 
     private KeywordValueEnum keyword(JsonNode node, String fieldName) {

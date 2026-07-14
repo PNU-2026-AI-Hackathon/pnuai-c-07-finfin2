@@ -187,6 +187,54 @@ class FssLlmProductDraftEnricherTest {
     }
 
     @Test
+    void nullsMonthlyLimitsForDepositProducts() {
+        // 정기예금(DEPOSIT)은 월 납입 개념이 없다. LLM이 가입금액을 min/maxMonthlyLimit에 채워도,
+        // 결정적 FSS max가 있어도 두 필드는 모두 null로 강제되어야 한다.
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                1_000_000L,
+                2_000_000L,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductDraft result = enricher.enrich(raw(), depositDraft());
+        ProductPropertyDraft property = result.properties().getFirst();
+
+        assertThat(property.minMonthlyLimit()).isNull();
+        assertThat(property.maxMonthlyLimit()).isNull();
+        verify(cacheRepository).save(any(LlmEnrichmentCache.class));
+    }
+
+    @Test
     void dropsFittedRequiredKeywordsWhenEligibilityTextDoesNotExplicitlyMatch() {
         LlmProviderClient providerClient = mock(LlmProviderClient.class);
         LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
@@ -302,6 +350,59 @@ class FssLlmProductDraftEnricherTest {
         assertThat(result.properties().getFirst().requiredKeywords())
                 .extracting(RequiredKeywordDraft::keywordCode)
                 .containsExactlyInAnyOrder(KeywordValueEnum.STATUS_SME_WORKER, KeywordValueEnum.STATUS_MILITARY);
+    }
+
+    @Test
+    void dropsUnsupportedKeywordsWithoutFailingEnrichment() {
+        // 지원하지 않는 키워드(예: 삭제된 BENEFIT_HOUSE_PREPARE)가 섞여도 enrichment 전체를 실패시키지 않고,
+        // 해당 항목만 조용히 드롭한 뒤 유효 키워드는 보존해야 한다.
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of("BANK_CARD_USAGE", "NOT_A_REAL_KEYWORD"),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                cacheRepository,
+                objectMapper
+        );
+
+        ProductDraft result = enricher.enrich(raw(), draft());
+
+        // enrichment이 적용됨(폴백 아님) → 요약이 채워지고 캐시가 성공 저장된다.
+        assertThat(result.contentSummary()).isEqualTo("요약");
+        // 유효 키워드는 유지, 미지원 키워드는 드롭(존재하지 않음).
+        assertThat(result.properties().getFirst().keywords()).containsExactlyInAnyOrder(
+                KeywordValueEnum.BANK_CARD_USAGE,
+                KeywordValueEnum.REGION_SEOUL,
+                KeywordValueEnum.TERM_AROUND_1_YEAR
+        );
+        verify(cacheRepository).save(any(LlmEnrichmentCache.class));
     }
 
     @Test
@@ -526,6 +627,13 @@ class FssLlmProductDraftEnricherTest {
                         .maxMonthlyLimit(300_000L)
                         .keywords(List.of(KeywordValueEnum.REGION_SEOUL))
                         .build()))
+                .build();
+    }
+
+    private ProductDraft depositDraft() {
+        return draft().toBuilder()
+                .type(ProductType.DEPOSIT)
+                .productCode("FSS:DEPOSIT:001:ABC")
                 .build();
     }
 

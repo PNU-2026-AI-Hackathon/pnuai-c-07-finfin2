@@ -9,6 +9,7 @@ import apptive.fin.apicollector.normalize.dto.PreferentialRateDraft;
 import apptive.fin.apicollector.normalize.dto.RequiredKeywordDraft;
 import apptive.fin.apicollector.product.ExtractionConfidence;
 import apptive.fin.apicollector.product.KeywordValueEnum;
+import apptive.fin.apicollector.product.ProductType;
 import apptive.fin.apicollector.product.RequiredKeywordEffect;
 import apptive.fin.apicollector.raw.ProductRaw;
 import lombok.RequiredArgsConstructor;
@@ -186,9 +187,9 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
                 - 응답은 schema에 맞는 JSON만 반환한다.
                 - 원문에 명시되지 않은 값은 null 또는 false로 둔다.
                 - 금리, 기간, 은행명, 상품명, 상품코드, 신청 URL은 생성하지 않는다.
-                - 제한 없음, 한도 없음은 maxMonthlyLimit=null로 둔다.
-                - minMonthlyLimit은 최소 가입금액 또는 최소 월 납입액이 명시된 경우만 채운다.
-                - maxMonthlyLimit은 유한한 최대 가입한도 또는 월 납입한도가 명시된 경우만 채운다.
+                - minMonthlyLimit, maxMonthlyLimit은 월 납입액(적금의 월 정기 납입) 전용 필드이다.
+                - productType이 SAVING(적금)일 때만, 최소/최대 월 납입액이 명시된 경우 채운다. 없거나 제한 없음이면 null로 둔다.
+                - productType이 DEPOSIT(정기예금)이면 minMonthlyLimit, maxMonthlyLimit은 항상 null로 둔다. 일시납 가입금액·가입한도는 여기에 넣지 않는다.
                 - keywords에는 기간 키워드(TERM_*)를 넣지 않는다.
                 - summaryContent는 마케팅 문구 없이 가입방법, 우대조건, 가입대상, 유의사항을 짧게 정리한다.
                 - requiredKeywords에는 가입 가능 여부를 제한하는 STATUS_* 필수/제외 조건만 넣는다.
@@ -210,7 +211,8 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
                   * BANK_REDEPOSIT: 재예치/재가입 조건
                   * BANK_ONLINE_JOIN: 인터넷/모바일/비대면/온라인 가입 조건. 모바일메시지/알림 수신동의는 온라인 가입이 아니다.
                   * BANK_AGE: 나이/연령 조건
-                - 위 매핑으로 정확히 표현할 수 없는 우대금리는 preferentialRates에서 제외한다.
+                  * BANK_ETC: 위 조건 중 어디에도 정확히 해당하지 않지만 조건별 가산금리가 명시된 우대금리(기타)
+                - 위 매핑으로 정확히 표현할 수 없는 우대금리는 BANK_ETC로 매핑한다. (단, 최고/최대 우대금리 총합만 있으면 여전히 제외)
                 - 재예치/재가입이라는 단어가 있어도 조건의 핵심이 가입금액, 가입잔액, 요구불평잔, 평균잔액이면 BANK_REDEPOSIT에 매핑하지 않는다.
                 - 예: 요구불평잔, 평균잔액, 가입금액, 예금/적금 보유, 특정 상품 만기/해지 고객, 추천/쿠폰/이벤트, 앱 로그인, 알림 수신 등은 억지로 BANK_*에 매핑하지 않는다.
                 - FSS 원문에 정부기여금/병역연장/비교제외가 명시되지 않았으면 관련 필드는 null 또는 false로 둔다.
@@ -281,12 +283,9 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
             throw new IllegalArgumentException("maxAge is smaller than minAge");
         }
 
-        for (String keyword : enrichment.keywords()) {
-            KeywordValueEnum keywordValue = KeywordValueEnum.from(keyword);
-            if (keywordValue == null || keywordValue.name().startsWith("TERM_")) {
-                throw new IllegalArgumentException("Unsupported LLM keyword: " + keyword);
-            }
-        }
+        // 미지원/TERM_ 키워드는 예외 대신 조용히 무시한다(실제 필터링은 mergeKeywords가 담당).
+        // stray 키워드 하나가 상품 enrichment 전체를 실패시키지 않도록 한다.
+        // requiredKeywords·preferentialRates 검증은 의미가 있으므로 아래에서 그대로 유지한다.
         for (RequiredKeywordDraft requiredKeyword : enrichment.requiredKeywords()) {
             if (requiredKeyword.keywordCode() == null
                     || !requiredKeyword.keywordCode().name().startsWith("STATUS_")
@@ -312,6 +311,38 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
 
     private boolean isPreferentialRateKeyword(KeywordValueEnum keyword) {
         return keyword != null && keyword.name().startsWith("BANK_");
+    }
+
+    private boolean matchesPreferentialRateKeyword(PreferentialRateDraft preferentialRate) {
+        KeywordValueEnum keyword = preferentialRate.keywordCode();
+        String description = preferentialRate.description();
+        return switch (keyword) {
+            case BANK_SALARY_TRANSFER -> containsAny(description, "급여", "월급", "salary");
+            case BANK_CARD_USAGE -> containsAny(description, "카드", "체크카드", "신용카드", "결제실적", "전월결제", "card", "payment");
+            case BANK_AUTO_TRANSFER -> containsAny(description, "자동이체", "자동 이체");
+            case BANK_MARKETING -> containsAny(description, "마케팅", "상품서비스", "개인정보", "개인(신용)정보", "수집이용", "동의");
+            case BANK_FIRST_TRANSACTION -> containsAny(description, "첫거래", "최초거래", "신규고객", "신규 고객", "첫 예금거래", "입출금통장 최초");
+            case BANK_REDEPOSIT -> containsAny(description, "재예치", "재가입") && !hasAmountOrBalanceCondition(description);
+            case BANK_ONLINE_JOIN -> containsAny(description, "인터넷 가입", "스마트뱅킹 가입", "비대면 가입", "모바일 가입", "온라인 가입", "online join", "mobile join");
+            case BANK_AGE -> preferentialRate.minAge() != null
+                    || preferentialRate.maxAge() != null
+                    || containsAny(description, "나이", "연령");
+            // 기타: 고유 토큰은 없지만, 기존 8개 키워드에 명백히 해당하면(LLM 오분류) 기타로 인정하지 않는다.
+            case BANK_ETC -> !looksLikeModeledCondition(preferentialRate);
+            default -> false;
+        };
+    }
+
+    // description이 기존 8개 BANK_* 키워드 중 하나에 명확히 매칭되는지(= BANK_ETC로 두면 안 되는지) 판정
+    private boolean looksLikeModeledCondition(PreferentialRateDraft preferentialRate) {
+        for (KeywordValueEnum keyword : KeywordValueEnum.values()) {
+            if (keyword != KeywordValueEnum.BANK_ETC
+                    && isPreferentialRateKeyword(keyword)
+                    && matchesPreferentialRateKeyword(preferentialRate.toBuilder().keywordCode(keyword).build())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean containsAny(String value, String... tokens) {
@@ -350,7 +381,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
         List<ProductPropertyDraft> properties = new ArrayList<>();
         String eligibilityText = eligibilityText(rawProduct);
         for (ProductPropertyDraft property : draft.properties()) {
-            properties.add(merge(property, enrichment, eligibilityText));
+            properties.add(merge(property, enrichment, eligibilityText, draft.type()));
         }
 
         return draft.toBuilder()
@@ -362,11 +393,15 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
     private ProductPropertyDraft merge(
             ProductPropertyDraft property,
             LlmProductEnrichment enrichment,
-            String eligibilityText
+            String eligibilityText,
+            ProductType type
     ) {
+        // 정기예금(DEPOSIT)은 월 납입 개념이 없다. min/maxMonthlyLimit은 월 납입액 전용 필드이므로
+        // 일시납 가입금액이 잘못 채워지지 않도록 null로 강제한다(LLM 준수 여부와 무관하게 보장).
+        boolean isDeposit = type == ProductType.DEPOSIT;
         return property.toBuilder()
-                .minMonthlyLimit(firstNonNull(property.minMonthlyLimit(), enrichment.minMonthlyLimit()))
-                .maxMonthlyLimit(firstNonNull(property.maxMonthlyLimit(), enrichment.maxMonthlyLimit()))
+                .minMonthlyLimit(isDeposit ? null : firstNonNull(property.minMonthlyLimit(), enrichment.minMonthlyLimit()))
+                .maxMonthlyLimit(isDeposit ? null : firstNonNull(property.maxMonthlyLimit(), enrichment.maxMonthlyLimit()))
                 .minAge(firstNonNull(property.minAge(), enrichment.minAge()))
                 .maxAge(firstNonNull(property.maxAge(), enrichment.maxAge()))
                 .earnMaxAmt(firstNonNull(property.earnMaxAmt(), enrichment.earnMaxAmt()))
@@ -404,7 +439,11 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
         keywords.addAll(property.keywords());
         for (String keyword : enrichment.keywords()) {
             KeywordValueEnum keywordValue = KeywordValueEnum.from(keyword);
-            if (keywordValue != null && !keywordValue.name().startsWith("TERM_")) {
+            // TERM_*는 saveTerm으로 별도 산출하고, BENEFIT_MAX_INTEREST는 정적 태깅하지 않는다
+            // (최고이율은 검색 시점 동적 판정, PRD A-2). LLM이 넣어도 무시.
+            if (keywordValue != null
+                    && !keywordValue.name().startsWith("TERM_")
+                    && keywordValue != KeywordValueEnum.BENEFIT_MAX_INTEREST) {
                 keywords.add(keywordValue);
             }
         }
@@ -535,16 +574,32 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
             List<PreferentialRateDraft> enrichment
     ) {
         Map<KeywordValueEnum, PreferentialRateDraft> merged = new LinkedHashMap<>();
+        // 기타(BANK_ETC)는 keyword당 1건으로 합치지 않고 라인별로 보존. 완전 중복(동일 description)만 최고금리로 정리.
+        Map<String, PreferentialRateDraft> etcByDescription = new LinkedHashMap<>();
         for (PreferentialRateDraft draft : existing) {
-            keepHighest(merged, draft);
+            keepHighest(merged, etcByDescription, draft);
         }
         for (PreferentialRateDraft draft : enrichment) {
-            keepHighest(merged, draft);
+            keepHighest(merged, etcByDescription, draft);
         }
-        return List.copyOf(merged.values());
+
+        List<PreferentialRateDraft> result = new ArrayList<>(merged.values());
+        result.addAll(etcByDescription.values());
+        return List.copyOf(result);
     }
 
-    private void keepHighest(Map<KeywordValueEnum, PreferentialRateDraft> merged, PreferentialRateDraft draft) {
+    private void keepHighest(
+            Map<KeywordValueEnum, PreferentialRateDraft> merged,
+            Map<String, PreferentialRateDraft> etcByDescription,
+            PreferentialRateDraft draft
+    ) {
+        if (draft.keywordCode() == KeywordValueEnum.BANK_ETC) {
+            PreferentialRateDraft existing = etcByDescription.get(draft.description());
+            if (existing == null || draft.rate().compareTo(existing.rate()) > 0) {
+                etcByDescription.put(draft.description(), draft);
+            }
+            return;
+        }
         PreferentialRateDraft existing = merged.get(draft.keywordCode());
         if (existing == null || draft.rate().compareTo(existing.rate()) > 0) {
             merged.put(draft.keywordCode(), draft);

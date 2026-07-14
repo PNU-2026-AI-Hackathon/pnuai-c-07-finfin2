@@ -109,6 +109,68 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 은행상품_상세는_전체은행_상위30퍼센트면_최고이율_칩을_동적으로_붙인다() {
+        // FSS 은행상품 maxRate = {4.5(SEARCH_YOUTH_SAVING), 3.45(SEARCH_SAFE_DEPOSIT)} → 상위 30% 컷 = 4.5.
+        // 정적 태그가 아니라 동적 판정으로 최고이율 칩이 붙어야 한다.
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        Long propertyId = propertyId("SEARCH_YOUTH_SAVING");
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(propertyId, null), authenticatedUser());
+
+        assertThat(detail.keywords()).contains(KeywordValueEnum.BENEFIT_MAX_INTEREST);
+    }
+
+    @Test
+    void 은행상품_상세는_상위30퍼센트_미만이면_최고이율_칩이_없다() {
+        // SEARCH_SAFE_DEPOSIT maxRate 3.45 < 컷 4.5 → 칩 없음(정적 태그도 없음).
+        Long productId = productId("SEARCH_SAFE_DEPOSIT");
+        Long propertyId = propertyId("SEARCH_SAFE_DEPOSIT");
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(propertyId, null), authenticatedUser());
+
+        assertThat(detail.keywords()).doesNotContain(KeywordValueEnum.BENEFIT_MAX_INTEREST);
+    }
+
+    @Test
+    void 은행상품_상세는_영속된_정적_최고이율_태그가_있어도_동적기준_미달이면_칩이_없다() {
+        // 레거시 정적 BENEFIT_MAX_INTEREST 행이 남아있어도(재정규화 전 상황 모사),
+        // 동적 컷(4.5) 미달인 SAFE_DEPOSIT(3.45)은 칩이 노출되면 안 된다 — 배지는 동적 결과만 반영.
+        Long productId = productId("SEARCH_SAFE_DEPOSIT");
+        Long propertyId = propertyId("SEARCH_SAFE_DEPOSIT");
+        jdbcTemplate.update(
+                "INSERT INTO product_property_keyword (product_property_id, keyword_code) VALUES (?, 'BENEFIT_MAX_INTEREST')",
+                propertyId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(propertyId, null), authenticatedUser());
+
+        assertThat(detail.keywords()).doesNotContain(KeywordValueEnum.BENEFIT_MAX_INTEREST);
+    }
+
+    @Test
+    void 상세_최고이율_컷은_비활성_상품을_제외한다() {
+        // 비활성(is_joinable=false) 고금리(9.99) 속성을 추가해도 컷 계산에서 제외되어야 한다.
+        // 활성 FSS maxRate = {4.5, 3.45} → 컷 4.5 유지 → YOUTH_SAVING(4.5)은 여전히 칩을 받는다.
+        jdbcTemplate.update("""
+                INSERT INTO product_properties
+                    (product_id, provider_id, max_rate, is_joinable,
+                     requires_homeless, requires_householder, allows_military_age_extension, exclude_from_rate_comparison)
+                VALUES ((SELECT id FROM product WHERE product_code = 'SEARCH_SAFE_DEPOSIT'),
+                        (SELECT id FROM provider WHERE code = 'SEARCH_BANK_A'),
+                        9.99, false, false, false, false, false)
+                """);
+
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        Long propertyId = propertyId("SEARCH_YOUTH_SAVING");
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(propertyId, null), authenticatedUser());
+
+        assertThat(detail.keywords()).contains(KeywordValueEnum.BENEFIT_MAX_INTEREST);
+    }
+
+    @Test
     void 상품안내_필드는_비로그인_잠금과_무관하게_항상_노출된다() {
         Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
         Long propertyId = propertyId("SEARCH_YOUTH_EMPLOYMENT");

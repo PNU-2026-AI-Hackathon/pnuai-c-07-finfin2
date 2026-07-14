@@ -150,7 +150,8 @@ public abstract class AbstractProductNormalizer {
         addIfContains(keywords, joined, KeywordValueEnum.REGION_JEJU, "제주");
         addIfContains(keywords, joined, KeywordValueEnum.BENEFIT_TAX_FREE, "비과세", "세제");
         addIfContains(keywords, joined, KeywordValueEnum.BENEFIT_GOV_SUBSIDY, "보조금", "지원금", "수당");
-        addIfContains(keywords, joined, KeywordValueEnum.BENEFIT_MAX_INTEREST, "우대금리", "최고금리");
+        // BENEFIT_MAX_INTEREST는 정적 태깅하지 않는다. "최고이율(상위 30%)"은 검색 시점에 백엔드가
+        // 결과셋 maxRate 기준으로 동적 판정하므로(PRD A-2), 텍스트("우대금리"/"최고금리") 기반 정적 태그는 제거.
         addIfContains(keywords, joined, KeywordValueEnum.INTEREST_SAVINGS, "적금", "예금", "저축");
         addIfContains(keywords, joined, KeywordValueEnum.INTEREST_LOAN, "대출");
         addIfContains(keywords, joined, KeywordValueEnum.BANK_FIRST_TRANSACTION, "최초", "첫거래");
