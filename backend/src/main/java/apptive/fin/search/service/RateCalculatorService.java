@@ -15,6 +15,7 @@ import apptive.fin.search.entity.ProductProperty;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -337,7 +338,7 @@ public class RateCalculatorService {
             conditions.add(KeywordValueEnum.BANK_REDEPOSIT);
         }
 
-        if (request.age() != null) {
+        if (request.age(LocalDate.now()) != null) {
             conditions.add(KeywordValueEnum.BANK_AGE);
         }
 
@@ -350,7 +351,7 @@ public class RateCalculatorService {
             return true;
         }
 
-        Integer age = request.age();
+        Integer age = request.age(LocalDate.now());
         if (age == null) {
             return false;
         }

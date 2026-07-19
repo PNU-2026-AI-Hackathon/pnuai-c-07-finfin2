@@ -1,8 +1,7 @@
 package apptive.fin.search.dto;
 
-import apptive.fin.global.util.AgeUtil;
-
 import java.time.LocalDate;
+import java.time.Period;
 import java.util.List;
 
 public record DetailedOptionsDto(
@@ -52,10 +51,6 @@ public record DetailedOptionsDto(
 
     // 기준일(today) 시점의 만 나이. 생일 미입력 시 null.
     public Integer age(LocalDate today) {
-        return AgeUtil.age(birthdate, today);
-    }
-
-    public Integer age() {
-        return AgeUtil.age(birthdate);
+        return birthdate != null ? Period.between(birthdate, today).getYears() : null;
     }
 }
