@@ -15,10 +15,14 @@ public final class AgeUtil {
     private AgeUtil() {
     }
 
-    public static Integer koreanAge(LocalDate birthdate) {
+    public static Integer age(LocalDate birthdate) {
+        return age(birthdate, LocalDate.now(KST));
+    }
+
+    public static Integer age(LocalDate birthdate, LocalDate asOfDate) {
         if (birthdate == null) {
             return null;
         }
-        return Period.between(birthdate, LocalDate.now(KST)).getYears();
+        return Period.between(birthdate, asOfDate).getYears();
     }
 }

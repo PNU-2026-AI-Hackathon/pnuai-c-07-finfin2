@@ -15,6 +15,10 @@ public record SearchRequestDto(
         return detailedOptions != null ? detailedOptions.age(today) : null;
     }
 
+    public Integer age() {
+        return detailedOptions != null ? detailedOptions.age() : null;
+    }
+
     public Long monthlySavingsGoal() {
         return detailedOptions != null ? detailedOptions.monthlySavingsGoal() : null;
     }
