@@ -139,7 +139,7 @@ public class MyFinService {
         String applyStatus = determineApplyStatus(pp, sourceCode);
 
         // 신청 URL
-        String applyUrl = pp.getApplyUrl() != null ? pp.getApplyUrl() : pp.getProvider().getApplyUrl();
+        String applyUrl = pp.resolvedApplyUrl();
 
         return new MyfinResponseDto.Item(
                 myFin.getId(),

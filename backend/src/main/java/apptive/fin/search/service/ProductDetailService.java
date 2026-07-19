@@ -116,7 +116,7 @@ public class ProductDetailService {
                 .reserveType(selected != null ? selected.getReserveType() : null)
                 .reserveTypeName(selected != null && selected.getReserveType() != null
                         ? selected.getReserveType().getLabel() : null)
-                .applyUrl(resolveApplyUrl(product, selected))
+                .applyUrl(selected != null ? selected.resolvedApplyUrl() : null)
                 .metricsLocked(metricsLocked)
                 .lockMessage(metricsLocked ? METRICS_LOCK_MESSAGE : null)
                 .government(governmentDetail)
@@ -157,23 +157,6 @@ public class ProductDetailService {
                                         rate.getDescription()))
                                 .toList()))
                 .toList();
-    }
-
-    // ONTONG → property.applyUrl, FSS → provider 대표 URL, 없으면 null(비활성).
-    private String resolveApplyUrl(Product product, ProductProperty selected) {
-        if (ONTONG.equals(product.getSource().getCode())) {
-            if (selected != null && selected.getApplyUrl() != null) {
-                return selected.getApplyUrl();
-            }
-            return product.getProperties().stream()
-                    .map(ProductProperty::getApplyUrl)
-                    .filter(Objects::nonNull)
-                    .findFirst()
-                    .orElse(null);
-        }
-        return selected != null && selected.getProvider() != null
-                ? selected.getProvider().getApplyUrl()
-                : null;
     }
 
     private List<KeywordValueEnum> distinctKeywords(Product product) {
