@@ -32,7 +32,7 @@ public class RateCalculatorService {
             ResolvedKeywords keywords
     ) {
 
-        ResolvedKeywords resolvedKeywords = keywords != null ? keywords : emptyKeywords();
+        ResolvedKeywords resolvedKeywords = keywords != null ? keywords : ResolvedKeywords.emptyKeywords();
         // 청약상품
         if (product.getType() == ProductType.SUBSCRIPTION) {
             return subscriptionDto(product);
@@ -103,7 +103,7 @@ public class RateCalculatorService {
             return null;
         }
 
-        ResolvedKeywords resolvedKeywords = keywords != null ? keywords : emptyKeywords();
+        ResolvedKeywords resolvedKeywords = keywords != null ? keywords : ResolvedKeywords.emptyKeywords();
         Set<KeywordValueEnum> applicable = applicableBankConditions(property, request, resolvedKeywords);
         
         // met, unmet 리스트를 만들고, 각 우대금리 조건에 대해 사용자의 조건을 검사하여 분류함
@@ -134,7 +134,7 @@ public class RateCalculatorService {
 
     // productPropertyId 미전달 시 대표 property 선정(정부=max 수익률, 은행=max 실질금리). 리스트가 고르는 것과 동일 로직.
     public ProductProperty selectRepresentativeProperty(Product product, SearchRequestDto request, ResolvedKeywords keywords) {
-        ResolvedKeywords resolvedKeywords = keywords != null ? keywords : emptyKeywords();
+        ResolvedKeywords resolvedKeywords = keywords != null ? keywords : ResolvedKeywords.emptyKeywords();
 
         if (product.isGovernment()) {
             return product.getProperties().stream()
@@ -358,10 +358,5 @@ public class RateCalculatorService {
         boolean minSatisfied = rate.getMinAge() == null || rate.getMinAge() <= age;
         boolean maxSatisfied = rate.getMaxAge() == null || rate.getMaxAge() >= age;
         return minSatisfied && maxSatisfied;
-    }
-
-    // 빈 ResolvedKeywords 반환
-    private ResolvedKeywords emptyKeywords() {
-        return new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of());
     }
 }

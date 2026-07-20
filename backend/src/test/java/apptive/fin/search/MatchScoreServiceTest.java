@@ -51,7 +51,7 @@ class MatchScoreServiceTest {
         );
 
         // List → 단일 반환으로 변경
-        ProductMatchDto result = matchScoreService.score(product, product.getProperties().get(0), request, new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()), false);
+        ProductMatchDto result = matchScoreService.score(product, product.getProperties().get(0), request, ResolvedKeywords.emptyKeywords(), false);
 
         assertThat(result.depositScore()).isZero();
         assertThat(result.productPropertyId()).isEqualTo(10L);
@@ -477,7 +477,7 @@ class MatchScoreServiceTest {
                 product,
                 product.getProperties().get(0),
                 createRequest(300_000L, List.of("KB"), List.of()),
-                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                ResolvedKeywords.emptyKeywords(),
                 true
         );
 
@@ -501,7 +501,7 @@ class MatchScoreServiceTest {
                 product,
                 product.getProperties().get(0),
                 createRequest(300_000L, List.of(), List.of("KB")),
-                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                ResolvedKeywords.emptyKeywords(),
                 true
         );
 
@@ -525,7 +525,7 @@ class MatchScoreServiceTest {
                 product,
                 product.getProperties().get(0),
                 createRequest(300_000L, List.of("KB"), List.of()),
-                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                ResolvedKeywords.emptyKeywords(),
                 false
         );
 
@@ -549,7 +549,7 @@ class MatchScoreServiceTest {
                 product,
                 product.getProperties().get(0),
                 createRequest(300_000L, List.of("SHINHAN"), List.of()),
-                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                ResolvedKeywords.emptyKeywords(),
                 true
         );
 
@@ -573,7 +573,7 @@ class MatchScoreServiceTest {
                 product,
                 product.getProperties().get(0),
                 createRequest(300_000L, List.of(KB_PROVIDER_CODE), List.of()),
-                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                ResolvedKeywords.emptyKeywords(),
                 true
         );
 
@@ -597,7 +597,7 @@ class MatchScoreServiceTest {
                 product,
                 product.getProperties().get(0),
                 createRequest(300_000L, List.of("KB"), List.of()),
-                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                ResolvedKeywords.emptyKeywords(),
                 true
         );
 

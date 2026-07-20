@@ -84,8 +84,8 @@ class GovernmentSeedYieldIntegrationTest extends IntegrationTestSupport {
                 .orElseThrow(() -> new AssertionError(testCase.code() + " 상품이 시드 데이터에 없습니다."));
 
         SearchRequestDto request = createRequest(testCase.monthlySavingsGoal());
-        ProductProperty selected = rateCalculatorService.selectRepresentativeProperty(product, request, emptyKeywords());
-        ProductRateDto result = rateCalculatorService.calculate(product, selected, request, emptyKeywords());
+        ProductProperty selected = rateCalculatorService.selectRepresentativeProperty(product, request, ResolvedKeywords.emptyKeywords());
+        ProductRateDto result = rateCalculatorService.calculate(product, selected, request, ResolvedKeywords.emptyKeywords());
 
         assertThat(result.rateComparable())
                 .as("%s(%s) rateComparable", testCase.code(), testCase.description())
@@ -112,8 +112,8 @@ class GovernmentSeedYieldIntegrationTest extends IntegrationTestSupport {
                     .as("%s 상품에 기여금 매칭 데이터(gov_contribution_type != NONE)가 존재해야 한다", code)
                     .isTrue();
 
-            ProductProperty selected = rateCalculatorService.selectRepresentativeProperty(product, request, emptyKeywords());
-            ProductRateDto result = rateCalculatorService.calculate(product, selected, request, emptyKeywords());
+            ProductProperty selected = rateCalculatorService.selectRepresentativeProperty(product, request, ResolvedKeywords.emptyKeywords());
+            ProductRateDto result = rateCalculatorService.calculate(product, selected, request, ResolvedKeywords.emptyKeywords());
             assertThat(result.rateComparable())
                     .as("%s 상품의 calculate() 결과가 rateComparable=true여야 한다", code)
                     .isTrue();
@@ -137,10 +137,6 @@ class GovernmentSeedYieldIntegrationTest extends IntegrationTestSupport {
                         List.of()
                 )
         );
-    }
-
-    private ResolvedKeywords emptyKeywords() {
-        return new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of());
     }
 
     private record GovYieldCase(String code, String description, long monthlySavingsGoal, double expectedAnnualYieldPercent) {

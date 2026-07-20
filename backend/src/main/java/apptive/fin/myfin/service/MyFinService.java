@@ -47,7 +47,7 @@ public class MyFinService {
             return new MyfinResponseDto.List_(List.of(), false);
         }
 
-        ResolvedKeywords keywords = emptyKeywords();
+        ResolvedKeywords keywords = ResolvedKeywords.emptyKeywords();
 
         List<MyfinResponseDto.Item> items = favorites.stream()
                 .map(myFin -> toItemDto(myFin, request, keywords))
@@ -263,9 +263,5 @@ public class MyFinService {
             }
         }
         return "AVAILABLE";
-    }
-
-    private ResolvedKeywords emptyKeywords() {
-        return new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of());
     }
 }
