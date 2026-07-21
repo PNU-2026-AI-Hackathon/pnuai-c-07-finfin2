@@ -17,8 +17,6 @@ import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.List;
 import java.util.Optional;
 
@@ -816,9 +814,7 @@ class FssLlmProductDraftEnricherTest {
         promptMethod.setAccessible(true);
         String prompt = (String) promptMethod.invoke(enricher, raw, draft);
 
-        var sha256Method = FssLlmProductDraftEnricher.class.getDeclaredMethod("sha256", String.class);
-        sha256Method.setAccessible(true);
-        String requestHash = (String) sha256Method.invoke(enricher, prompt);
+        String requestHash = apptive.fin.apicollector.util.Sha256.hex(prompt);
 
         LlmProductEnrichment enrichment = new LlmProductEnrichment(
                 "요약",

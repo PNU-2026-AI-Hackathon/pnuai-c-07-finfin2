@@ -11,7 +11,7 @@ import apptive.fin.apicollector.product.ExtractionConfidence;
 import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.product.RequiredKeywordEffect;
 import apptive.fin.apicollector.raw.ProductRaw;
-import lombok.RequiredArgsConstructor;
+import apptive.fin.apicollector.util.JsonNodes;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -29,11 +29,15 @@ import java.util.Set;
  * 값을 그대로 사용한다(수동 데이터는 이미 정규화된 형태이므로 LLM/추출기 미사용).
  */
 @Component
-@RequiredArgsConstructor
 public class ManualProductNormalizer extends AbstractProductNormalizer implements ProductNormalizer {
 
-    private final ObjectMapper objectMapper;
     private final CollectorProperties properties;
+    private final RawJsonReader rawJsonReader;
+
+    public ManualProductNormalizer(ObjectMapper objectMapper, CollectorProperties properties) {
+        this.properties = properties;
+        this.rawJsonReader = new RawJsonReader(objectMapper, "Manual product");
+    }
 
     @Override
     public Source source() {
@@ -42,7 +46,7 @@ public class ManualProductNormalizer extends AbstractProductNormalizer implement
 
     @Override
     public ProductDraft normalize(ProductRaw rawProduct) {
-        JsonNode raw = read(rawProduct);
+        JsonNode raw = rawJsonReader.read(rawProduct);
 
         // ONTONG 소스에는 과거 온통청년 API 응답 형식의 product_raw가 남아 있을 수 있다.
         // 해당 형식만 제외 처리하여 normalizer 버전 변경 시
@@ -78,13 +82,13 @@ public class ManualProductNormalizer extends AbstractProductNormalizer implement
                 .sourceCode(Source.ONTONG.name())
                 .type(rawProduct.getType())
                 .productCode(rawProduct.getExternalId())
-                .productName(required(text(raw, "productName"), "productName", rawProduct))
-                .content(text(raw, "content"))
-                .contentSummary(text(raw, "contentSummary"))
-                .joinMethod(text(raw, "joinMethod"))
-                .eligibilityText(text(raw, "eligibilityText"))
-                .cautionText(text(raw, "cautionText"))
-                .recruitmentPeriod(text(raw, "recruitmentPeriod"))
+                .productName(rawJsonReader.required(JsonNodes.text(raw, "productName"), "productName", rawProduct))
+                .content(JsonNodes.text(raw, "content"))
+                .contentSummary(JsonNodes.text(raw, "contentSummary"))
+                .joinMethod(JsonNodes.text(raw, "joinMethod"))
+                .eligibilityText(JsonNodes.text(raw, "eligibilityText"))
+                .cautionText(JsonNodes.text(raw, "cautionText"))
+                .recruitmentPeriod(JsonNodes.text(raw, "recruitmentPeriod"))
                 .properties(propertyDrafts)
                 .build();
     }
@@ -107,36 +111,36 @@ public class ManualProductNormalizer extends AbstractProductNormalizer implement
 
     private ProductPropertyDraft toPropertyDraft(JsonNode node, ProductRaw rawProduct) {
         return ProductPropertyDraft.builder()
-                .variantCode(text(node, "variantCode"))
-                .providerCode(required(text(node, "providerCode"), "providerCode", rawProduct))
-                .providerName(required(text(node, "providerName"), "providerName", rawProduct))
-                .applyUrl(text(node, "applyUrl"))
-                .providerApplyUrl(text(node, "providerApplyUrl"))
-                .saveTerm(integer(node, "saveTerm"))
-                .govContributionRate(decimal(node, "govContributionRate"))
+                .variantCode(JsonNodes.text(node, "variantCode"))
+                .providerCode(rawJsonReader.required(JsonNodes.text(node, "providerCode"), "providerCode", rawProduct))
+                .providerName(rawJsonReader.required(JsonNodes.text(node, "providerName"), "providerName", rawProduct))
+                .applyUrl(JsonNodes.text(node, "applyUrl"))
+                .providerApplyUrl(JsonNodes.text(node, "providerApplyUrl"))
+                .saveTerm(JsonNodes.integer(node, "saveTerm"))
+                .govContributionRate(JsonNodes.decimal(node, "govContributionRate"))
                 .govContributionType(contributionType(node))
-                .govMatchingRatio(decimal(node, "govMatchingRatio"))
-                .govMonthlyFixedContribution(longValue(node, "govMonthlyFixedContribution"))
-                .govContributionPeriodMonths(integer(node, "govContributionPeriodMonths"))
-                .excludeFromRateComparison(bool(node, "excludeFromRateComparison"))
-                .minMonthlyLimit(longValue(node, "minMonthlyLimit"))
-                .maxMonthlyLimit(longValue(node, "maxMonthlyLimit"))
-                .minAge(integer(node, "minAge"))
-                .maxAge(integer(node, "maxAge"))
-                .allowsMilitaryAgeExtension(bool(node, "allowsMilitaryAgeExtension"))
-                .militaryMaxAge(integer(node, "militaryMaxAge"))
-                .earnMaxAmt(longValue(node, "earnMaxAmt"))
-                .earnPercent(integer(node, "earnPercent"))
-                .minTenureMonths(integer(node, "minTenureMonths"))
-                .requiresHomeless(bool(node, "requiresHomeless"))
-                .requiresHouseholder(bool(node, "requiresHouseholder"))
+                .govMatchingRatio(JsonNodes.decimal(node, "govMatchingRatio"))
+                .govMonthlyFixedContribution(JsonNodes.longValueOrNullIfZero(node, "govMonthlyFixedContribution"))
+                .govContributionPeriodMonths(JsonNodes.integer(node, "govContributionPeriodMonths"))
+                .excludeFromRateComparison(JsonNodes.bool(node, "excludeFromRateComparison"))
+                .minMonthlyLimit(JsonNodes.longValueOrNullIfZero(node, "minMonthlyLimit"))
+                .maxMonthlyLimit(JsonNodes.longValueOrNullIfZero(node, "maxMonthlyLimit"))
+                .minAge(JsonNodes.integer(node, "minAge"))
+                .maxAge(JsonNodes.integer(node, "maxAge"))
+                .allowsMilitaryAgeExtension(JsonNodes.bool(node, "allowsMilitaryAgeExtension"))
+                .militaryMaxAge(JsonNodes.integer(node, "militaryMaxAge"))
+                .earnMaxAmt(JsonNodes.longValueOrNullIfZero(node, "earnMaxAmt"))
+                .earnPercent(JsonNodes.integer(node, "earnPercent"))
+                .minTenureMonths(JsonNodes.integer(node, "minTenureMonths"))
+                .requiresHomeless(JsonNodes.bool(node, "requiresHomeless"))
+                .requiresHouseholder(JsonNodes.bool(node, "requiresHouseholder"))
                 .keywords(keywords(node))
                 .requiredKeywords(requiredKeywords(node, rawProduct))
                 .build();
     }
 
     private ContributionType contributionType(JsonNode node) {
-        String value = text(node, "govContributionType");
+        String value = JsonNodes.text(node, "govContributionType");
         return value == null ? null : ContributionType.valueOf(value);
     }
 
@@ -164,9 +168,9 @@ public class ManualProductNormalizer extends AbstractProductNormalizer implement
 
         List<RequiredKeywordDraft> requiredKeywords = new ArrayList<>();
         for (JsonNode item : requiredKeywordsNode) {
-            String keywordValue = required(text(item, "keywordCode"), "requiredKeywords[].keywordCode", rawProduct);
-            String effectValue = required(text(item, "effect"), "requiredKeywords[].effect", rawProduct);
-            String confidenceValue = required(text(item, "confidence"), "requiredKeywords[].confidence", rawProduct);
+            String keywordValue = rawJsonReader.required(JsonNodes.text(item, "keywordCode"), "requiredKeywords[].keywordCode", rawProduct);
+            String effectValue = rawJsonReader.required(JsonNodes.text(item, "effect"), "requiredKeywords[].effect", rawProduct);
+            String confidenceValue = rawJsonReader.required(JsonNodes.text(item, "confidence"), "requiredKeywords[].confidence", rawProduct);
 
             KeywordValueEnum keywordCode;
             RequiredKeywordEffect effect;
@@ -198,27 +202,6 @@ public class ManualProductNormalizer extends AbstractProductNormalizer implement
                     .build());
         }
         return requiredKeywords;
-    }
-
-    private boolean bool(JsonNode node, String fieldName) {
-        String value = text(node, fieldName);
-        return value != null && Boolean.parseBoolean(value);
-    }
-
-    private JsonNode read(ProductRaw rawProduct) {
-        try {
-            return objectMapper.readTree(rawProduct.getRawJson());
-        }
-        catch (Exception e) {
-            throw new IllegalArgumentException("Failed to parse manual product raw JSON. rawId=" + rawProduct.getId(), e);
-        }
-    }
-
-    private String required(String value, String fieldName, ProductRaw rawProduct) {
-        if (value == null) {
-            throw new IllegalArgumentException("Manual product " + fieldName + " is required. rawId=" + rawProduct.getId());
-        }
-        return value;
     }
 
     private record ManualPropertyKey(

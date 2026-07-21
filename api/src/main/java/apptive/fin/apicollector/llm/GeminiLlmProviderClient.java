@@ -7,6 +7,7 @@ import apptive.fin.apicollector.product.ContributionType;
 import apptive.fin.apicollector.product.ExtractionConfidence;
 import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.product.RequiredKeywordEffect;
+import apptive.fin.apicollector.util.JsonNodes;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
@@ -296,18 +297,18 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         return new LlmProductEnrichment(
                 text(enrichmentNode, "summaryContent"),
                 enrichmentKeywords(enrichmentNode.path("keywords")),
-                longValue(enrichmentNode, "minMonthlyLimit"),
-                longValue(enrichmentNode, "maxMonthlyLimit"),
+                JsonNodes.longValue(enrichmentNode, "minMonthlyLimit"),
+                JsonNodes.longValue(enrichmentNode, "maxMonthlyLimit"),
                 integer(enrichmentNode, "minAge"),
                 integer(enrichmentNode, "maxAge"),
-                longValue(enrichmentNode, "earnMaxAmt"),
+                JsonNodes.longValue(enrichmentNode, "earnMaxAmt"),
                 integer(enrichmentNode, "earnPercent"),
                 bool(enrichmentNode, "requiresHomeless"),
                 bool(enrichmentNode, "requiresHouseholder"),
                 decimal(enrichmentNode, "govContributionRate"),
                 contributionType(enrichmentNode, "govContributionType"),
                 decimal(enrichmentNode, "govMatchingRatio"),
-                longValue(enrichmentNode, "govMonthlyFixedContribution"),
+                JsonNodes.longValue(enrichmentNode, "govMonthlyFixedContribution"),
                 integer(enrichmentNode, "govContributionPeriodMonths"),
                 bool(enrichmentNode, "excludeFromRateComparison"),
                 bool(enrichmentNode, "allowsMilitaryAgeExtension"),
@@ -531,56 +532,6 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         return keyword != null && keyword.name().startsWith("BANK_");
     }
 
-    private boolean matchesPreferentialRateKeyword(
-            KeywordValueEnum keyword,
-            String description,
-            Integer minAge,
-            Integer maxAge
-    ) {
-        return switch (keyword) {
-            case BANK_SALARY_TRANSFER -> containsAny(description, "급여", "월급", "salary");
-            case BANK_CARD_USAGE -> containsAny(description, "카드", "체크카드", "신용카드", "결제실적", "전월결제", "card", "payment");
-            case BANK_AUTO_TRANSFER -> containsAny(description, "자동이체", "자동 이체");
-            case BANK_MARKETING -> containsAny(description, "마케팅", "상품서비스", "개인정보", "개인(신용)정보", "수집이용", "동의");
-            case BANK_FIRST_TRANSACTION -> containsAny(description, "첫거래", "최초거래", "신규고객", "신규 고객", "첫 예금거래", "입출금통장 최초");
-            case BANK_REDEPOSIT -> containsAny(description, "재예치", "재가입") && !hasAmountOrBalanceCondition(description);
-            case BANK_ONLINE_JOIN -> containsAny(description, "인터넷 가입", "스마트뱅킹 가입", "비대면 가입", "모바일 가입", "온라인 가입", "online join", "mobile join");
-            case BANK_AGE -> minAge != null || maxAge != null || containsAny(description, "나이", "연령");
-            // 기타: 고유 토큰은 없지만, 기존 8개 키워드에 명백히 해당하면(LLM 오분류) 기타로 인정하지 않는다.
-            case BANK_ETC -> !looksLikeModeledCondition(description, minAge, maxAge);
-            default -> false;
-        };
-    }
-
-    // description이 기존 8개 BANK_* 키워드 중 하나에 명확히 매칭되는지(= BANK_ETC로 두면 안 되는지) 판정
-    private boolean looksLikeModeledCondition(String description, Integer minAge, Integer maxAge) {
-        for (KeywordValueEnum keyword : KeywordValueEnum.values()) {
-            if (keyword != KeywordValueEnum.BANK_ETC
-                    && isPreferentialRateKeyword(keyword)
-                    && matchesPreferentialRateKeyword(keyword, description, minAge, maxAge)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean containsAny(String value, String... tokens) {
-        if (value == null || value.isBlank()) {
-            return false;
-        }
-        String normalized = value.toLowerCase();
-        for (String token : tokens) {
-            if (normalized.contains(token.toLowerCase())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean hasAmountOrBalanceCondition(String value) {
-        return containsAny(value, "금액", "잔액", "평잔", "평균잔액", "요구불", "만원", "백만원", "억원");
-    }
-
     private KeywordValueEnum keyword(JsonNode node, String fieldName) {
         return enumValue(KeywordValueEnum.class, text(node, fieldName));
     }
@@ -602,56 +553,18 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
     }
 
     private String text(JsonNode node, String fieldName) {
-        JsonNode value = node.path(fieldName);
-        if (value == null || value.isMissingNode() || value.isNull()) {
-            return null;
-        }
-
-        String text = value.asString(null);
-        return text == null || text.isBlank() ? null : text.trim();
+        return JsonNodes.text(node, fieldName);
     }
 
     private Integer integer(JsonNode node, String fieldName) {
-        String value = text(node, fieldName);
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Integer.parseInt(value.replace(",", ""));
-        }
-        catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    private Long longValue(JsonNode node, String fieldName) {
-        String value = text(node, fieldName);
-        if (value == null) {
-            return null;
-        }
-        try {
-            return Long.parseLong(value.replace(",", ""));
-        }
-        catch (NumberFormatException e) {
-            return null;
-        }
+        return JsonNodes.integer(node, fieldName);
     }
 
     private BigDecimal decimal(JsonNode node, String fieldName) {
-        String value = text(node, fieldName);
-        if (value == null) {
-            return null;
-        }
-        try {
-            return new BigDecimal(value.replace(",", ""));
-        }
-        catch (NumberFormatException e) {
-            return null;
-        }
+        return JsonNodes.decimal(node, fieldName);
     }
 
     private Boolean bool(JsonNode node, String fieldName) {
-        String value = text(node, fieldName);
-        return value != null && Boolean.parseBoolean(value);
+        return JsonNodes.bool(node, fieldName);
     }
 }

@@ -4,9 +4,9 @@ import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
 import apptive.fin.apicollector.normalize.extractor.KeywordExtractor;
 import apptive.fin.apicollector.product.KeywordValueEnum;
+import apptive.fin.apicollector.util.JsonNodes;
 import tools.jackson.databind.JsonNode;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -35,19 +35,9 @@ public abstract class AbstractProductNormalizer {
                 .build();
     }
 
-    protected String text(JsonNode node, String fieldName) {
-        JsonNode value = node.path(fieldName);
-        if (value == null || value.isMissingNode() || value.isNull()) {
-            return null;
-        }
-
-        String text = value.asString(null);
-        return blankToNull(text);
-    }
-
     protected String firstText(JsonNode node, String... fieldNames) {
         for (String fieldName : fieldNames) {
-            String value = text(node, fieldName);
+            String value = JsonNodes.text(node, fieldName);
             if (value != null) {
                 return value;
             }
@@ -55,67 +45,15 @@ public abstract class AbstractProductNormalizer {
         return null;
     }
 
-    protected Integer integer(JsonNode node, String fieldName) {
-        String value = text(node, fieldName);
-        if (value == null) {
-            return null;
-        }
-
-        try {
-            return Integer.parseInt(value.replace(",", "").trim());
-        }
-        catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    protected Long longValue(JsonNode node, String fieldName) {
-        String value = text(node, fieldName);
-        if (value == null) {
-            return null;
-        }
-
-        try {
-            long parsed = Long.parseLong(value.replace(",", "").trim());
-            return parsed == 0L ? null : parsed;
-        }
-        catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    protected BigDecimal decimal(JsonNode node, String fieldName) {
-        String value = text(node, fieldName);
-        if (value == null) {
-            return null;
-        }
-
-        try {
-            return new BigDecimal(value.replace(",", "").trim());
-        }
-        catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
     protected String joinContent(JsonNode node, String... fieldNames) {
         List<String> parts = new ArrayList<>();
         for (String fieldName : fieldNames) {
-            String value = text(node, fieldName);
+            String value = JsonNodes.text(node, fieldName);
             if (value != null) {
                 parts.add(value);
             }
         }
         return parts.isEmpty() ? null : String.join("\n\n", parts);
-    }
-
-    protected String blankToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 
     protected String collapseWhitespace(String value) {

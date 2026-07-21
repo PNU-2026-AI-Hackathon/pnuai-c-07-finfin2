@@ -2,6 +2,7 @@ package apptive.fin.apicollector.normalize.classifier;
 
 import apptive.fin.apicollector.normalize.ProductClassification;
 import apptive.fin.apicollector.normalize.normalizer.AbstractProductNormalizer;
+import apptive.fin.apicollector.util.JsonNodes;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import tools.jackson.databind.JsonNode;
@@ -231,14 +232,14 @@ public class OntongYouthPolicyClassifier extends AbstractProductNormalizer {
     }
 
     private boolean isFinanceCandidate(JsonNode policy) {
-        String category = text(policy, "mclsfNm");
+        String category = JsonNodes.text(policy, "mclsfNm");
 
         return FINANCE_CATEGORY.equals(category)
                 || hasStrongFinancialProductSignal(policy);
     }
 
     private boolean hasStrongFinancialProductSignal(JsonNode policy) {
-        String title = defaultString(text(policy, "plcyNm"));
+        String title = defaultString(JsonNodes.text(policy, "plcyNm"));
         String value = classifierText(policy);
 
         if (containsAny(title, STRONG_PRODUCT_TITLE_TERMS)) {
@@ -249,9 +250,9 @@ public class OntongYouthPolicyClassifier extends AbstractProductNormalizer {
     }
 
     private boolean isLoanOrDebtProduct(JsonNode policy) {
-        String title = defaultString(text(policy, "plcyNm"));
-        String keywords = defaultString(text(policy, "plcyKywdNm"));
-        String methodCode = defaultString(text(policy, "plcyPvsnMthdCd"));
+        String title = defaultString(JsonNodes.text(policy, "plcyNm"));
+        String keywords = defaultString(JsonNodes.text(policy, "plcyKywdNm"));
+        String methodCode = defaultString(JsonNodes.text(policy, "plcyPvsnMthdCd"));
         String value = classifierText(policy);
 
         String titleAndKeywords = title + " " + keywords;
@@ -323,15 +324,15 @@ public class OntongYouthPolicyClassifier extends AbstractProductNormalizer {
 
     private String classifierText(JsonNode policy) {
         return String.join(" ",
-                        defaultString(text(policy, "plcyNm")),
-                        defaultString(text(policy, "plcyKywdNm")),
-                        defaultString(text(policy, "plcyExplnCn")),
-                        defaultString(text(policy, "lclsfNm")),
-                        defaultString(text(policy, "mclsfNm")),
-                        defaultString(text(policy, "plcySprtCn")),
-                        defaultString(text(policy, "earnEtcCn")),
-                        defaultString(text(policy, "addAplyQlfcCndCn")),
-                        defaultString(text(policy, "ptcpPrpTrgtCn"))
+                        defaultString(JsonNodes.text(policy, "plcyNm")),
+                        defaultString(JsonNodes.text(policy, "plcyKywdNm")),
+                        defaultString(JsonNodes.text(policy, "plcyExplnCn")),
+                        defaultString(JsonNodes.text(policy, "lclsfNm")),
+                        defaultString(JsonNodes.text(policy, "mclsfNm")),
+                        defaultString(JsonNodes.text(policy, "plcySprtCn")),
+                        defaultString(JsonNodes.text(policy, "earnEtcCn")),
+                        defaultString(JsonNodes.text(policy, "addAplyQlfcCndCn")),
+                        defaultString(JsonNodes.text(policy, "ptcpPrpTrgtCn"))
                 )
                 .replaceAll("\\s+", " ")
                 .trim();

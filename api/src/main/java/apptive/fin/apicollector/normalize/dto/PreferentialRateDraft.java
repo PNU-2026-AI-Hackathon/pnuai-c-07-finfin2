@@ -1,6 +1,7 @@
 package apptive.fin.apicollector.normalize.dto;
 
 import apptive.fin.apicollector.product.KeywordValueEnum;
+import apptive.fin.apicollector.util.TextMatch;
 import lombok.Builder;
 
 import java.math.BigDecimal;
@@ -26,21 +27,27 @@ public record PreferentialRateDraft(
             case BANK_AGE -> minAge != null
                     || maxAge != null
                     || containsAny(description, "나이", "연령");
+            // 기타: 나머지 BANK_* 키워드 어디에도 해당하지 않는 우대조건. 단, 특정 키워드에
+            // 명백히 해당하면(LLM 오분류) ETC로 인정하지 않는다.
+            case BANK_ETC -> !looksLikeModeledCondition();
             default -> false;
         };
     }
 
-    private static boolean containsAny(String value, String... tokens) {
-        if (value == null || value.isBlank()) {
-            return false;
-        }
-        String normalized = value.toLowerCase();
-        for (String token : tokens) {
-            if (normalized.contains(token.toLowerCase())) {
+    // description이 기존 BANK_* 키워드(기타 제외) 중 하나에 명확히 매칭되는지 판정
+    private boolean looksLikeModeledCondition() {
+        for (KeywordValueEnum keyword : KeywordValueEnum.values()) {
+            if (keyword != KeywordValueEnum.BANK_ETC
+                    && keyword.name().startsWith("BANK_")
+                    && toBuilder().keywordCode(keyword).build().matchesKeywordCondition()) {
                 return true;
             }
         }
         return false;
+    }
+
+    private static boolean containsAny(String value, String... tokens) {
+        return TextMatch.containsAny(value, tokens);
     }
 
     private static boolean hasAmountOrBalanceCondition(String value) {

@@ -12,6 +12,9 @@ import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.product.ProductType;
 import apptive.fin.apicollector.product.RequiredKeywordEffect;
 import apptive.fin.apicollector.raw.ProductRaw;
+import apptive.fin.apicollector.util.JsonNodes;
+import apptive.fin.apicollector.util.Sha256;
+import apptive.fin.apicollector.util.TextMatch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.ExitStatus;
@@ -22,8 +25,6 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -87,7 +88,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
 
         LlmProviderClient providerClient = providerClient();
         String prompt = prompt(rawProduct, draft);
-        String requestHash = sha256(prompt);
+        String requestHash = Sha256.hex(prompt);
         LlmEnrichmentCache cache = cache(rawProduct, requestHash);
 
         if (cache.getStatus() == LlmEnrichmentCacheStatus.SUCCESS
@@ -315,53 +316,8 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
         return keyword != null && keyword.name().startsWith("BANK_");
     }
 
-    private boolean matchesPreferentialRateKeyword(PreferentialRateDraft preferentialRate) {
-        KeywordValueEnum keyword = preferentialRate.keywordCode();
-        String description = preferentialRate.description();
-        return switch (keyword) {
-            case BANK_SALARY_TRANSFER -> containsAny(description, "급여", "월급", "salary");
-            case BANK_CARD_USAGE -> containsAny(description, "카드", "체크카드", "신용카드", "결제실적", "전월결제", "card", "payment");
-            case BANK_AUTO_TRANSFER -> containsAny(description, "자동이체", "자동 이체");
-            case BANK_MARKETING -> containsAny(description, "마케팅", "상품서비스", "개인정보", "개인(신용)정보", "수집이용", "동의");
-            case BANK_FIRST_TRANSACTION -> containsAny(description, "첫거래", "최초거래", "신규고객", "신규 고객", "첫 예금거래", "입출금통장 최초");
-            case BANK_REDEPOSIT -> containsAny(description, "재예치", "재가입") && !hasAmountOrBalanceCondition(description);
-            case BANK_ONLINE_JOIN -> containsAny(description, "인터넷 가입", "스마트뱅킹 가입", "비대면 가입", "모바일 가입", "온라인 가입", "online join", "mobile join");
-            case BANK_AGE -> preferentialRate.minAge() != null
-                    || preferentialRate.maxAge() != null
-                    || containsAny(description, "나이", "연령");
-            // 기타: 고유 토큰은 없지만, 기존 8개 키워드에 명백히 해당하면(LLM 오분류) 기타로 인정하지 않는다.
-            case BANK_ETC -> !looksLikeModeledCondition(preferentialRate);
-            default -> false;
-        };
-    }
-
-    // description이 기존 8개 BANK_* 키워드 중 하나에 명확히 매칭되는지(= BANK_ETC로 두면 안 되는지) 판정
-    private boolean looksLikeModeledCondition(PreferentialRateDraft preferentialRate) {
-        for (KeywordValueEnum keyword : KeywordValueEnum.values()) {
-            if (keyword != KeywordValueEnum.BANK_ETC
-                    && isPreferentialRateKeyword(keyword)
-                    && matchesPreferentialRateKeyword(preferentialRate.toBuilder().keywordCode(keyword).build())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private boolean containsAny(String value, String... tokens) {
-        if (value == null || value.isBlank()) {
-            return false;
-        }
-        String normalized = value.toLowerCase();
-        for (String token : tokens) {
-            if (normalized.contains(token.toLowerCase())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private boolean hasAmountOrBalanceCondition(String value) {
-        return containsAny(value, "금액", "잔액", "평잔", "평균잔액", "요구불", "만원", "백만원", "억원");
+        return TextMatch.containsAny(value, tokens);
     }
 
     private void validateAmount(Long value, String fieldName) {
@@ -589,11 +545,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
     }
 
     private String text(JsonNode node, String fieldName) {
-        JsonNode value = node.path(fieldName);
-        if (value == null || value.isMissingNode() || value.isNull()) {
-            return null;
-        }
-        return blankToNull(value.asString(null));
+        return JsonNodes.text(node, fieldName);
     }
 
     private void addIfNotBlank(List<String> values, String value) {
@@ -653,27 +605,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
     }
 
     private String blankToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
-
-    private String sha256(String value) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
-
-            StringBuilder hex = new StringBuilder();
-            for (byte b : hash) {
-                hex.append(String.format("%02x", b));
-            }
-            return hex.toString();
-        }
-        catch (Exception e) {
-            throw new IllegalStateException("Failed to calculate request hash", e);
-        }
+        return JsonNodes.blankToNull(value);
     }
 
     private String truncate(String value) {

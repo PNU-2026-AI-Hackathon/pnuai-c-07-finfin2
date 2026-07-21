@@ -9,7 +9,7 @@ import apptive.fin.apicollector.normalize.extractor.FssPreferentialRateExtractor
 import apptive.fin.apicollector.normalize.extractor.FssRequiredKeywordExtractor;
 import apptive.fin.apicollector.normalize.extractor.KeywordExtractor;
 import apptive.fin.apicollector.raw.ProductRaw;
-import lombok.RequiredArgsConstructor;
+import apptive.fin.apicollector.util.JsonNodes;
 import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -18,16 +18,33 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Component
-@RequiredArgsConstructor
 public class FssProductNormalizer extends AbstractProductNormalizer implements ProductNormalizer {
 
-    private final ObjectMapper objectMapper;
     private final CollectorProperties properties;
     private final KeywordExtractor keywordExtractor;
     private final FssPreferentialRateExtractor preferentialRateExtractor;
     private final FssRequiredKeywordExtractor requiredKeywordExtractor;
     private final FssBankNameNormalizer bankNameNormalizer;
     private final FssBankUrlNormalizer bankUrlNormalizer;
+    private final RawJsonReader rawJsonReader;
+
+    public FssProductNormalizer(
+            ObjectMapper objectMapper,
+            CollectorProperties properties,
+            KeywordExtractor keywordExtractor,
+            FssPreferentialRateExtractor preferentialRateExtractor,
+            FssRequiredKeywordExtractor requiredKeywordExtractor,
+            FssBankNameNormalizer bankNameNormalizer,
+            FssBankUrlNormalizer bankUrlNormalizer
+    ) {
+        this.properties = properties;
+        this.keywordExtractor = keywordExtractor;
+        this.preferentialRateExtractor = preferentialRateExtractor;
+        this.requiredKeywordExtractor = requiredKeywordExtractor;
+        this.bankNameNormalizer = bankNameNormalizer;
+        this.bankUrlNormalizer = bankUrlNormalizer;
+        this.rawJsonReader = new RawJsonReader(objectMapper, "FSS");
+    }
 
     @Override
     public Source source() {
@@ -36,12 +53,12 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
 
     @Override
     public ProductDraft normalize(ProductRaw rawProduct) {
-        JsonNode raw = read(rawProduct);
+        JsonNode raw = rawJsonReader.read(rawProduct);
         JsonNode base = raw.path("base");
         String content = joinContent(base, "join_way", "mtrt_int", "spcl_cnd", "join_member", "etc_note");
-        String joinMethod = text(base, "join_way");
-        String eligibilityText = text(base, "join_member");
-        String cautionText = text(base, "etc_note");
+        String joinMethod = JsonNodes.text(base, "join_way");
+        String eligibilityText = JsonNodes.text(base, "join_member");
+        String cautionText = JsonNodes.text(base, "etc_note");
         String productName = collapseWhitespace(firstText(base, "fin_prdt_nm"));
         List<ProductPropertyDraft> propertyDrafts = properties(raw, base, productName, content);
 
@@ -54,7 +71,7 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                     .sourceCode(Source.FSS.name())
                     .type(rawProduct.getType())
                     .productCode(rawProduct.getExternalId())
-                    .productName(required(productName, rawProduct))
+                    .productName(rawJsonReader.required(productName, "productName", rawProduct))
                     .content(content)
                     .joinMethod(joinMethod)
                     .eligibilityText(eligibilityText)
@@ -65,15 +82,6 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
         return extractKeywords(keywordExtractor, draft);
     }
 
-    private JsonNode read(ProductRaw rawProduct) {
-        try {
-            return objectMapper.readTree(rawProduct.getRawJson());
-        }
-        catch (Exception e) {
-            throw new IllegalArgumentException("Failed to parse FSS raw JSON. rawId=" + rawProduct.getId(), e);
-        }
-    }
-
     private List<ProductPropertyDraft> properties(
             JsonNode raw,
             JsonNode base,
@@ -81,17 +89,17 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
             String content
     ) {
         List<apptive.fin.apicollector.product.KeywordValueEnum> keywords = keywordsFromText(
-                text(raw, "productType"),
-                text(raw, "financialGroupName"),
+                JsonNodes.text(raw, "productType"),
+                JsonNodes.text(raw, "financialGroupName"),
                 productName,
                 content
         );
         String providerCode = firstText(base, "fin_co_no", "kor_co_nm");
         String providerName = collapseWhitespace(bankNameNormalizer.normalize(providerCode, firstText(base, "kor_co_nm", "fin_co_no")));
         String providerApplyUrl = bankUrlNormalizer.normalize(providerCode).orElse(null);
-        Long maxMonthlyLimit = longValue(base, "max_limit");
-        var preferentialRates = preferentialRateExtractor.extract(text(base, "spcl_cnd"));
-        var requiredKeywords = requiredKeywordExtractor.extract(text(base, "join_member"), text(base, "etc_note"));
+        Long maxMonthlyLimit = JsonNodes.longValueOrNullIfZero(base, "max_limit");
+        var preferentialRates = preferentialRateExtractor.extract(JsonNodes.text(base, "spcl_cnd"));
+        var requiredKeywords = requiredKeywordExtractor.extract(JsonNodes.text(base, "join_member"), JsonNodes.text(base, "etc_note"));
         JsonNode optionsNode = raw.path("options");
         if (optionsNode == null || !optionsNode.isArray() || optionsNode.isEmpty()) {
             return List.of(ProductPropertyDraft.builder()
@@ -116,11 +124,11 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                     .intrRateType(firstText(option, "intr_rate_type"))
                     .intrRateTypeName(firstText(option, "intr_rate_type_nm"))
                     .reserveType(firstText(option, "rsrv_type"))
-                    .saveTerm(integer(option, "save_trm"))
-                    .baseRate(decimal(option, "intr_rate"))
-                    .maxRate(decimal(option, "intr_rate2"))
+                    .saveTerm(JsonNodes.integer(option, "save_trm"))
+                    .baseRate(JsonNodes.decimal(option, "intr_rate"))
+                    .maxRate(JsonNodes.decimal(option, "intr_rate2"))
                     .maxMonthlyLimit(maxMonthlyLimit)
-//                    .minTenureMonths(integer(option, "save_trm"))
+//                    .minTenureMonths(JsonNodes.integer(option, "save_trm"))
                     .requiresHomeless(false)
                     .requiresHouseholder(false)
                     .keywords(keywords)
@@ -129,12 +137,5 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                     .build());
         }
         return properties;
-    }
-
-    private String required(String productName, ProductRaw rawProduct) {
-        if (productName == null) {
-            throw new IllegalArgumentException("FSS productName is required. rawId=" + rawProduct.getId());
-        }
-        return productName;
     }
 }
