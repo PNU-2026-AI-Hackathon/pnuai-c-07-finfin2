@@ -27,7 +27,8 @@ public class InterestKeywordRecognizer implements KeywordRecognizer {
             // type이 없거나(POLICY/SUBSCRIPTION 등) 예적금 여부를 알 수 없을 때만 상품명 텍스트로 판별한다.
             addIfContains(keywords, title, KeywordValueEnum.INTEREST_SAVINGS, "적금", "예금", "저축");
         }
-        addIfContains(keywords, title, KeywordValueEnum.INTEREST_LOAN, "대출");
+        // MVP상 대출상품 없으므로 미부착
+        // addIfContains(keywords, title, KeywordValueEnum.INTEREST_LOAN, "대출");
 
         return keywords.stream().toList();
     }
