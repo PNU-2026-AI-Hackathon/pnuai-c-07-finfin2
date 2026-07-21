@@ -305,7 +305,14 @@
         "minAge": 18,
         "maxAge": 45,
         "earnPercent": 150,
-        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GANGWON", "STATUS_SME_WORKER"]
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GANGWON", "STATUS_SME_WORKER"],
+        "requiredKeywords": [
+          {
+            "keywordCode": "STATUS_SME_WORKER",
+            "effect": "REQUIRE",
+            "confidence": "HIGH"
+          }
+        ]
       }
     ]
   },

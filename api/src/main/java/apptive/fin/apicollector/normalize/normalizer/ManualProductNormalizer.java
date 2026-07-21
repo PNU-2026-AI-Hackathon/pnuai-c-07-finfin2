@@ -5,8 +5,11 @@ import apptive.fin.apicollector.config.CollectorProperties;
 import apptive.fin.apicollector.normalize.ProductClassification;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
+import apptive.fin.apicollector.normalize.dto.RequiredKeywordDraft;
 import apptive.fin.apicollector.product.ContributionType;
+import apptive.fin.apicollector.product.ExtractionConfidence;
 import apptive.fin.apicollector.product.KeywordValueEnum;
+import apptive.fin.apicollector.product.RequiredKeywordEffect;
 import apptive.fin.apicollector.raw.ProductRaw;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -128,6 +131,7 @@ public class ManualProductNormalizer extends AbstractProductNormalizer implement
                 .requiresHomeless(bool(node, "requiresHomeless"))
                 .requiresHouseholder(bool(node, "requiresHouseholder"))
                 .keywords(keywords(node))
+                .requiredKeywords(requiredKeywords(node, rawProduct))
                 .build();
     }
 
@@ -145,6 +149,55 @@ public class ManualProductNormalizer extends AbstractProductNormalizer implement
             }
         }
         return keywords;
+    }
+
+    private List<RequiredKeywordDraft> requiredKeywords(JsonNode node, ProductRaw rawProduct) {
+        JsonNode requiredKeywordsNode = node.path("requiredKeywords");
+        if (requiredKeywordsNode.isMissingNode() || requiredKeywordsNode.isNull()) {
+            return List.of();
+        }
+        if (!requiredKeywordsNode.isArray()) {
+            throw new IllegalArgumentException(
+                    "Manual product requiredKeywords must be an array. rawId=" + rawProduct.getId()
+            );
+        }
+
+        List<RequiredKeywordDraft> requiredKeywords = new ArrayList<>();
+        for (JsonNode item : requiredKeywordsNode) {
+            String keywordValue = required(text(item, "keywordCode"), "requiredKeywords[].keywordCode", rawProduct);
+            String effectValue = required(text(item, "effect"), "requiredKeywords[].effect", rawProduct);
+            String confidenceValue = required(text(item, "confidence"), "requiredKeywords[].confidence", rawProduct);
+
+            KeywordValueEnum keywordCode;
+            RequiredKeywordEffect effect;
+            ExtractionConfidence confidence;
+            try {
+                keywordCode = KeywordValueEnum.valueOf(keywordValue);
+                effect = RequiredKeywordEffect.valueOf(effectValue);
+                confidence = ExtractionConfidence.valueOf(confidenceValue);
+            }
+            catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(
+                        "Unsupported manual required keyword. rawId=%d, value=%s"
+                                .formatted(rawProduct.getId(), item),
+                        e
+                );
+            }
+
+            if (!keywordCode.name().startsWith("STATUS_")) {
+                throw new IllegalArgumentException(
+                        "Manual required keyword must use a STATUS_* code. rawId=%d, keywordCode=%s"
+                                .formatted(rawProduct.getId(), keywordCode)
+                );
+            }
+
+            requiredKeywords.add(RequiredKeywordDraft.builder()
+                    .keywordCode(keywordCode)
+                    .effect(effect)
+                    .confidence(confidence)
+                    .build());
+        }
+        return requiredKeywords;
     }
 
     private boolean bool(JsonNode node, String fieldName) {
