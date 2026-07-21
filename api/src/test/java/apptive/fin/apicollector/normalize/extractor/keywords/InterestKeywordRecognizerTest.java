@@ -45,11 +45,11 @@ class InterestKeywordRecognizerTest {
     }
 
     @Test
-    void addsInterestLoanFromProductNameRegardlessOfType() {
+    void doesNotAddInterestLoanFromProductNameRegardlessOfType() {
         ProductDraft draft = draft(ProductType.POLICY, "청년 전세자금 대출");
 
         assertThat(recognizer.recognize(draft, ProductPropertyDraft.builder().build()))
-                .contains(KeywordValueEnum.INTEREST_LOAN);
+                .doesNotContain(KeywordValueEnum.INTEREST_LOAN);
     }
 
     private ProductDraft draft(ProductType type, String productName) {
