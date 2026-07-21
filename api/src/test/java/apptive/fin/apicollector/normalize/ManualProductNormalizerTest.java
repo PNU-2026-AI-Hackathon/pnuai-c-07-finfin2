@@ -5,7 +5,10 @@ import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.config.CollectorProperties;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.normalizer.ManualProductNormalizer;
+import apptive.fin.apicollector.product.ExtractionConfidence;
+import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.product.ProductType;
+import apptive.fin.apicollector.product.RequiredKeywordEffect;
 import apptive.fin.apicollector.raw.ProductRaw;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.JsonNode;
@@ -89,7 +92,103 @@ class ManualProductNormalizerTest {
                 }
                 """, ProductType.SUBSCRIPTION);
 
-        assertThat(normalizer.normalize(raw).type()).isEqualTo(ProductType.SUBSCRIPTION);
+        ProductDraft draft = normalizer.normalize(raw);
+
+        assertThat(draft.type()).isEqualTo(ProductType.SUBSCRIPTION);
+        assertThat(draft.properties().getFirst().requiredKeywords()).isEmpty();
+    }
+
+    @Test
+    void parsesManualRequiredKeywords() {
+        ProductRaw raw = raw("""
+                {
+                  "productCode": "POLICY999",
+                  "productName": "신분 제한 상품",
+                  "properties": [
+                    {
+                      "providerCode": "TEST",
+                      "providerName": "테스트기관",
+                      "requiredKeywords": [
+                        {
+                          "keywordCode": "STATUS_SME_WORKER",
+                          "effect": "REQUIRE",
+                          "confidence": "HIGH"
+                        },
+                        {
+                          "keywordCode": "STATUS_UNEMPLOYED",
+                          "effect": "EXCLUDE",
+                          "confidence": "MEDIUM"
+                        }
+                      ]
+                    }
+                  ]
+                }
+                """, ProductType.POLICY);
+
+        var requiredKeywords = normalizer.normalize(raw).properties().getFirst().requiredKeywords();
+
+        assertThat(requiredKeywords)
+                .extracting(
+                        required -> required.keywordCode(),
+                        required -> required.effect(),
+                        required -> required.confidence()
+                )
+                .containsExactly(
+                        org.assertj.core.groups.Tuple.tuple(
+                                KeywordValueEnum.STATUS_SME_WORKER,
+                                RequiredKeywordEffect.REQUIRE,
+                                ExtractionConfidence.HIGH
+                        ),
+                        org.assertj.core.groups.Tuple.tuple(
+                                KeywordValueEnum.STATUS_UNEMPLOYED,
+                                RequiredKeywordEffect.EXCLUDE,
+                                ExtractionConfidence.MEDIUM
+                        )
+                );
+    }
+
+    @Test
+    void rejectsNonStatusManualRequiredKeyword() {
+        ProductRaw raw = rawWithRequiredKeyword("""
+                {
+                  "keywordCode": "BENEFIT_GOV_SUBSIDY",
+                  "effect": "REQUIRE",
+                  "confidence": "HIGH"
+                }
+                """);
+
+        assertThatThrownBy(() -> normalizer.normalize(raw))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must use a STATUS_* code");
+    }
+
+    @Test
+    void rejectsIncompleteManualRequiredKeyword() {
+        ProductRaw raw = rawWithRequiredKeyword("""
+                {
+                  "keywordCode": "STATUS_SME_WORKER",
+                  "effect": "REQUIRE"
+                }
+                """);
+
+        assertThatThrownBy(() -> normalizer.normalize(raw))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("requiredKeywords[].confidence is required");
+    }
+
+    @Test
+    void rejectsUnknownManualRequiredKeywordEnum() {
+        ProductRaw raw = rawWithRequiredKeyword("""
+                {
+                  "keywordCode": "STATUS_SME_WORKER",
+                  "effect": "UNKNOWN",
+                  "confidence": "HIGH"
+                }
+                """);
+
+        assertThatThrownBy(() -> normalizer.normalize(raw))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Unsupported manual required keyword");
     }
 
     @Test
@@ -126,12 +225,12 @@ class ManualProductNormalizerTest {
 
     @Test
     void normalizesPolicy002FromActualManualProductsResource() throws Exception {
-        JsonNodeHolder resource = loadPolicy002();
+        JsonNodeHolder resource = loadProduct("POLICY002");
         ProductDraft draft = normalizer.normalize(new ProductRaw(
                 Source.ONTONG,
                 "POLICY002",
                 "hash",
-                resource.objectMapper().writeValueAsString(resource.policy002()),
+                resource.objectMapper().writeValueAsString(resource.product()),
                 ProductType.POLICY
         ));
 
@@ -147,6 +246,26 @@ class ManualProductNormalizerTest {
                         org.assertj.core.groups.Tuple.tuple("GENERAL", new java.math.BigDecimal("2.0"), new java.math.BigDecimal("0.06")),
                         org.assertj.core.groups.Tuple.tuple("PREFERENTIAL", new java.math.BigDecimal("4.0"), new java.math.BigDecimal("0.12"))
                 );
+    }
+
+    @Test
+    void normalizesPolicy011RequiredKeywordFromActualManualProductsResource() throws Exception {
+        JsonNodeHolder resource = loadProduct("POLICY011");
+        ProductDraft draft = normalizer.normalize(new ProductRaw(
+                Source.ONTONG,
+                "POLICY011",
+                "hash",
+                resource.objectMapper().writeValueAsString(resource.product()),
+                ProductType.POLICY
+        ));
+
+        assertThat(draft.properties().getFirst().requiredKeywords())
+                .singleElement()
+                .satisfies(required -> {
+                    assertThat(required.keywordCode()).isEqualTo(KeywordValueEnum.STATUS_SME_WORKER);
+                    assertThat(required.effect()).isEqualTo(RequiredKeywordEffect.REQUIRE);
+                    assertThat(required.confidence()).isEqualTo(ExtractionConfidence.HIGH);
+                });
     }
 
     @Test
@@ -183,15 +302,31 @@ class ManualProductNormalizerTest {
         return new ProductRaw(Source.ONTONG, "POLICY002", "hash", json, type);
     }
 
-    private JsonNodeHolder loadPolicy002() throws Exception {
+    private ProductRaw rawWithRequiredKeyword(String requiredKeyword) {
+        return raw("""
+                {
+                  "productCode": "POLICY999",
+                  "productName": "신분 제한 상품",
+                  "properties": [
+                    {
+                      "providerCode": "TEST",
+                      "providerName": "테스트기관",
+                      "requiredKeywords": [%s]
+                    }
+                  ]
+                }
+                """.formatted(requiredKeyword), ProductType.POLICY);
+    }
+
+    private JsonNodeHolder loadProduct(String productCode) throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
         var products = loadProducts(objectMapper);
         for (var product : products) {
-            if ("POLICY002".equals(product.path("productCode").asString())) {
+            if (productCode.equals(product.path("productCode").asString())) {
                 return new JsonNodeHolder(objectMapper, product);
             }
         }
-        throw new AssertionError("POLICY002 not found in manual-products.json");
+        throw new AssertionError(productCode + " not found in manual-products.json");
     }
 
     private JsonNode loadProducts(ObjectMapper objectMapper) throws Exception {
@@ -215,6 +350,6 @@ class ManualProductNormalizerTest {
         );
     }
 
-    private record JsonNodeHolder(ObjectMapper objectMapper, tools.jackson.databind.JsonNode policy002) {
+    private record JsonNodeHolder(ObjectMapper objectMapper, tools.jackson.databind.JsonNode product) {
     }
 }
