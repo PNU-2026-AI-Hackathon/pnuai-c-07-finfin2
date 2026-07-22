@@ -25,11 +25,11 @@ import java.util.Set;
  * 수동 큐레이션 JSON({@code /manual-products.json})을 {@link ProductDraft}로 변환한다.
  * 온통청년 API 폐기에 따라 ONTONG 소스는 이 노멀라이저가 담당한다({@code source()==ONTONG}).
  *
- * <p>키워드는 {@code AbstractProductNormalizer#extractKeywords} 로 재추출하지 않고 JSON에 명시된
+ * <p>키워드는 {@code KeywordExtractor} 로 재추출하지 않고 JSON에 명시된
  * 값을 그대로 사용한다(수동 데이터는 이미 정규화된 형태이므로 LLM/추출기 미사용).
  */
 @Component
-public class ManualProductNormalizer extends AbstractProductNormalizer implements ProductNormalizer {
+public class ManualProductNormalizer implements ProductNormalizer {
 
     private final CollectorProperties properties;
     private final RawJsonReader rawJsonReader;

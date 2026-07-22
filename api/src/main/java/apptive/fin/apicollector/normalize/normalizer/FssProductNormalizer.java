@@ -18,7 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Component
-public class FssProductNormalizer extends AbstractProductNormalizer implements ProductNormalizer {
+public class FssProductNormalizer implements ProductNormalizer {
 
     private final CollectorProperties properties;
     private final KeywordExtractor keywordExtractor;
@@ -55,11 +55,11 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
     public ProductDraft normalize(ProductRaw rawProduct) {
         JsonNode raw = rawJsonReader.read(rawProduct);
         JsonNode base = raw.path("base");
-        String content = joinContent(base, "join_way", "mtrt_int", "spcl_cnd", "join_member", "etc_note");
+        String content = JsonNodes.joinContent(base, "join_way", "mtrt_int", "spcl_cnd", "join_member", "etc_note");
         String joinMethod = JsonNodes.text(base, "join_way");
         String eligibilityText = JsonNodes.text(base, "join_member");
         String cautionText = JsonNodes.text(base, "etc_note");
-        String productName = collapseWhitespace(firstText(base, "fin_prdt_nm"));
+        String productName = collapseWhitespace(JsonNodes.firstText(base, "fin_prdt_nm"));
         List<ProductPropertyDraft> propertyDrafts = properties(raw, base);
 
         var draft = ProductDraft.builder()
@@ -79,15 +79,15 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                     .properties(propertyDrafts)
                     .build();
 
-        return extractKeywords(keywordExtractor, draft);
+        return keywordExtractor.attachTo(draft);
     }
 
     private List<ProductPropertyDraft> properties(
             JsonNode raw,
             JsonNode base
     ) {
-        String providerCode = firstText(base, "fin_co_no", "kor_co_nm");
-        String providerName = collapseWhitespace(bankNameNormalizer.normalize(providerCode, firstText(base, "kor_co_nm", "fin_co_no")));
+        String providerCode = JsonNodes.firstText(base, "fin_co_no", "kor_co_nm");
+        String providerName = collapseWhitespace(bankNameNormalizer.normalize(providerCode, JsonNodes.firstText(base, "kor_co_nm", "fin_co_no")));
         String providerApplyUrl = bankUrlNormalizer.normalize(providerCode).orElse(null);
         Long maxMonthlyLimit = JsonNodes.longValueOrNullIfZero(base, "max_limit");
         var preferentialRates = preferentialRateExtractor.extract(JsonNodes.text(base, "spcl_cnd"));
@@ -112,9 +112,9 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                     .providerCode(providerCode)
                     .providerName(providerName)
                     .providerApplyUrl(providerApplyUrl)
-                    .intrRateType(firstText(option, "intr_rate_type"))
-                    .intrRateTypeName(firstText(option, "intr_rate_type_nm"))
-                    .reserveType(firstText(option, "rsrv_type"))
+                    .intrRateType(JsonNodes.firstText(option, "intr_rate_type"))
+                    .intrRateTypeName(JsonNodes.firstText(option, "intr_rate_type_nm"))
+                    .reserveType(JsonNodes.firstText(option, "rsrv_type"))
                     .saveTerm(JsonNodes.integer(option, "save_trm"))
                     .baseRate(JsonNodes.decimal(option, "intr_rate"))
                     .maxRate(JsonNodes.decimal(option, "intr_rate2"))
@@ -127,5 +127,13 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                     .build());
         }
         return properties;
+    }
+
+    private static String collapseWhitespace(String value) {
+        if (value == null) {
+            return null;
+        }
+        String collapsed = value.replaceAll("\\s+", " ").trim();
+        return collapsed.isEmpty() ? null : collapsed;
     }
 }

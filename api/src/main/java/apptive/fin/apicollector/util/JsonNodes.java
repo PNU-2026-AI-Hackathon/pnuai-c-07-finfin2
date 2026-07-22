@@ -3,6 +3,8 @@ package apptive.fin.apicollector.util;
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * JsonNode 필드에서 값을 안전하게 꺼내는 공용 헬퍼.
@@ -29,6 +31,29 @@ public final class JsonNodes {
             return null;
         }
         return blankToNull(value.asString(null));
+    }
+
+    /** 주어진 필드들 중 첫 번째 non-null 텍스트를 반환한다. */
+    public static String firstText(JsonNode node, String... fieldNames) {
+        for (String fieldName : fieldNames) {
+            String value = text(node, fieldName);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    /** 주어진 필드들의 non-null 텍스트를 빈 줄로 이어 붙인다(없으면 null). */
+    public static String joinContent(JsonNode node, String... fieldNames) {
+        List<String> parts = new ArrayList<>();
+        for (String fieldName : fieldNames) {
+            String value = text(node, fieldName);
+            if (value != null) {
+                parts.add(value);
+            }
+        }
+        return parts.isEmpty() ? null : String.join("\n\n", parts);
     }
 
     public static Integer integer(JsonNode node, String fieldName) {

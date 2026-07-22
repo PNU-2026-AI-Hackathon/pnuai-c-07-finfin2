@@ -18,7 +18,7 @@ import tools.jackson.databind.ObjectMapper;
  * {@code source()==ONTONG} 노멀라이저 빈이 둘이면 {@code RawProductItemProcessor}의 EnumMap에서 덮어써지므로
  * {@code @Component}를 제거했다. 클래스 자체는 기존 테스트/devtools 리포트가 직접 생성해 쓰므로 남겨둔다.
  */
-public class OntongYouthProductNormalizer extends AbstractProductNormalizer implements ProductNormalizer {
+public class OntongYouthProductNormalizer implements ProductNormalizer {
 
     private final CollectorProperties properties;
     private final OntongYouthPolicyClassifier classifier;
@@ -53,11 +53,11 @@ public class OntongYouthProductNormalizer extends AbstractProductNormalizer impl
             return skippedDraft(rawProduct, classification);
         }
 
-        String providerName = firstText(raw, "rgtrInstCdNm", "sprvsnInstCdNm" , "rgtrUpInstCdNm");
-        String providerCode = firstText(raw, "sprvsnInstCd", "rgtrInstCd", "rgtrUpInstCd", "sprvsnInstCdNm", "rgtrInstCdNm");
-        String productName = firstText(raw, "plcyNm");
+        String providerName = JsonNodes.firstText(raw, "rgtrInstCdNm", "sprvsnInstCdNm" , "rgtrUpInstCdNm");
+        String providerCode = JsonNodes.firstText(raw, "sprvsnInstCd", "rgtrInstCd", "rgtrUpInstCd", "sprvsnInstCdNm", "rgtrInstCdNm");
+        String productName = JsonNodes.firstText(raw, "plcyNm");
         String supportContent = JsonNodes.text(raw, "plcySprtCn");
-        String content = joinContent(
+        String content = JsonNodes.joinContent(
                 raw,
                 "plcyExplnCn",
                 "plcySprtCn",
@@ -69,7 +69,7 @@ public class OntongYouthProductNormalizer extends AbstractProductNormalizer impl
                 "etcMttrCn"
         );
         String joinMethod = JsonNodes.text(raw, "plcyAplyMthdCn");
-        String eligibilityText = joinContent(raw, "addAplyQlfcCndCn", "ptcpPrpTrgtCn");
+        String eligibilityText = JsonNodes.joinContent(raw, "addAplyQlfcCndCn", "ptcpPrpTrgtCn");
         String cautionText = JsonNodes.text(raw, "etcMttrCn");
         String recruitmentPeriod = JsonNodes.text(raw, "aplyYmd");
 
@@ -81,7 +81,7 @@ public class OntongYouthProductNormalizer extends AbstractProductNormalizer impl
                 .saveProduct(true)
                 .sourceCode(Source.ONTONG.name())
                 .type(rawProduct.getType())
-                .productCode(firstText(raw, "plcyNo") != null ? firstText(raw, "plcyNo") : rawProduct.getExternalId())
+                .productCode(JsonNodes.firstText(raw, "plcyNo") != null ? JsonNodes.firstText(raw, "plcyNo") : rawProduct.getExternalId())
                 .productName(rawJsonReader.required(productName, "productName", rawProduct))
                 .content(content)
                 .joinMethod(joinMethod)
@@ -97,7 +97,7 @@ public class OntongYouthProductNormalizer extends AbstractProductNormalizer impl
                         .maxMonthlyLimit(monthlyLimitExtractor.extract(productName, supportContent))
                         .requiresHomeless(containsAny(content, "무주택"))
                         .requiresHouseholder(containsAny(content, "세대주"))
-                        .applyUrl(firstText(raw, "aplyUrlAddr", "refUrlAddr1", "refUrlAddr2"))
+                        .applyUrl(JsonNodes.firstText(raw, "aplyUrlAddr", "refUrlAddr1", "refUrlAddr2"))
 //                        .keywords(keywordsFromText(
 //                                JsonNodes.text(raw, "plcyKywdNm"),
 //                                JsonNodes.text(raw, "lclsfNm"),
@@ -110,7 +110,7 @@ public class OntongYouthProductNormalizer extends AbstractProductNormalizer impl
                         .build()))
                 .build();
 
-        return extractKeywords(keywordExtractor, draft);
+        return keywordExtractor.attachTo(draft);
     }
 
     private ProductDraft skippedDraft(ProductRaw rawProduct, ProductClassification classification) {

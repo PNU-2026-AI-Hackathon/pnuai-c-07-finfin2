@@ -1,7 +1,6 @@
 package apptive.fin.apicollector.normalize.classifier;
 
 import apptive.fin.apicollector.normalize.ProductClassification;
-import apptive.fin.apicollector.normalize.normalizer.AbstractProductNormalizer;
 import apptive.fin.apicollector.util.JsonNodes;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -11,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-public class OntongYouthPolicyClassifier extends AbstractProductNormalizer {
+public class OntongYouthPolicyClassifier {
 
     private static final String FINANCE_CATEGORY = "취약계층 및 금융지원";
 

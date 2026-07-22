@@ -23,4 +23,17 @@ public class KeywordExtractor {
         return keywords;
     }
 
+    /** draft의 모든 property에 키워드를 추출·부착한 새 draft를 반환한다. */
+    public ProductDraft attachTo(ProductDraft draft) {
+        List<ProductPropertyDraft> properties = new ArrayList<>();
+        for (ProductPropertyDraft property : draft.properties()) {
+            properties.add(property.toBuilder()
+                    .keywords(extract(draft, property))
+                    .build());
+        }
+        return draft.toBuilder()
+                .properties(properties)
+                .build();
+    }
+
 }
