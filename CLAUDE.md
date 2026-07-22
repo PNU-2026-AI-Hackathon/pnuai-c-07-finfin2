@@ -27,8 +27,6 @@ Both modules use the Gradle wrapper (Java 21 toolchain, Spring Boot 4.x). On Win
 # api/  — collector
 ./gradlew.bat bootRun            # runs the batch job on startup (batch.job.enabled=true)
 ./gradlew.bat test
-./gradlew.bat ontongYouthFilterReport   # devtool JavaExec report (src/devtools)
-./gradlew.bat keywordExtractorReport     # devtool JavaExec report
 ```
 
 ### Local database (required for both)

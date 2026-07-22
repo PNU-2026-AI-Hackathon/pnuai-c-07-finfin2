@@ -16,7 +16,7 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * 온통청년 API 폐기로 더 이상 Spring 빈으로 등록하지 않는다(ONTONG 소스는 {@link ManualProductNormalizer}가 담당).
  * {@code source()==ONTONG} 노멀라이저 빈이 둘이면 {@code RawProductItemProcessor}의 EnumMap에서 덮어써지므로
- * {@code @Component}를 제거했다. 클래스 자체는 기존 테스트/devtools 리포트가 직접 생성해 쓰므로 남겨둔다.
+ * {@code @Component}를 제거했다. 클래스 자체는 기존 테스트가 직접 생성해 쓰므로 남겨둔다.
  */
 public class OntongYouthProductNormalizer implements ProductNormalizer {
 
