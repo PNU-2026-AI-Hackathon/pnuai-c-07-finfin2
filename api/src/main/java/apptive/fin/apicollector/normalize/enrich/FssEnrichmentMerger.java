@@ -5,6 +5,8 @@ import apptive.fin.apicollector.normalize.dto.PreferentialRateDraft;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
 import apptive.fin.apicollector.normalize.dto.RequiredKeywordDraft;
+import apptive.fin.apicollector.normalize.extractor.PreferentialRateReducer;
+import apptive.fin.apicollector.normalize.extractor.keywords.TermKeywords;
 import apptive.fin.apicollector.product.ExtractionConfidence;
 import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.product.ProductType;
@@ -141,15 +143,7 @@ public class FssEnrichmentMerger {
         }
 
         if (property.saveTerm() != null) {
-            if (property.saveTerm() < 24) {
-                keywords.add(KeywordValueEnum.TERM_AROUND_1_YEAR);
-            }
-            else if (property.saveTerm() < 37) {
-                keywords.add(KeywordValueEnum.TERM_2_TO_3_YEARS);
-            }
-            else {
-                keywords.add(KeywordValueEnum.TERM_OVER_3_YEARS);
-            }
+            keywords.add(TermKeywords.bucket(property.saveTerm()));
         }
 
         return List.copyOf(keywords);
@@ -257,37 +251,10 @@ public class FssEnrichmentMerger {
             List<PreferentialRateDraft> existing,
             List<PreferentialRateDraft> enrichment
     ) {
-        Map<KeywordValueEnum, PreferentialRateDraft> merged = new LinkedHashMap<>();
         // 기타(BANK_ETC)는 keyword당 1건으로 합치지 않고 라인별로 보존. 완전 중복(동일 description)만 최고금리로 정리.
-        Map<String, PreferentialRateDraft> etcByDescription = new LinkedHashMap<>();
-        for (PreferentialRateDraft draft : existing) {
-            keepHighest(merged, etcByDescription, draft);
-        }
-        for (PreferentialRateDraft draft : enrichment) {
-            keepHighest(merged, etcByDescription, draft);
-        }
-
-        List<PreferentialRateDraft> result = new ArrayList<>(merged.values());
-        result.addAll(etcByDescription.values());
-        return List.copyOf(result);
-    }
-
-    private void keepHighest(
-            Map<KeywordValueEnum, PreferentialRateDraft> merged,
-            Map<String, PreferentialRateDraft> etcByDescription,
-            PreferentialRateDraft draft
-    ) {
-        if (draft.keywordCode() == KeywordValueEnum.BANK_ETC) {
-            PreferentialRateDraft existing = etcByDescription.get(draft.description());
-            if (existing == null || draft.rate().compareTo(existing.rate()) > 0) {
-                etcByDescription.put(draft.description(), draft);
-            }
-            return;
-        }
-        PreferentialRateDraft existing = merged.get(draft.keywordCode());
-        if (existing == null || draft.rate().compareTo(existing.rate()) > 0) {
-            merged.put(draft.keywordCode(), draft);
-        }
+        List<PreferentialRateDraft> combined = new ArrayList<>(existing);
+        combined.addAll(enrichment);
+        return PreferentialRateReducer.reduce(combined);
     }
 
     private <T> T firstNonNull(T existing, T enrichment) {

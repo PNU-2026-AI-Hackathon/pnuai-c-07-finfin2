@@ -32,9 +32,8 @@ public class FssPreferentialRateExtractor {
             return List.of();
         }
 
-        Map<KeywordValueEnum, PreferentialRateDraft> bestByKeyword = new LinkedHashMap<>();
         // 기타(BANK_ETC)는 keyword당 1건으로 합치지 않고 라인별로 보존한다. 완전 중복(동일 description)만 최고금리로 정리.
-        Map<String, PreferentialRateDraft> etcByDescription = new LinkedHashMap<>();
+        List<PreferentialRateDraft> candidates = new ArrayList<>();
         List<String> lines = mergeWrappedLines(preferentialCondition);
         for (String rawLine : lines) {
             String line = normalize(rawLine);
@@ -48,24 +47,17 @@ public class FssPreferentialRateExtractor {
             }
 
             for (KeywordValueEnum keyword : keywords(line)) {
-                PreferentialRateDraft candidate = PreferentialRateDraft.builder()
+                candidates.add(PreferentialRateDraft.builder()
                         .keywordCode(keyword)
                         .rate(rate.get())
                         .description(line)
                         .minAge(minAge(line))
                         .maxAge(maxAge(line))
-                        .build();
-                if (keyword == KeywordValueEnum.BANK_ETC) {
-                    keepHighestByDescription(etcByDescription, candidate);
-                }
-                else {
-                    keepHighest(bestByKeyword, candidate);
-                }
+                        .build());
             }
         }
 
-        List<PreferentialRateDraft> result = new ArrayList<>(bestByKeyword.values());
-        result.addAll(etcByDescription.values());
+        List<PreferentialRateDraft> result = new ArrayList<>(PreferentialRateReducer.reduce(candidates));
         if (result.isEmpty()) {
             fallback(lines).ifPresent(result::add);
         }
@@ -144,21 +136,6 @@ public class FssPreferentialRateExtractor {
             }
         }
         return Optional.ofNullable(max);
-    }
-
-    private void keepHighest(Map<KeywordValueEnum, PreferentialRateDraft> bestByKeyword, PreferentialRateDraft candidate) {
-        PreferentialRateDraft existing = bestByKeyword.get(candidate.keywordCode());
-        if (existing == null || candidate.rate().compareTo(existing.rate()) > 0) {
-            bestByKeyword.put(candidate.keywordCode(), candidate);
-        }
-    }
-
-    // 기타(BANK_ETC) 전용: 동일 description은 최고금리 1건으로, 다른 description은 각각 별도 보존.
-    private void keepHighestByDescription(Map<String, PreferentialRateDraft> etcByDescription, PreferentialRateDraft candidate) {
-        PreferentialRateDraft existing = etcByDescription.get(candidate.description());
-        if (existing == null || candidate.rate().compareTo(existing.rate()) > 0) {
-            etcByDescription.put(candidate.description(), candidate);
-        }
     }
 
     private boolean isAggregateLine(String line) {
