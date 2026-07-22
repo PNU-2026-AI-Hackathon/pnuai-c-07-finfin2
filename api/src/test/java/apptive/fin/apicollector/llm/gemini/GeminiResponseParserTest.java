@@ -1,30 +1,23 @@
-package apptive.fin.apicollector.llm;
+package apptive.fin.apicollector.llm.gemini;
 
-import apptive.fin.apicollector.Mode;
-import apptive.fin.apicollector.Source;
-import apptive.fin.apicollector.config.CollectorProperties;
+import apptive.fin.apicollector.llm.LlmProductEnrichment;
 import apptive.fin.apicollector.normalize.dto.PreferentialRateDraft;
 import apptive.fin.apicollector.normalize.dto.RequiredKeywordDraft;
 import apptive.fin.apicollector.product.KeywordValueEnum;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.client.RestClient;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class GeminiLlmProviderClientTest {
+class GeminiResponseParserTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final GeminiLlmProviderClient client = new GeminiLlmProviderClient(
-            RestClient.builder().baseUrl("http://localhost").build(),
-            objectMapper,
-            properties()
-    );
+    private final GeminiResponseParser parser = new GeminiResponseParser(objectMapper);
 
     @Test
     void parsesExpectedResponseShape() {
-        LlmProductEnrichment result = client.parseResponse(objectMapper.createObjectNode()
+        LlmProductEnrichment result = parser.parse(objectMapper.createObjectNode()
                 .put("summaryContent", "요약")
                 .set("keywords", objectMapper.createArrayNode().add("BANK_CARD_USAGE"))
                 .putNull("minMonthlyLimit")
@@ -92,7 +85,7 @@ class GeminiLlmProviderClientTest {
                 }
                 """;
 
-        LlmProductEnrichment result = client.parseResponse(objectMapper.createObjectNode()
+        LlmProductEnrichment result = parser.parse(objectMapper.createObjectNode()
                 .put("id", "v1_test")
                 .put("status", "completed")
                 .set("steps", objectMapper.createArrayNode()
@@ -135,7 +128,7 @@ class GeminiLlmProviderClientTest {
                 }
                 """;
 
-        LlmProductEnrichment result = client.parseResponse(objectMapper.createObjectNode()
+        LlmProductEnrichment result = parser.parse(objectMapper.createObjectNode()
                 .put("id", "v1_test")
                 .put("status", "completed")
                 .set("steps", objectMapper.createArrayNode()
@@ -178,7 +171,7 @@ class GeminiLlmProviderClientTest {
                 }
                 """;
 
-        LlmProductEnrichment result = client.parseResponse(objectMapper.createObjectNode()
+        LlmProductEnrichment result = parser.parse(objectMapper.createObjectNode()
                 .put("id", "v1_test")
                 .put("status", "completed")
                 .set("steps", objectMapper.createArrayNode()
@@ -198,7 +191,7 @@ class GeminiLlmProviderClientTest {
 
     @Test
     void throwsWhenInteractionsStepsContainNoTextContent() {
-        assertThatThrownBy(() -> client.parseResponse(objectMapper.createObjectNode()
+        assertThatThrownBy(() -> parser.parse(objectMapper.createObjectNode()
                 .put("id", "v1_test")
                 .put("status", "completed")
                 .set("steps", objectMapper.createArrayNode()
@@ -240,7 +233,7 @@ class GeminiLlmProviderClientTest {
                 ```
                 """;
 
-        LlmProductEnrichment result = client.parseResponse(objectMapper.createObjectNode()
+        LlmProductEnrichment result = parser.parse(objectMapper.createObjectNode()
                 .put("id", "v1_test")
                 .put("status", "completed")
                 .set("steps", objectMapper.createArrayNode()
@@ -258,7 +251,7 @@ class GeminiLlmProviderClientTest {
 
     @Test
     void parsesPartialResponseWithDefaults() {
-        LlmProductEnrichment result = client.parseResponse(objectMapper.createObjectNode()
+        LlmProductEnrichment result = parser.parse(objectMapper.createObjectNode()
                 .put("summaryContent", "partial summary")
                 .put("maxMonthlyLimit", 100000));
 
@@ -274,7 +267,7 @@ class GeminiLlmProviderClientTest {
 
     @Test
     void treatsNonArrayCollectionsAsEmpty() {
-        LlmProductEnrichment result = client.parseResponse(objectMapper.createObjectNode()
+        LlmProductEnrichment result = parser.parse(objectMapper.createObjectNode()
                 .put("summaryContent", "요약")
                 .put("keywords", "BANK_CARD_USAGE")
                 .putNull("minMonthlyLimit")
@@ -303,7 +296,7 @@ class GeminiLlmProviderClientTest {
 
     @Test
     void dropsInvalidKeywordItemsFromOtherwiseValidResponse() {
-        LlmProductEnrichment result = client.parseResponse(objectMapper.createObjectNode()
+        LlmProductEnrichment result = parser.parse(objectMapper.createObjectNode()
                 .put("summaryContent", "summary")
                 .set("keywords", objectMapper.createArrayNode()
                         .add("BANK_CARD_USAGE")
@@ -384,7 +377,7 @@ class GeminiLlmProviderClientTest {
 
     @Test
     void dropsLowAndMediumConfidenceRequiredKeywords() {
-        LlmProductEnrichment result = client.parseResponse(baseResponse()
+        LlmProductEnrichment result = parser.parse(baseResponse()
                 .set("requiredKeywords", objectMapper.createArrayNode()
                         .add(objectMapper.createObjectNode()
                                 .put("keywordCode", "STATUS_UNEMPLOYED")
@@ -406,7 +399,7 @@ class GeminiLlmProviderClientTest {
 
     @Test
     void dropsFittedPreferentialRateKeywordsWhenConditionDoesNotMatchKeywordMeaning() {
-        LlmProductEnrichment result = client.parseResponse(baseResponse()
+        LlmProductEnrichment result = parser.parse(baseResponse()
                 .set("preferentialRates", objectMapper.createArrayNode()
                         .add(objectMapper.createObjectNode()
                                 .put("keywordCode", "BANK_MARKETING")
@@ -454,19 +447,5 @@ class GeminiLlmProviderClientTest {
                 .putNull("militaryMaxAge")
                 .set("requiredKeywords", objectMapper.createArrayNode())
                 .set("preferentialRates", objectMapper.createArrayNode());
-    }
-
-    private CollectorProperties properties() {
-        return new CollectorProperties(
-                true,
-                Source.FSS,
-                Mode.SYNC,
-                1,
-                100,
-                7,
-                new CollectorProperties.OntongYouth("http://localhost", "key", 100),
-                new CollectorProperties.Fss("http://localhost", "key", 100),
-                new CollectorProperties.Llm(true, "GEMINI", "gemini-test", 1, 1, 10, 3, 0.1, "http://localhost", "key")
-        );
     }
 }

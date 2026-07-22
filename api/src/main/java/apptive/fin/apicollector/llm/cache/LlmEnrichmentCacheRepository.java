@@ -1,4 +1,4 @@
-package apptive.fin.apicollector.llm;
+package apptive.fin.apicollector.llm.cache;
 
 import apptive.fin.apicollector.Source;
 import org.springframework.data.jpa.repository.JpaRepository;

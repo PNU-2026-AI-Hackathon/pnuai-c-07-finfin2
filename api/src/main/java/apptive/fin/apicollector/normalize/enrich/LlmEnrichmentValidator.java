@@ -43,7 +43,7 @@ public class LlmEnrichmentValidator {
         // requiredKeywords·preferentialRates 검증은 의미가 있으므로 아래에서 그대로 유지한다.
         for (RequiredKeywordDraft requiredKeyword : enrichment.requiredKeywords()) {
             if (requiredKeyword.keywordCode() == null
-                    || !requiredKeyword.keywordCode().name().startsWith("STATUS_")
+                    || !requiredKeyword.keywordCode().isRequired()
                     || requiredKeyword.effect() == null
                     || requiredKeyword.confidence() == null) {
                 throw new IllegalArgumentException("Unsupported LLM required keyword: " + requiredKeyword);
@@ -51,7 +51,8 @@ public class LlmEnrichmentValidator {
         }
         for (PreferentialRateDraft preferentialRate : enrichment.preferentialRates()) {
             validateRate(preferentialRate.rate(), "preferentialRate.rate");
-            if (!isPreferentialRateKeyword(preferentialRate.keywordCode())) {
+            KeywordValueEnum keyword = preferentialRate.keywordCode();
+            if (keyword == null || !keyword.isPreferentialRate()) {
                 throw new IllegalArgumentException("Unsupported LLM preferential keyword: " + preferentialRate);
             }
             if (preferentialRate.minAge() != null && preferentialRate.maxAge() != null
@@ -62,10 +63,6 @@ public class LlmEnrichmentValidator {
                 throw new IllegalArgumentException("Unsupported LLM preferential condition: " + preferentialRate);
             }
         }
-    }
-
-    private boolean isPreferentialRateKeyword(KeywordValueEnum keyword) {
-        return keyword != null && keyword.name().startsWith("BANK_");
     }
 
     private void validateAmount(Long value, String fieldName) {

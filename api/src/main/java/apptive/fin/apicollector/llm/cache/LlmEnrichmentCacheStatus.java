@@ -1,4 +1,4 @@
-package apptive.fin.apicollector.llm;
+package apptive.fin.apicollector.llm.cache;
 
 public enum LlmEnrichmentCacheStatus {
     SUCCESS,

@@ -1,9 +1,9 @@
 package apptive.fin.apicollector.normalize.enrich;
 
 import apptive.fin.apicollector.config.CollectorProperties;
-import apptive.fin.apicollector.llm.LlmEnrichmentCache;
-import apptive.fin.apicollector.llm.LlmEnrichmentCacheRepository;
 import apptive.fin.apicollector.llm.LlmProductEnrichment;
+import apptive.fin.apicollector.llm.cache.LlmEnrichmentCache;
+import apptive.fin.apicollector.llm.cache.LlmEnrichmentCacheRepository;
 import apptive.fin.apicollector.raw.ProductRaw;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

@@ -3,6 +3,7 @@ package apptive.fin.apicollector.normalize.enrich;
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.config.CollectorProperties;
 import apptive.fin.apicollector.llm.*;
+import apptive.fin.apicollector.llm.cache.*;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.raw.ProductRaw;
 import apptive.fin.apicollector.util.Sha256;
