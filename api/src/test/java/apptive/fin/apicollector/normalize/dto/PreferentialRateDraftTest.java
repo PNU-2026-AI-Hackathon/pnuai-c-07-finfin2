@@ -34,6 +34,20 @@ class PreferentialRateDraftTest {
     }
 
     @Test
+    void bankAge_requiresAgeBounds() {
+        PreferentialRateDraft withBounds = PreferentialRateDraft.builder()
+                .keywordCode(KeywordValueEnum.BANK_AGE).rate(new BigDecimal("0.1"))
+                .description("만 19~34세 우대").minAge(19).maxAge(34).build();
+        PreferentialRateDraft noBounds = PreferentialRateDraft.builder()
+                .keywordCode(KeywordValueEnum.BANK_AGE).rate(new BigDecimal("0.1"))
+                .description("나이 우대").build();
+
+        assertThat(withBounds.matchesKeywordCondition()).isTrue();
+        // 나이 구간(min/max)이 없으면 BANK_AGE로 인정하지 않는다(단어만으로는 불가)
+        assertThat(noBounds.matchesKeywordCondition()).isFalse();
+    }
+
+    @Test
     void modeledKeyword_matchesItsOwnTokens() {
         assertThat(draft(KeywordValueEnum.BANK_SALARY_TRANSFER, "급여 이체").matchesKeywordCondition())
                 .isTrue();

@@ -24,9 +24,9 @@ public record PreferentialRateDraft(
             case BANK_FIRST_TRANSACTION -> containsAny(description, "첫거래", "최초거래", "신규고객", "신규 고객", "첫 예금거래", "입출금통장 최초");
             case BANK_REDEPOSIT -> containsAny(description, "재예치", "재가입") && !hasAmountOrBalanceCondition(description);
             case BANK_ONLINE_JOIN -> containsAny(description, "인터넷 가입", "스마트뱅킹 가입", "비대면 가입", "모바일 가입", "온라인 가입", "online join", "mobile join");
-            case BANK_AGE -> minAge != null
-                    || maxAge != null
-                    || containsAny(description, "나이", "연령");
+            // BANK_AGE는 나이 구간(minAge/maxAge)이 있어야 유효하다. 구간 없는 나이 우대는
+            // 백엔드가 나이로 필터링할 수 없어 모든 연령에 잘못 합산되므로 BANK_AGE로 인정하지 않는다.
+            case BANK_AGE -> minAge != null || maxAge != null;
             // 기타: 나머지 BANK_* 키워드 어디에도 해당하지 않는 우대조건. 단, 특정 키워드에
             // 명백히 해당하면(LLM 오분류) ETC로 인정하지 않는다.
             case BANK_ETC -> !looksLikeModeledCondition();

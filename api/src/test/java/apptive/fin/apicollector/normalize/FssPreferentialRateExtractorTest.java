@@ -209,4 +209,30 @@ class FssPreferentialRateExtractorTest {
         assertThat(result.get(0).keywordCode()).isEqualTo(KeywordValueEnum.BANK_ETC);
         assertThat(result.get(0).rate()).isEqualByComparingTo(new BigDecimal("3.10"));
     }
+
+    @Test
+    void assignsBankAgeWithParsedAgeBounds() {
+        List<PreferentialRateDraft> senior = extractor.extract("만 65세 이상 우대 연 0.2%p");
+        assertThat(senior).hasSize(1);
+        assertThat(senior.get(0).keywordCode()).isEqualTo(KeywordValueEnum.BANK_AGE);
+        assertThat(senior.get(0).minAge()).isEqualTo(65);
+        assertThat(senior.get(0).maxAge()).isNull();
+
+        List<PreferentialRateDraft> youth = extractor.extract("만 19세~34세 우대 연 0.3%p");
+        assertThat(youth).hasSize(1);
+        assertThat(youth.get(0).keywordCode()).isEqualTo(KeywordValueEnum.BANK_AGE);
+        assertThat(youth.get(0).minAge()).isEqualTo(19);
+        assertThat(youth.get(0).maxAge()).isEqualTo(34);
+    }
+
+    @Test
+    void treatsAgeMentionWithoutRangeAsBankEtc() {
+        // "나이/연령" 단어만 있고 만 N세 구간이 없으면 BANK_AGE가 아니라 BANK_ETC(금리 보존)
+        List<PreferentialRateDraft> result = extractor.extract("나이 우대 연 0.1%p");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).keywordCode()).isEqualTo(KeywordValueEnum.BANK_ETC);
+        assertThat(result.get(0).minAge()).isNull();
+        assertThat(result.get(0).maxAge()).isNull();
+    }
 }

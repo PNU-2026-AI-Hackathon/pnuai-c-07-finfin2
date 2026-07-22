@@ -95,14 +95,14 @@ public class GeminiEnrichmentSchema {
                 BANK_FIRST_TRANSACTION=첫거래/최초거래/신규고객,
                 BANK_REDEPOSIT=재예치/재가입,
                 BANK_ONLINE_JOIN=인터넷/모바일/비대면 가입,
-                BANK_AGE=나이/연령 조건,
+                BANK_AGE=특정 나이 구간 우대(이 경우 minAge/maxAge 필수, 특정 불가면 BANK_ETC),
                 BANK_ETC=위 8개 중 어디에도 정확히 해당하지 않지만 조건별 가산금리가 명시된 기타 우대조건.
                 위 8개 중 하나에 명확히 해당하면 그 키워드를 쓰고, 그렇지 않을 때만 BANK_ETC를 쓴다.
                 """, preferentialRateKeywordEnumValues()));
         properties.set("rate", numberSchema("가산 우대금리 percentage point"));
         properties.set("description", stringSchema("원문 근거 요약"));
-        properties.set("minAge", integerSchema("나이 우대 최소 나이. 없으면 null"));
-        properties.set("maxAge", integerSchema("나이 우대 최대 나이. 없으면 null"));
+        properties.set("minAge", integerSchema("나이 우대 최소 나이. BANK_AGE면 구간 하한을 반드시 채운다(상한만 있으면 null 가능). 그 외 키워드는 null"));
+        properties.set("maxAge", integerSchema("나이 우대 최대 나이. BANK_AGE면 구간 상한을 반드시 채운다(하한만 있으면 null 가능). 그 외 키워드는 null"));
         item.set("properties", properties);
         item.set("required", array("keywordCode", "rate", "description", "minAge", "maxAge"));
         schema.set("items", item);

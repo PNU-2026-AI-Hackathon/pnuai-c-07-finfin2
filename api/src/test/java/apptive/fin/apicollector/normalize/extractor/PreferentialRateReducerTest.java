@@ -45,6 +45,37 @@ class PreferentialRateReducerTest {
     }
 
     @Test
+    void reduce_keepsBankAgePerAgeBracket_notCollapsedToHighest() {
+        PreferentialRateDraft youth = PreferentialRateDraft.builder()
+                .keywordCode(KeywordValueEnum.BANK_AGE).rate(new BigDecimal("0.3"))
+                .description("만 19~34세 우대").minAge(19).maxAge(34).build();
+        PreferentialRateDraft senior = PreferentialRateDraft.builder()
+                .keywordCode(KeywordValueEnum.BANK_AGE).rate(new BigDecimal("0.5"))
+                .description("만 65세 이상 우대").minAge(65).build();
+
+        List<PreferentialRateDraft> result = PreferentialRateReducer.reduce(List.of(youth, senior));
+
+        // 청년(0.3)이 노인(0.5)에 뭉개지지 않고 나이대별로 둘 다 보존
+        assertThat(result).hasSize(2);
+        assertThat(result).extracting(d -> d.minAge()).containsExactlyInAnyOrder(19, 65);
+    }
+
+    @Test
+    void reduce_keepsHighestPerSameAgeBracket() {
+        PreferentialRateDraft low = PreferentialRateDraft.builder()
+                .keywordCode(KeywordValueEnum.BANK_AGE).rate(new BigDecimal("0.2"))
+                .description("만 19~34세").minAge(19).maxAge(34).build();
+        PreferentialRateDraft high = PreferentialRateDraft.builder()
+                .keywordCode(KeywordValueEnum.BANK_AGE).rate(new BigDecimal("0.4"))
+                .description("만 19~34세").minAge(19).maxAge(34).build();
+
+        List<PreferentialRateDraft> result = PreferentialRateReducer.reduce(List.of(low, high));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).rate()).isEqualByComparingTo("0.4");
+    }
+
+    @Test
     void reduce_ordersKeywordBestsThenEtcBests_inEncounterOrder() {
         List<PreferentialRateDraft> result = PreferentialRateReducer.reduce(List.of(
                 rate(KeywordValueEnum.BANK_ETC, "0.1", "이벤트"),

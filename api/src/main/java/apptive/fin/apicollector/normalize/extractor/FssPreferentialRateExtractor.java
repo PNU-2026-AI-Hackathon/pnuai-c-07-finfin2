@@ -167,7 +167,9 @@ public class FssPreferentialRateExtractor {
         addIfContains(keywords, line, KeywordValueEnum.BANK_FIRST_TRANSACTION, "첫거래", "최초거래", "신규고객", "첫 예금거래", "입출금통장 최초");
         addIfContains(keywords, line, KeywordValueEnum.BANK_REDEPOSIT, "재예치", "재가입");
         addIfContains(keywords, line, KeywordValueEnum.BANK_ONLINE_JOIN, "인터넷", "스마트폰", "비대면", "모바일");
-        if (minAge(line) != null || maxAge(line) != null || line.contains("나이") || line.contains("연령")) {
+        // 나이 구간(만 N세)이 실제로 파싱될 때만 BANK_AGE. 구간 없는 "나이/연령" 언급은
+        // BANK_AGE로 보존해봐야 백엔드가 나이 필터를 못 하므로, 아래 fallback(BANK_ETC)로 둔다.
+        if (minAge(line) != null || maxAge(line) != null) {
             keywords.add(KeywordValueEnum.BANK_AGE);
         }
         // 화이트리스트 토큰에 하나도 매칭되지 않으면 기타(BANK_ETC)로 수집한다.

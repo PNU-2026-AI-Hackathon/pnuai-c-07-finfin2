@@ -246,6 +246,10 @@ public class GeminiResponseParser {
                 log.debug("Dropping Gemini preferentialRates item with invalid age range. response={}", preview(item));
                 continue;
             }
+            // 나이 구간 없는 BANK_AGE는 백엔드가 나이 필터를 못 하므로 일반 기타(BANK_ETC)로 재분류(금리는 보존).
+            if (keyword == KeywordValueEnum.BANK_AGE && minAge == null && maxAge == null) {
+                keyword = KeywordValueEnum.BANK_ETC;
+            }
             PreferentialRateDraft draft = PreferentialRateDraft.builder()
                     .keywordCode(keyword)
                     .rate(rate)

@@ -39,7 +39,7 @@ public class FssEnrichmentPromptBuilder {
                   * BANK_FIRST_TRANSACTION: 첫거래/최초거래/신규고객 조건
                   * BANK_REDEPOSIT: 재예치/재가입 조건
                   * BANK_ONLINE_JOIN: 인터넷/모바일/비대면/온라인 가입 조건. 모바일메시지/알림 수신동의는 온라인 가입이 아니다.
-                  * BANK_AGE: 나이/연령 조건
+                  * BANK_AGE: 특정 나이 구간 우대. 이 경우 minAge/maxAge를 반드시 채운다(예: 만 19~34세 → minAge=19,maxAge=34; 만 65세 이상 → minAge=65). 나이 구간을 특정할 수 없으면 BANK_AGE 대신 BANK_ETC로 넣는다.
                   * BANK_ETC: 위 조건 중 어디에도 정확히 해당하지 않지만 조건별 가산금리가 명시된 우대금리(기타)
                 - 위 매핑으로 정확히 표현할 수 없는 우대금리는 BANK_ETC로 매핑한다. (단, 최고/최대 우대금리 총합만 있으면 여전히 제외)
                 - 재예치/재가입이라는 단어가 있어도 조건의 핵심이 가입금액, 가입잔액, 요구불평잔, 평균잔액이면 BANK_REDEPOSIT에 매핑하지 않는다.

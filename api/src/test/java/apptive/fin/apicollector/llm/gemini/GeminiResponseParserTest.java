@@ -425,6 +425,40 @@ class GeminiResponseParserTest {
                 .containsExactly(KeywordValueEnum.BANK_MARKETING);
     }
 
+    @Test
+    void reclassifiesBankAgeWithoutAgeBoundsToBankEtc() {
+        LlmProductEnrichment result = parser.parse(baseResponse()
+                .set("preferentialRates", objectMapper.createArrayNode()
+                        .add(objectMapper.createObjectNode()
+                                .put("keywordCode", "BANK_AGE")
+                                .put("rate", 0.2)
+                                .put("description", "연령 우대 조건")
+                                .putNull("minAge")
+                                .putNull("maxAge"))));
+
+        // 나이 구간 없는 BANK_AGE → BANK_ETC로 재분류되고 금리는 보존
+        assertThat(result.preferentialRates())
+                .extracting(PreferentialRateDraft::keywordCode)
+                .containsExactly(KeywordValueEnum.BANK_ETC);
+        assertThat(result.preferentialRates().get(0).rate()).isEqualByComparingTo("0.2");
+    }
+
+    @Test
+    void keepsBankAgeWhenAgeBoundsPresent() {
+        LlmProductEnrichment result = parser.parse(baseResponse()
+                .set("preferentialRates", objectMapper.createArrayNode()
+                        .add(objectMapper.createObjectNode()
+                                .put("keywordCode", "BANK_AGE")
+                                .put("rate", 0.3)
+                                .put("description", "만 19~34세 우대")
+                                .put("minAge", 19)
+                                .put("maxAge", 34))));
+
+        assertThat(result.preferentialRates())
+                .extracting(PreferentialRateDraft::keywordCode)
+                .containsExactly(KeywordValueEnum.BANK_AGE);
+    }
+
     private tools.jackson.databind.node.ObjectNode baseResponse() {
         return objectMapper.createObjectNode()
                 .put("summaryContent", "summary")
