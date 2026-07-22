@@ -60,7 +60,7 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
         String eligibilityText = JsonNodes.text(base, "join_member");
         String cautionText = JsonNodes.text(base, "etc_note");
         String productName = collapseWhitespace(firstText(base, "fin_prdt_nm"));
-        List<ProductPropertyDraft> propertyDrafts = properties(raw, base, productName, content);
+        List<ProductPropertyDraft> propertyDrafts = properties(raw, base);
 
         var draft = ProductDraft.builder()
                     .rawId(rawProduct.getId())
@@ -84,16 +84,8 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
 
     private List<ProductPropertyDraft> properties(
             JsonNode raw,
-            JsonNode base,
-            String productName,
-            String content
+            JsonNode base
     ) {
-        List<apptive.fin.apicollector.product.KeywordValueEnum> keywords = keywordsFromText(
-                JsonNodes.text(raw, "productType"),
-                JsonNodes.text(raw, "financialGroupName"),
-                productName,
-                content
-        );
         String providerCode = firstText(base, "fin_co_no", "kor_co_nm");
         String providerName = collapseWhitespace(bankNameNormalizer.normalize(providerCode, firstText(base, "kor_co_nm", "fin_co_no")));
         String providerApplyUrl = bankUrlNormalizer.normalize(providerCode).orElse(null);
@@ -109,7 +101,6 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
                     .maxMonthlyLimit(maxMonthlyLimit)
                     .requiresHomeless(false)
                     .requiresHouseholder(false)
-                    .keywords(keywords)
                     .requiredKeywords(requiredKeywords)
                     .preferentialRates(preferentialRates)
                     .build());
@@ -131,7 +122,6 @@ public class FssProductNormalizer extends AbstractProductNormalizer implements P
 //                    .minTenureMonths(JsonNodes.integer(option, "save_trm"))
                     .requiresHomeless(false)
                     .requiresHouseholder(false)
-                    .keywords(keywords)
                     .requiredKeywords(requiredKeywords)
                     .preferentialRates(preferentialRates)
                     .build());
