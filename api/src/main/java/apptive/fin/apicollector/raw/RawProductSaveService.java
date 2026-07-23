@@ -1,8 +1,9 @@
 package apptive.fin.apicollector.raw;
 
 import apptive.fin.apicollector.Source;
+import apptive.fin.apicollector.global.util.Sha256;
 import apptive.fin.apicollector.product.ProductType;
-import apptive.fin.apicollector.util.Sha256;
+
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;

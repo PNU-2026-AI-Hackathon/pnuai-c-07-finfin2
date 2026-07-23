@@ -1,5 +1,7 @@
 package apptive.fin.apicollector.normalize.enrich;
 
+import apptive.fin.apicollector.global.util.JsonNodes;
+import apptive.fin.apicollector.global.util.TextMatch;
 import apptive.fin.apicollector.llm.LlmProductEnrichment;
 import apptive.fin.apicollector.normalize.dto.PreferentialRateDraft;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
@@ -12,8 +14,6 @@ import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.product.ProductType;
 import apptive.fin.apicollector.product.RequiredKeywordEffect;
 import apptive.fin.apicollector.raw.ProductRaw;
-import apptive.fin.apicollector.util.JsonNodes;
-import apptive.fin.apicollector.util.TextMatch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

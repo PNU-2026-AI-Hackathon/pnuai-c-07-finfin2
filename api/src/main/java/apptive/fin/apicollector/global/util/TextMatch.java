@@ -1,4 +1,4 @@
-package apptive.fin.apicollector.util;
+package apptive.fin.apicollector.global.util;
 
 /** 텍스트에 토큰이 포함되는지 대소문자 무시로 검사하는 공용 헬퍼. */
 public final class TextMatch {

@@ -2,6 +2,8 @@ package apptive.fin.apicollector.util;
 
 import org.junit.jupiter.api.Test;
 
+import apptive.fin.apicollector.global.util.Sha256;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class Sha256Test {

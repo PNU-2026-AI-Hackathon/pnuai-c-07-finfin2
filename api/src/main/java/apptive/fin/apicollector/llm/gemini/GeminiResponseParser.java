@@ -1,5 +1,6 @@
 package apptive.fin.apicollector.llm.gemini;
 
+import apptive.fin.apicollector.global.util.JsonNodes;
 import apptive.fin.apicollector.llm.LlmProductEnrichment;
 import apptive.fin.apicollector.normalize.dto.PreferentialRateDraft;
 import apptive.fin.apicollector.normalize.dto.RequiredKeywordDraft;
@@ -7,7 +8,6 @@ import apptive.fin.apicollector.product.ContributionType;
 import apptive.fin.apicollector.product.ExtractionConfidence;
 import apptive.fin.apicollector.product.KeywordValueEnum;
 import apptive.fin.apicollector.product.RequiredKeywordEffect;
-import apptive.fin.apicollector.util.JsonNodes;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;

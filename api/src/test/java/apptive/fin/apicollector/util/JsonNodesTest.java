@@ -1,6 +1,8 @@
 package apptive.fin.apicollector.util;
 
 import org.junit.jupiter.api.Test;
+
+import apptive.fin.apicollector.global.util.JsonNodes;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ObjectNode;
 

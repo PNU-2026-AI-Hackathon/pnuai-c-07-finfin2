@@ -1,7 +1,8 @@
 package apptive.fin.apicollector.normalize.classifier;
 
+import apptive.fin.apicollector.global.util.JsonNodes;
 import apptive.fin.apicollector.normalize.ProductClassification;
-import apptive.fin.apicollector.util.JsonNodes;
+
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import tools.jackson.databind.JsonNode;

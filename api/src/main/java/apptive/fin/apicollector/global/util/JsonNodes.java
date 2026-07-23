@@ -1,4 +1,4 @@
-package apptive.fin.apicollector.util;
+package apptive.fin.apicollector.global.util;
 
 import tools.jackson.databind.JsonNode;
 

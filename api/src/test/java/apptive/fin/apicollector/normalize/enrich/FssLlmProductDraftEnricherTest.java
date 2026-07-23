@@ -893,7 +893,7 @@ class FssLlmProductDraftEnricherTest {
 
         // enricher가 계산할 requestHash를 동일하게 재현
         String prompt = new FssEnrichmentPromptBuilder().build(raw, draft);
-        String requestHash = apptive.fin.apicollector.util.Sha256.hex(prompt);
+        String requestHash = apptive.fin.apicollector.global.util.Sha256.hex(prompt);
 
         LlmProductEnrichment enrichment = new LlmProductEnrichment(
                 "요약",

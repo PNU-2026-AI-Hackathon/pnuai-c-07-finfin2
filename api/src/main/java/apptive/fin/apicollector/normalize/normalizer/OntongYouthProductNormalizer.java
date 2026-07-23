@@ -2,6 +2,7 @@ package apptive.fin.apicollector.normalize.normalizer;
 
 import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.config.CollectorProperties;
+import apptive.fin.apicollector.global.util.JsonNodes;
 import apptive.fin.apicollector.normalize.classifier.OntongYouthPolicyClassifier;
 import apptive.fin.apicollector.normalize.ProductClassification;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
@@ -9,7 +10,6 @@ import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
 import apptive.fin.apicollector.normalize.extractor.KeywordExtractor;
 import apptive.fin.apicollector.normalize.extractor.MonthlyLimitExtractor;
 import apptive.fin.apicollector.raw.ProductRaw;
-import apptive.fin.apicollector.util.JsonNodes;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 

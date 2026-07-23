@@ -1,7 +1,7 @@
 package apptive.fin.apicollector.normalize.dto;
 
+import apptive.fin.apicollector.global.util.TextMatch;
 import apptive.fin.apicollector.product.KeywordValueEnum;
-import apptive.fin.apicollector.util.TextMatch;
 import lombok.Builder;
 
 import java.math.BigDecimal;

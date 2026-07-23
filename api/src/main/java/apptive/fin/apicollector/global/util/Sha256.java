@@ -1,4 +1,4 @@
-package apptive.fin.apicollector.util;
+package apptive.fin.apicollector.global.util;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
