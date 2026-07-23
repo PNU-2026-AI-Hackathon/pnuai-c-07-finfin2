@@ -253,10 +253,12 @@ public class FssEnrichmentMerger {
             List<PreferentialRateDraft> existing,
             List<PreferentialRateDraft> enrichment
     ) {
-        // 기타(BANK_ETC)는 keyword당 1건으로 합치지 않고 라인별로 보존. 완전 중복(동일 description)만 최고금리로 정리.
-        List<PreferentialRateDraft> combined = new ArrayList<>(existing);
-        combined.addAll(enrichment);
-        return PreferentialRateReducer.reduce(combined);
+        // LLM이 우대금리를 하나라도 제시하면 LLM 결과를 authoritative로 사용한다(규칙추출과 union하지 않음).
+        // 규칙·LLM이 같은 조건을 다른 문자열/코드로 내놓아 중복·이중분류(예: 마케팅동의가 BANK_MARKETING과
+        // BANK_ONLINE_JOIN 양쪽에)되던 문제를 원천 제거. LLM이 하나도 못 뽑았을 때만 규칙추출(existing)을
+        // 폴백으로 유지해 max_rate 정합성 safety net을 남긴다.
+        List<PreferentialRateDraft> source = enrichment.isEmpty() ? existing : enrichment;
+        return PreferentialRateReducer.reduce(source);
     }
 
     private <T> T firstNonNull(T existing, T enrichment) {

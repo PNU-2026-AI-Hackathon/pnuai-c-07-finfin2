@@ -31,7 +31,7 @@ collector:
   # FSS(은행 공시)까지 함께 돌리려면 ALL 로 변경.
   source: ALL
   mode: SYNC
-  normalizer-version: 22
+  normalizer-version: 23
   reader-page-size : 500
   unseen-disable-period : 1
 
@@ -50,7 +50,7 @@ collector:
     provider: GEMINI
     model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
     prompt-version: 7
-    schema-version: 12
+    schema-version: 13
     chunk-size: ${LLM_CHUNK_SIZE:10}
     max-concurrency: ${LLM_MAX_CONCURRENCY:3}
     temperature: ${LLM_TEMPERATURE:0}

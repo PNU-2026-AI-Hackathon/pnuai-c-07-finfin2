@@ -940,6 +940,119 @@ class FssLlmProductDraftEnricherTest {
         assertThat(result.contentSummary()).isEqualTo("요약");
     }
 
+    @Test
+    void usesLlmPreferentialRatesOverRuleBasedWhenPresent() {
+        // LLM이 우대금리를 제시하면 규칙추출(existing)과 union하지 않고 LLM 것만 authoritative로 사용한다.
+        // (규칙추출이 만든 중복·오분류 BANK_ONLINE_JOIN 등이 결과에 섞이지 않아야 함)
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null, null, null, null, null, null,
+                false, false,
+                null, null, null, null, null,
+                false, false, null,
+                List.of(),
+                List.of(
+                        PreferentialRateDraft.builder()
+                                .keywordCode(KeywordValueEnum.BANK_ETC)
+                                .rate(new BigDecimal("0.20"))
+                                .description("금리우대쿠폰을 등록한 경우")
+                                .build(),
+                        PreferentialRateDraft.builder()
+                                .keywordCode(KeywordValueEnum.BANK_MARKETING)
+                                .rate(new BigDecimal("0.10"))
+                                .description("마케팅동의 및 모바일메시지 수신동의")
+                                .build()
+                )
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                new FssEnrichmentPromptBuilder(),
+                new LlmEnrichmentValidator(),
+                new FssEnrichmentMerger(objectMapper),
+                new LlmEnrichmentCacheStore(cacheRepository, properties(true), objectMapper)
+        );
+
+        // 규칙추출이 만들어 둔(existing) 우대금리 — 중복/오분류를 흉내
+        ProductDraft draft = draftWithProperty(draft().properties().getFirst().toBuilder()
+                .preferentialRates(List.of(
+                        PreferentialRateDraft.builder()
+                                .keywordCode(KeywordValueEnum.BANK_ETC)
+                                .rate(new BigDecimal("0.20"))
+                                .description("신규시 금리우대쿠폰을 등록한 경우 0.20%")
+                                .build(),
+                        PreferentialRateDraft.builder()
+                                .keywordCode(KeywordValueEnum.BANK_ONLINE_JOIN)
+                                .rate(new BigDecimal("0.10"))
+                                .description("신규(재예치)시 마케팅동의 및 모바일메시지 수신동의 0.10%")
+                                .build()
+                ))
+                .build());
+
+        ProductDraft result = enricher.enrich(raw(), draft);
+        ProductPropertyDraft property = result.properties().getFirst();
+
+        // LLM 것(BANK_ETC, BANK_MARKETING)만 남고, 규칙전용 오분류(BANK_ONLINE_JOIN)는 제외되어야 한다.
+        assertThat(property.preferentialRates())
+                .extracting(PreferentialRateDraft::keywordCode)
+                .containsExactlyInAnyOrder(KeywordValueEnum.BANK_MARKETING, KeywordValueEnum.BANK_ETC);
+    }
+
+    @Test
+    void fallsBackToRulePreferentialRatesWhenLlmReturnsNone() {
+        // LLM이 우대금리를 하나도 제시하지 않으면 규칙추출(existing)을 폴백으로 유지한다.
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null, null, null, null, null, null,
+                false, false,
+                null, null, null, null, null,
+                false, false, null,
+                List.of(),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                new FssEnrichmentPromptBuilder(),
+                new LlmEnrichmentValidator(),
+                new FssEnrichmentMerger(objectMapper),
+                new LlmEnrichmentCacheStore(cacheRepository, properties(true), objectMapper)
+        );
+
+        ProductDraft draft = draftWithProperty(draft().properties().getFirst().toBuilder()
+                .preferentialRates(List.of(
+                        PreferentialRateDraft.builder()
+                                .keywordCode(KeywordValueEnum.BANK_SALARY_TRANSFER)
+                                .rate(new BigDecimal("0.30"))
+                                .description("급여이체 시 0.30%")
+                                .build()
+                ))
+                .build());
+
+        ProductDraft result = enricher.enrich(raw(), draft);
+        ProductPropertyDraft property = result.properties().getFirst();
+
+        assertThat(property.preferentialRates())
+                .extracting(PreferentialRateDraft::keywordCode)
+                .containsExactly(KeywordValueEnum.BANK_SALARY_TRANSFER);
+    }
+
     private ProductRaw raw() {
         return raw("실명의 개인", "월 1만원 이상 가입");
     }
