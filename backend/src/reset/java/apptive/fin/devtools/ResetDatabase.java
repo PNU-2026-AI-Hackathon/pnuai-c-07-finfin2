@@ -29,11 +29,17 @@ public class ResetDatabase {
         String url = getSetting("SPRING_DATASOURCE_URL", DEFAULT_URL);
         String username = getSetting("SPRING_DATASOURCE_USERNAME", DEFAULT_USERNAME);
         String password = getSetting("SPRING_DATASOURCE_PASSWORD", DEFAULT_PASSWORD);
+        List<String> argList = List.of(args);
+        boolean noSeed = argList.contains("--no-seed");
 
         try (Connection connection = DriverManager.getConnection(url, username, password)) {
             connection.setAutoCommit(true);
+            
+            
 
             for (String sqlFile : SQL_FILES) {
+                if (noSeed && sqlFile.startsWith("seed"))
+                    continue;
                 System.out.println("Running " + sqlFile);
                 ScriptUtils.executeSqlScript(
                         connection,
