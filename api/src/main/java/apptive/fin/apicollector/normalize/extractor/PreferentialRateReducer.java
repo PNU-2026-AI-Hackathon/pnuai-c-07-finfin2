@@ -13,6 +13,8 @@ import java.util.Map;
  * - 일반 BANK_* 키워드: 키워드당 최고금리 1건.
  * - BANK_AGE(나이 우대): 나이 구간(minAge:maxAge)별로 최고금리 1건씩 보존(청년/노인 구간이 뭉개지지 않음).
  * - BANK_ETC(기타): description별 최고금리(서로 다른 조건은 각각 보존, 동일 문구만 최고금리로 정리).
+ * - 조건 없는 총합/상한 요약 문구("우대이율 최대 2.5%" 등)는 제외한다({@link PreferentialRatePhrases#isAggregate}).
+ *   규칙추출·LLM(신규/캐시) 모든 경로가 이 reduce를 거치므로 여기서 걸러 일관되게 제거한다.
  * - 결과 순서: 비-ETC best(등장순) 다음 ETC best(등장순).
  */
 public final class PreferentialRateReducer {
@@ -24,6 +26,9 @@ public final class PreferentialRateReducer {
         Map<String, PreferentialRateDraft> primary = new LinkedHashMap<>();
         Map<String, PreferentialRateDraft> etcByDescription = new LinkedHashMap<>();
         for (PreferentialRateDraft draft : drafts) {
+            if (PreferentialRatePhrases.isAggregate(draft.description())) {
+                continue;
+            }
             if (draft.keywordCode() == KeywordValueEnum.BANK_ETC) {
                 keepHigher(etcByDescription, draft.description(), draft);
             }

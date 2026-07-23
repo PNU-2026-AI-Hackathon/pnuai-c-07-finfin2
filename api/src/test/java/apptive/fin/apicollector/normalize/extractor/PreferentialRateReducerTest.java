@@ -45,6 +45,17 @@ class PreferentialRateReducerTest {
     }
 
     @Test
+    void reduce_dropsAggregateSummaryButKeepsItemizedCondition() {
+        List<PreferentialRateDraft> result = PreferentialRateReducer.reduce(List.of(
+                rate(KeywordValueEnum.BANK_ETC, "2.5", "우대이율 최대 2.5%"),          // 총합 요약 → 제외
+                rate(KeywordValueEnum.BANK_ETC, "1.5", "전라남도 관광지 방문 인증시 : 최고 1.5%p") // 개별조건 → 유지
+        ));
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).rate()).isEqualByComparingTo("1.5");
+    }
+
+    @Test
     void reduce_keepsBankAgePerAgeBracket_notCollapsedToHighest() {
         PreferentialRateDraft youth = PreferentialRateDraft.builder()
                 .keywordCode(KeywordValueEnum.BANK_AGE).rate(new BigDecimal("0.3"))

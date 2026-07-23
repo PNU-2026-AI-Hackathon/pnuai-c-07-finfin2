@@ -31,7 +31,7 @@ collector:
   # FSS(은행 공시)까지 함께 돌리려면 ALL 로 변경.
   source: ALL
   mode: SYNC
-  normalizer-version: 23
+  normalizer-version: 25
   reader-page-size : 500
   unseen-disable-period : 1
 

@@ -99,14 +99,14 @@ public class FssPreferentialRateExtractor {
         return false;
     }
 
-    // 개별 우대항목이 하나도 추출되지 않았지만 원문에 금리 표기가 있으면(총합 표현만 있는 상품 등)
-    // 최고 금리 라인 1건을 기타(BANK_ETC)로 보존해 max_rate와의 정합성을 지킨다.
-    // 총합 표현은 "연 0.10%p 제공(최대 연 3.10%p)"처럼 상한이 뒤에 오는 경우가 많아, 라인 내 최고 금리를 쓴다.
+    // 개별 우대항목이 하나도 추출되지 않은 경우의 폴백. 단, 총합/상한 요약 라인은 제외한다.
+    // (총합 문구를 BANK_ETC로 남기면 프론트에서 사용자가 실제 조건처럼 선택해 수익률이 부풀려지므로.)
+    // 순수 총합 상품은 우대조건 목록이 빈 상태가 되며, max_rate는 property에 그대로 남아 표시된다.
     private Optional<PreferentialRateDraft> fallback(List<String> lines) {
         PreferentialRateDraft best = null;
         for (String rawLine : lines) {
             String line = normalize(rawLine);
-            if (line.isBlank()) {
+            if (line.isBlank() || PreferentialRatePhrases.isAggregate(line)) {
                 continue;
             }
             Optional<BigDecimal> rate = maxRate(line);
@@ -139,23 +139,7 @@ public class FssPreferentialRateExtractor {
     }
 
     private boolean isAggregateLine(String line) {
-        return line.contains("최대우대금리")
-                || line.contains("최고우대금리")
-                || line.contains("최대 우대금리")
-                || line.contains("최고 우대금리")
-                || line.contains("우대금리 합계")
-                || line.contains("우대이율 합계")
-                || line.matches(".*항목별.*최고.*")
-                // "우대이율 최고 연 1.0%", "우대금리 최고 …" 등 총합 표현
-                || line.matches(".*우대(금리|이율)\\s*최고.*")
-                // "우대이율(최대 0.90%p)" 등 괄호로 상한을 묶은 총합 표현 (괄호 없는 "…우대금리 최대 0.3%p"는 개별 조건일 수 있어 제외)
-                || line.matches(".*우대(금리|이율)\\s*\\(\\s*(최대|최고).*")
-                // "우대금리 최대한도 : 1.0%p" 등 한도형 총합 표현
-                || line.matches(".*우대(금리|이율)\\s*(최대|최고)\\s*한도.*")
-                // "아래의 우대요건 충족시 최고0.3% 추가우대" 등 하위 항목을 가리키는 총합 표현(라인 선두일 때만)
-                || (line.startsWith("아래") && line.contains("충족"))
-                // "최고 연 1.0%", "최대 연 1.0%p" 등 상한/총합 표현(특정 조건 없이 상한만 명시)
-                || line.matches(".*(최고|최대)\\s*연\\s*\\d.*%.*");
+        return PreferentialRatePhrases.isAggregate(line);
     }
 
     private List<KeywordValueEnum> keywords(String line) {

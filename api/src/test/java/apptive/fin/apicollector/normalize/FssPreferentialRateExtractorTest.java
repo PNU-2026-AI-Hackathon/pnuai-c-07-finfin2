@@ -56,27 +56,25 @@ class FssPreferentialRateExtractorTest {
     }
 
     @Test
-    void fallsBackToSingleBankEtcWhenOnlyAggregateExpressionExists() {
-        // 케이뱅크 주거래우대 자유적금 케이스: 총합 표현 한 줄뿐이면 필터로 전멸하는 대신 1건 보존
+    void returnsEmptyWhenOnlyAggregateExpressionExists() {
+        // 케이뱅크 주거래우대 자유적금 케이스: 총합 표현뿐이면 BANK_ETC로 남기지 않고 빈 목록으로 둔다.
+        // (총합을 BANK_ETC로 남기면 프론트에서 사용자가 실제 조건처럼 선택해 수익률이 부풀려짐)
         List<PreferentialRateDraft> result = extractor.extract(
                 "급여이체 또는 통신비 자동이체, 체크카드 고객에게 우대금리 제공 (최고 연 0.6%)"
         );
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).keywordCode()).isEqualTo(KeywordValueEnum.BANK_ETC);
-        assertThat(result.get(0).rate()).isEqualByComparingTo(new BigDecimal("0.6"));
+        assertThat(result).isEmpty();
     }
 
     @Test
-    void fallbackKeepsHighestRateLine() {
-        // 카카오뱅크 한달적금 케이스: 모든 라인이 총합/상한 표현이면 최고 금리 라인 1건만 보존
+    void returnsEmptyWhenAllLinesAreAggregateExpressions() {
+        // 카카오뱅크 한달적금 케이스: 모든 라인이 총합/상한 표현이면 빈 목록으로 둔다.
         List<PreferentialRateDraft> result = extractor.extract(
                 "매일/보너스 우대금리 제공 : 최고 연 5.50%p\n"
                         + "① 매일 우대금리 : 매 입금 시 마다 연 0.10%p 제공(최대 연 3.10%p)"
         );
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).rate()).isEqualByComparingTo(new BigDecimal("5.50"));
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -199,15 +197,13 @@ class FssPreferentialRateExtractorTest {
     }
 
     @Test
-    void fallbackUsesHighestRateWithinLine() {
-        // 리뷰 지적 #5: 폴백은 라인의 첫 금리(0.10)가 아닌 최고 금리(3.10)를 저장한다
+    void returnsEmptyForAggregateLineWithInlineCap() {
+        // "…(최대 연 3.10%p)"처럼 상한이 묶인 총합 표현은 개별조건이 아니므로 BANK_ETC로 남기지 않는다(빈 목록).
         List<PreferentialRateDraft> result = extractor.extract(
                 "매 입금 시 마다 연 0.10%p 제공(최대 연 3.10%p)"
         );
 
-        assertThat(result).hasSize(1);
-        assertThat(result.get(0).keywordCode()).isEqualTo(KeywordValueEnum.BANK_ETC);
-        assertThat(result.get(0).rate()).isEqualByComparingTo(new BigDecimal("3.10"));
+        assertThat(result).isEmpty();
     }
 
     @Test
