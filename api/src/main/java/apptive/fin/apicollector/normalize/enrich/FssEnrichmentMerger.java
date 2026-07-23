@@ -36,7 +36,7 @@ import java.util.Set;
 public class FssEnrichmentMerger {
 
     private static final String[] INCOME_IRRELEVANT_PHRASES = {
-            "소득공제", "소득세", "금융소득종합과세", "소득이체", "소득 이체"
+            "소득공제", "소득세", "금융소득종합과세", "소득이체"
     };
     private static final String[] INCOME_TOKENS = {"소득", "총급여", "연봉"};
 
@@ -60,27 +60,29 @@ public class FssEnrichmentMerger {
 
     // earnMaxAmt(연소득 상한)·earnPercent(소득기준 %)는 원문에 소득 요건 언급이 있을 때만 LLM 값을 신뢰한다.
     // LLM이 가입금액/예치한도 등을 소득 상한으로 착각해 채우는 오류를 원천 차단하기 위한 보수적 가드.
-    // 1단계(sanitize): "소득공제", "소득세", "금융소득종합과세", "소득이체", "소득 이체" 등 소득요건과 무관한 문구를
-    //   먼저 제거해 오수용(false positive)을 차단한다 - 이 문구만 있고 실제 소득요건이 없는데 통과하는 것을 방지.
-    // 2단계: 남은 텍스트에 "소득", "총급여", "연봉" 중 하나라도 남아 있으면 소득요건 언급으로 인정한다
+    // 1단계(공백 정규화): 원문이 "총 급여액", "소득 공제"처럼 띄어써도 토큰("총급여")·무관문구("소득공제")와
+    //   일관되게 매칭되도록 공백을 모두 제거한다(부분문자열 매칭의 띄어쓰기 취약점 제거).
+    // 2단계(무관문구 제거): "소득공제", "소득세", "금융소득종합과세", "소득이체" 등 소득요건과 무관한 문구를
+    //   제거해 오수용(false positive)을 차단한다 - 이 문구만 있고 실제 소득요건이 없는데 통과하는 것을 방지.
+    // 3단계: 남은 텍스트에 "소득", "총급여", "연봉" 중 하나라도 남아 있으면 소득요건 언급으로 인정한다
     //   (오거부 방지 - 총급여/연봉 표현도 소득요건으로 수용).
     private boolean mentionsIncome(String content, String eligibilityText) {
         return mentionsIncomeToken(content) || mentionsIncomeToken(eligibilityText);
     }
 
     private boolean mentionsIncomeToken(String value) {
-        return TextMatch.containsAny(sanitizeIncomeIrrelevantPhrases(value), INCOME_TOKENS);
+        return TextMatch.containsAny(normalizeForIncomeMatch(value), INCOME_TOKENS);
     }
 
-    private String sanitizeIncomeIrrelevantPhrases(String value) {
+    private String normalizeForIncomeMatch(String value) {
         if (value == null) {
             return null;
         }
-        String sanitized = value;
+        String normalized = value.replaceAll("\\s+", "");
         for (String phrase : INCOME_IRRELEVANT_PHRASES) {
-            sanitized = sanitized.replace(phrase, "");
+            normalized = normalized.replace(phrase, "");
         }
-        return sanitized;
+        return normalized;
     }
 
     private ProductPropertyDraft merge(

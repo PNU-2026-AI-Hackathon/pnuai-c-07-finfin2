@@ -431,6 +431,53 @@ class FssLlmProductDraftEnricherTest {
     }
 
     @Test
+    void keepsEarnMaxAmtWhenTotalSalaryWrittenWithSpace() {
+        // "총 급여액"처럼 띄어쓴 표현도 공백 정규화 후 "총급여" 토큰으로 인정해 earnMaxAmt를 유지해야 한다.
+        LlmProviderClient providerClient = mock(LlmProviderClient.class);
+        LlmEnrichmentCacheRepository cacheRepository = mock(LlmEnrichmentCacheRepository.class);
+        when(providerClient.supports("GEMINI")).thenReturn(true);
+        when(providerClient.enrich(any())).thenReturn(new LlmProductEnrichment(
+                "요약",
+                List.of(),
+                null,
+                null,
+                null,
+                null,
+                50_000_000L,
+                180,
+                false,
+                false,
+                null,
+                null,
+                null,
+                null,
+                null,
+                false,
+                false,
+                null,
+                List.of(),
+                List.of()
+        ));
+        when(cacheRepository.findBySourceAndExternalIdAndContentHashAndProviderAndModelAndPromptVersionAndSchemaVersion(
+                any(), any(), any(), any(), any(), anyInt(), anyInt()
+        )).thenReturn(Optional.empty());
+
+        FssLlmProductDraftEnricher enricher = new FssLlmProductDraftEnricher(
+                properties(true),
+                List.of(providerClient),
+                new FssEnrichmentPromptBuilder(),
+                new LlmEnrichmentValidator(),
+                new FssEnrichmentMerger(objectMapper),
+                new LlmEnrichmentCacheStore(cacheRepository, properties(true), objectMapper)
+        );
+
+        ProductDraft result = enricher.enrich(raw("총 급여액이 5천만원 이하인 자", "월 1만원 이상 가입"), draft());
+        ProductPropertyDraft property = result.properties().getFirst();
+
+        assertThat(property.earnMaxAmt()).isEqualTo(50_000_000L);
+    }
+
+    @Test
     void keepsEarnMaxAmtWhenEligibilityTextMentionsAnnualSalary() {
         // "연봉" 표현도 소득요건 언급으로 인정해 earnMaxAmt를 유지해야 한다.
         LlmProviderClient providerClient = mock(LlmProviderClient.class);
