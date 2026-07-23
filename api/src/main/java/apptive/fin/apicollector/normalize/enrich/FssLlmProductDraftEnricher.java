@@ -358,6 +358,10 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
         return false;
     }
 
+    private boolean hasAmountOrBalanceCondition(String value) {
+        return containsAny(value, "금액", "잔액", "평잔", "평균잔액", "요구불", "만원", "백만원", "억원");
+    }
+
     private void validateAmount(Long value, String fieldName) {
         if (value != null && value < 0) {
             throw new IllegalArgumentException(fieldName + " must be positive");

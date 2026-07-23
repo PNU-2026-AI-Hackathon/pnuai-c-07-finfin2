@@ -23,7 +23,17 @@ class ProductTest {
     }
 
     private static ProductPropertyDraft draft(Integer saveTerm, String reserveType, BigDecimal baseRate) {
+        return draft(saveTerm, reserveType, baseRate, null);
+    }
+
+    private static ProductPropertyDraft draft(
+            Integer saveTerm,
+            String reserveType,
+            BigDecimal baseRate,
+            String variantCode
+    ) {
         return ProductPropertyDraft.builder()
+                .variantCode(variantCode)
                 .providerCode("ORG001")
                 .providerName("테스트은행")
                 .intrRateType("S")
@@ -31,6 +41,51 @@ class ProductTest {
                 .saveTerm(saveTerm)
                 .baseRate(baseRate)
                 .build();
+    }
+
+    @Test
+    void replacePropertiesKeepsVariantsWithOtherwiseIdenticalCoordinatesDistinctAndStable() {
+        Product product = newProduct();
+        Provider provider = newProvider(product.getSource());
+
+        product.replaceProperties(List.of(
+                draft(36, null, new BigDecimal("2.00"), "GENERAL"),
+                draft(36, null, new BigDecimal("4.00"), "PREFERENTIAL")
+        ), ignored -> provider);
+        ProductProperty general = product.getProperties().stream()
+                .filter(property -> "GENERAL".equals(property.getVariantCode()))
+                .findFirst()
+                .orElseThrow();
+        ProductProperty preferential = product.getProperties().stream()
+                .filter(property -> "PREFERENTIAL".equals(property.getVariantCode()))
+                .findFirst()
+                .orElseThrow();
+
+        product.replaceProperties(List.of(
+                draft(36, null, new BigDecimal("2.50"), "GENERAL"),
+                draft(36, null, new BigDecimal("4.50"), "PREFERENTIAL")
+        ), ignored -> provider);
+
+        assertThat(product.getProperties()).hasSize(2);
+        assertThat(product.getProperties()).contains(general, preferential);
+        assertThat(general.getBaseRate()).isEqualByComparingTo("2.50");
+        assertThat(preferential.getBaseRate()).isEqualByComparingTo("4.50");
+        assertThat(product.getProperties()).allMatch(ProductProperty::getIsJoinable);
+    }
+
+    @Test
+    void replacePropertiesMarksFreshlyInsertedPropertiesJoinable() {
+        Product product = newProduct();
+        Provider provider = newProvider(product.getSource());
+
+        product.replaceProperties(
+                List.of(draft(12, "F", new BigDecimal("3.00")), draft(24, "F", new BigDecimal("3.20"))),
+                ignored -> provider
+        );
+
+        assertThat(product.getProperties()).hasSize(2);
+        assertThat(product.getProperties())
+                .allMatch(ProductProperty::getIsJoinable);
     }
 
     @Test

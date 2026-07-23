@@ -6,6 +6,7 @@ import apptive.fin.apicollector.batch.RawProductItemReader;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.enrich.FssLlmProductDraftEnricher;
 import apptive.fin.apicollector.raw.ProductRaw;
+import apptive.fin.apicollector.tasklet.FetchManualRawTasklet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.FlowBuilder;
@@ -53,13 +54,13 @@ public class FinancialProductSyncJobConfig {
     }
 
     @Bean
-    public Step fetchOntongYouthRawStep(
+    public Step fetchManualRawStep(
             JobRepository jobRepository,
             PlatformTransactionManager transactionManager,
-            Tasklet fetchOntongYouthRawTasklet
+            FetchManualRawTasklet fetchManualRawTasklet
     ) {
-        return new StepBuilder("fetchOntongYouthRawStep", jobRepository)
-                .tasklet(fetchOntongYouthRawTasklet, transactionManager)
+        return new StepBuilder("fetchManualRawStep", jobRepository)
+                .tasklet(fetchManualRawTasklet, transactionManager)
                 .build();
     }
 
@@ -90,12 +91,12 @@ public class FinancialProductSyncJobConfig {
 
     @Bean
     public Flow ontongYouthSyncFlow(
-            Step fetchOntongYouthRawStep,
+            Step fetchManualRawStep,
             Step normalizeOntongRawProductStep,
             Step deactivateMissingProductStep
     ) {
         return new FlowBuilder<Flow>("ontongYouthSyncFlow")
-                .start(fetchOntongYouthRawStep)
+                .start(fetchManualRawStep)
                 .next(normalizeOntongRawProductStep)
                 .next(deactivateMissingProductStep)
                 .build();
@@ -103,14 +104,14 @@ public class FinancialProductSyncJobConfig {
 
     @Bean
     public Flow allSyncFlow(
-            Step fetchOntongYouthRawStep,
+            Step fetchManualRawStep,
             Step fetchFssRawStep,
             Step normalizeOntongRawProductStep,
             Step normalizeFssRawProductStep,
             Step deactivateMissingProductStep
     ) {
         return new FlowBuilder<Flow>("allSyncFlow")
-                .start(fetchOntongYouthRawStep)
+                .start(fetchManualRawStep)
                 .next(fetchFssRawStep)
                 .next(normalizeOntongRawProductStep)
                 .next(normalizeFssRawProductStep)

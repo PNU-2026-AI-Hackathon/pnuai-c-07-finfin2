@@ -66,9 +66,10 @@ public class ProductRaw extends BaseTimeEntity {
         this.type = productType;
     }
 
-    public void updateRaw(String contentHash, String rawJson) {
+    public void updateRaw(String contentHash, String rawJson, ProductType productType) {
         this.contentHash = contentHash;
         this.rawJson = rawJson;
+        this.type = productType;
         this.lastSeenAt = Instant.now();
 
         this.normalizedAt = null;
@@ -76,6 +77,10 @@ public class ProductRaw extends BaseTimeEntity {
 
     public void touchSeen() {
         this.lastSeenAt = Instant.now();
+    }
+
+    public boolean hasSameType(ProductType productType) {
+        return this.type == productType;
     }
 
     public void markNormalized(int normalizerVersion) {

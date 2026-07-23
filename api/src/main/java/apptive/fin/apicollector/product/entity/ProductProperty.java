@@ -106,6 +106,9 @@ public class ProductProperty {
 
     private Integer saveTrm;
 
+    @Column(name = "variant_code", length = 50)
+    private String variantCode;
+
     private ProductProperty(
             Product product,
             Provider provider,
@@ -157,6 +160,7 @@ public class ProductProperty {
         this.intrRateType = InterestRateType.fromCode(propertyDraft.intrRateType());
         this.reserveType = ReserveType.fromApiCode(propertyDraft.reserveType());
         this.saveTrm = propertyDraft.saveTerm();
+        this.variantCode = propertyDraft.variantCode();
         replaceKeywords(propertyDraft.keywords());
         replaceRequiredKeywords(propertyDraft.requiredKeywords());
         replacePreferentialRates(propertyDraft.preferentialRates());

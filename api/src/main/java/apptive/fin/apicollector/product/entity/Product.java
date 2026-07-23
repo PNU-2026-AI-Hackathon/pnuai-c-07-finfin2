@@ -128,9 +128,13 @@ public class Product extends BaseTimeEntity {
         for (ProductPropertyDraft propertyDraft : propertyDrafts) {
             Provider provider = providerResolver.apply(propertyDraft);
             PropertyKey key = keyOf(propertyDraft);
+            // draft에 등장한 모든 키를 seenKeys에 등록해야, 아래 소프트 비활성화 루프가
+            // 'draft에서 사라진 키'만 끈다. (등록을 update 분기에만 하면 신규 insert된 property가
+            // 곧바로 markUnjoinable 되어 최초 동기화 시 전부 isJoinable=false가 되는 버그)
+            boolean firstOccurrence = seenKeys.add(key);
             ProductProperty existing = existingByKey.get(key);
 
-            if (existing != null && seenKeys.add(key)) {
+            if (existing != null && firstOccurrence) {
                 existing.updateFrom(provider, propertyDraft);
             } else {
                 this.properties.add(ProductProperty.create(this, provider, propertyDraft));
@@ -149,7 +153,8 @@ public class Product extends BaseTimeEntity {
                 property.getProvider() == null ? null : property.getProvider().getCode(),
                 property.getIntrRateType(),
                 property.getReserveType(),
-                property.getSaveTrm()
+                property.getSaveTrm(),
+                property.getVariantCode()
         );
     }
 
@@ -158,7 +163,8 @@ public class Product extends BaseTimeEntity {
                 draft.providerCode(),
                 InterestRateType.fromCode(draft.intrRateType()),
                 ReserveType.fromApiCode(draft.reserveType()),
-                draft.saveTerm()
+                draft.saveTerm(),
+                draft.variantCode()
         );
     }
 
@@ -170,7 +176,8 @@ public class Product extends BaseTimeEntity {
             String providerCode,
             InterestRateType intrRateType,
             ReserveType reserveType,
-            Integer saveTrm
+            Integer saveTrm,
+            String variantCode
     ) {
     }
 
