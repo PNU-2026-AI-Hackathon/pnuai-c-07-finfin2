@@ -1,0 +1,12 @@
+spring:
+  sql:
+    init:
+      mode: always          # 컨테이너에 schema.sql 로드 (api엔 data.sql/seed 없음)
+  jpa:
+    hibernate:
+      ddl-auto: validate    # schema.sql이 테이블 생성 → Hibernate는 검증만 (dev와 동일)
+  batch:
+    jdbc:
+      initialize-schema: always   # BATCH_* 메타데이터 테이블 생성 (schema.sql엔 없음)
+    job:
+      enabled: false        # 컨텍스트 로드 시 financialProductSyncJob 자동 실행 방지 (dev는 true)

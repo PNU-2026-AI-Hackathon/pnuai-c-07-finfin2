@@ -1,10 +1,9 @@
 package apptive.fin.apicollector;
 
+import apptive.fin.apicollector.support.IntegrationTestSupport;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class ApiCollectorApplicationTests {
+class ApiCollectorApplicationTests extends IntegrationTestSupport {
 
     @Test
     void contextLoads() {

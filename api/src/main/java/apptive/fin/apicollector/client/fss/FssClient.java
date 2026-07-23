@@ -25,15 +25,18 @@ public class FssClient {
     private final CollectorProperties properties;
     private final RestClient fssRestClient;
     private final ObjectMapper objectMapper;
+    private final FssOptionOrdering fssOptionOrdering;
 
     public FssClient(
             CollectorProperties properties,
             @Qualifier("fssRestClient") RestClient fssRestClient,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            FssOptionOrdering fssOptionOrdering
     ) {
         this.properties = properties;
         this.fssRestClient = fssRestClient;
         this.objectMapper = objectMapper;
+        this.fssOptionOrdering = fssOptionOrdering;
     }
 
     public List<FssRawProduct> fetchAll() {
@@ -141,7 +144,7 @@ public class FssClient {
                     FssProductKey.from(base),
                     List.of()
             );
-            options.forEach(optionArray::add);
+            fssOptionOrdering.sort(options).forEach(optionArray::add);
 
             raw.set("options", optionArray);
 

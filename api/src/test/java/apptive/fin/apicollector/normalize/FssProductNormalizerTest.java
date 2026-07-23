@@ -112,6 +112,50 @@ class FssProductNormalizerTest {
     }
 
     @Test
+    void collapsesWhitespaceInProductName() {
+        ProductRaw raw = new ProductRaw(Source.FSS, "FSS:SAVING:005:MNO", "hash", """
+                {
+                  "source": "FSS",
+                  "productType": "SAVING",
+                  "financialGroupName": "은행",
+                  "base": {
+                    "fin_co_no": "005",
+                    "kor_co_nm": "테스트은행",
+                    "fin_prdt_nm": "스마일드림 \\n정기예금\\n(개인)"
+                  },
+                  "options": []
+                }
+                """, ProductType.SAVING);
+
+        ProductDraft draft = normalizer.normalize(raw);
+
+        assertThat(draft.productName()).isEqualTo("스마일드림 정기예금 (개인)");
+    }
+
+    @Test
+    void collapsesWhitespaceInProviderName() {
+        // fin_co_no가 FssBankNameNormalizer의 코드-이름 매핑에 없는 값이라 kor_co_nm 원문이 그대로 흘러가며,
+        // 개행/공백이 포함된 경우 \s+ -> 단일 공백으로 축약되어야 한다.
+        ProductRaw raw = new ProductRaw(Source.FSS, "FSS:SAVING:006:PQR", "hash", """
+                {
+                  "source": "FSS",
+                  "productType": "SAVING",
+                  "financialGroupName": "은행",
+                  "base": {
+                    "fin_co_no": "006",
+                    "kor_co_nm": "광주\\n은행",
+                    "fin_prdt_nm": "청년 적금"
+                  },
+                  "options": []
+                }
+                """, ProductType.SAVING);
+
+        ProductDraft draft = normalizer.normalize(raw);
+
+        assertThat(draft.properties().getFirst().providerName()).isEqualTo("광주 은행");
+    }
+
+    @Test
     void normalizesFssProviderNameByCompanyCode() {
         ProductRaw raw = new ProductRaw(Source.FSS, "FSS:SAVING:0013909:XYZ", "hash", """
                 {

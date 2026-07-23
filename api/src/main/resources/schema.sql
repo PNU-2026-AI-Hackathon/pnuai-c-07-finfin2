@@ -76,8 +76,8 @@ CREATE TABLE IF NOT EXISTS product_properties (
                                     max_age INT,
                                     allows_military_age_extension BOOLEAN NOT NULL DEFAULT FALSE,
                                     military_max_age INT,
-                                    earn_max_amt BIGINT,
-                                    earn_percent INT,
+                                    earn_max_amt BIGINT, -- 가입자격 연소득 상한(원). 가입/예치 한도 아님
+                                    earn_percent INT, -- 소득기준(중위소득 대비 %)
                                     min_tenure_months INT,
                                     requires_homeless BOOLEAN NOT NULL DEFAULT FALSE,
                                     requires_householder BOOLEAN NOT NULL DEFAULT FALSE,

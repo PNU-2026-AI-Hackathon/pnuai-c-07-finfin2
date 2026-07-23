@@ -111,13 +111,15 @@ class OntongYouthProductNormalizerTest {
 
         ProductDraft draft = normalizer.normalize(raw);
 
+        // BENEFIT_GOV_SUBSIDY는 텍스트 매칭(BenefitKeywordRecognizer)으로 더 이상 부여되지 않는다.
+        // 수동입력(manual-products.json) 상품에서만 명시적으로 부여한다.
         assertThat(draft.properties().getFirst().keywords())
                 .contains(
                         KeywordValueEnum.REGION_SEOUL,
-                        KeywordValueEnum.BENEFIT_GOV_SUBSIDY,
                         KeywordValueEnum.BENEFIT_TAX_FREE,
                         KeywordValueEnum.INTEREST_SAVINGS
-                );
+                )
+                .doesNotContain(KeywordValueEnum.BENEFIT_GOV_SUBSIDY);
     }
 
     @Test

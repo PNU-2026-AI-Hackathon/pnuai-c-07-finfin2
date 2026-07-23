@@ -1,26 +1,35 @@
 package apptive.fin.apicollector.raw;
 
 import apptive.fin.apicollector.Source;
+import apptive.fin.apicollector.global.util.Sha256;
 import apptive.fin.apicollector.product.ProductType;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
-
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import tools.jackson.databind.ObjectWriter;
+import tools.jackson.databind.cfg.JsonNodeFeature;
 
 @Service
-@RequiredArgsConstructor
 public class RawProductSaveService {
 
     private final ProductRawRepository productRawRepository;
-    private final ObjectMapper objectMapper;
+
+    /**
+     * 해시/저장용 canonical 직렬화 writer.
+     * WRITE_PROPERTIES_SORTED 로 ObjectNode 키를 (재귀적으로) 정렬해서,
+     * 외부 API가 동일 내용을 키 순서만 바꿔 내려줘도 content_hash 가 흔들리지 않게 한다.
+     */
+    private final ObjectWriter canonicalWriter;
+
+    public RawProductSaveService(ProductRawRepository productRawRepository, ObjectMapper objectMapper) {
+        this.productRawRepository = productRawRepository;
+        this.canonicalWriter = objectMapper.writer().with(JsonNodeFeature.WRITE_PROPERTIES_SORTED);
+    }
 
     public SaveResult saveOrUpdate(Source source, String externalId, JsonNode raw, ProductType productType) {
         String rawJson = toJson(raw);
-        String hash = sha256(rawJson);
+        String hash = Sha256.hex(rawJson);
 
         return productRawRepository.findBySourceAndExternalId(source, externalId)
                 .map(existing -> {
@@ -40,27 +49,10 @@ public class RawProductSaveService {
 
     private String toJson(JsonNode node) {
         try {
-            return objectMapper.writeValueAsString(node);
+            return canonicalWriter.writeValueAsString(node);
         }
         catch (Exception e) {
             throw new IllegalStateException("Failed to serialize raw JSON", e);
-        }
-    }
-
-    private String sha256(String value) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
-
-            StringBuilder hex = new StringBuilder();
-            for (byte b : hash) {
-                hex.append(String.format("%02x", b));
-            }
-
-            return hex.toString();
-        }
-        catch (Exception e) {
-            throw new IllegalStateException("Failed to calculate hash", e);
         }
     }
 

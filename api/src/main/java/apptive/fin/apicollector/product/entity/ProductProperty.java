@@ -82,7 +82,9 @@ public class ProductProperty {
 
     private Integer militaryMaxAge;
 
+    // 가입자격 연소득 상한(원). 가입/예치 한도 아님
     private Long earnMaxAmt;
+    // 소득기준(중위소득 대비 %)
     private Integer earnPercent;
     private Integer minTenureMonths;
 

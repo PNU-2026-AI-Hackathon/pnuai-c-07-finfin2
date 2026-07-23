@@ -32,7 +32,7 @@ public interface ProductRawRepository extends JpaRepository<ProductRaw, Long> {
                         and r.source = apptive.fin.apicollector.Source.FSS
                         and not exists (
                             select c.id
-                            from apptive.fin.apicollector.llm.LlmEnrichmentCache c
+                            from apptive.fin.apicollector.llm.cache.LlmEnrichmentCache c
                             where c.source = r.source
                               and c.externalId = r.externalId
                               and c.contentHash = r.contentHash
@@ -40,7 +40,7 @@ public interface ProductRawRepository extends JpaRepository<ProductRaw, Long> {
                               and c.model = :llmModel
                               and c.promptVersion = :llmPromptVersion
                               and c.schemaVersion = :llmSchemaVersion
-                              and c.status = apptive.fin.apicollector.llm.LlmEnrichmentCacheStatus.SUCCESS
+                              and c.status = apptive.fin.apicollector.llm.cache.LlmEnrichmentCacheStatus.SUCCESS
                         )
                     )
                 )

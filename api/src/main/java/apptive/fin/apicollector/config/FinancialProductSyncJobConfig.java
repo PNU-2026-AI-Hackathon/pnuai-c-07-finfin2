@@ -1,7 +1,5 @@
 package apptive.fin.apicollector.config;
 
-import apptive.fin.apicollector.batch.AsyncProductItemProcessor;
-import apptive.fin.apicollector.batch.AsyncProductItemWriter;
 import apptive.fin.apicollector.batch.RawProductItemReader;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.enrich.FssLlmProductDraftEnricher;
@@ -20,14 +18,15 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.infrastructure.item.ItemProcessor;
 import org.springframework.batch.infrastructure.item.ItemWriter;
+import org.springframework.batch.integration.async.AsyncItemProcessor;
+import org.springframework.batch.integration.async.AsyncItemWriter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskExecutor;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.Future;
 
 @Configuration
 @RequiredArgsConstructor
@@ -128,15 +127,21 @@ public class FinancialProductSyncJobConfig {
             ItemProcessor<ProductRaw, ProductDraft> rawProductItemProcessor,
             ItemWriter<ProductDraft> productDraftItemWriter,
             CollectorProperties properties,
-            ExecutorService fssLlmExecutor,
+            TaskExecutor fssLlmExecutor,
             FssLlmProductDraftEnricher fssLlmProductDraftEnricher
     ) {
         if (llmEnabled(properties)) {
+            AsyncItemProcessor<ProductRaw, ProductDraft> asyncProcessor =
+                    new AsyncItemProcessor<>(rawProductItemProcessor);
+            asyncProcessor.setTaskExecutor(fssLlmExecutor);
+
+            AsyncItemWriter<ProductDraft> asyncWriter = new AsyncItemWriter<>(productDraftItemWriter);
+
             return new StepBuilder("normalizeFssRawProductStep", jobRepository)
-                    .<ProductRaw, CompletableFuture<ProductDraft>>chunk(llmChunkSize(properties))
+                    .<ProductRaw, Future<ProductDraft>>chunk(llmChunkSize(properties))
                     .reader(fssRawProductItemReader)
-                    .processor(new AsyncProductItemProcessor(rawProductItemProcessor, fssLlmExecutor))
-                    .writer(new AsyncProductItemWriter(productDraftItemWriter))
+                    .processor(asyncProcessor)
+                    .writer(asyncWriter)
                     .transactionManager(transactionManager)
                     .listener(fssLlmProductDraftEnricher)
                     .build();
@@ -152,15 +157,15 @@ public class FinancialProductSyncJobConfig {
                 .build();
     }
 
-    @Bean(destroyMethod = "shutdown")
-    public ExecutorService fssLlmExecutor(CollectorProperties properties) {
-        AtomicInteger threadNumber = new AtomicInteger(1);
-        return Executors.newFixedThreadPool(llmMaxConcurrency(properties), runnable -> {
-            Thread thread = new Thread(runnable);
-            thread.setName("fss-llm-" + threadNumber.getAndIncrement());
-            thread.setDaemon(true);
-            return thread;
-        });
+    @Bean
+    public ThreadPoolTaskExecutor fssLlmExecutor(CollectorProperties properties) {
+        int concurrency = llmMaxConcurrency(properties);
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(concurrency);
+        executor.setMaxPoolSize(concurrency);
+        executor.setThreadNamePrefix("fss-llm-");
+        executor.setDaemon(true);
+        return executor;
     }
 
     @Bean
