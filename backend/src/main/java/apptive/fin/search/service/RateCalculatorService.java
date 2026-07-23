@@ -110,7 +110,7 @@ public class RateCalculatorService {
         List<PreferentialConditionDto> met = new ArrayList<>();
         List<PreferentialConditionDto> unmet = new ArrayList<>();
         for (ProductPreferentialRate rate : property.getPreferentialRates()) {
-            boolean satisfied = applicable.contains(rate.getKeywordCode()) && isAgeConditionSatisfied(rate, request);
+            boolean satisfied = applicable.contains(rate.getKeywordCode()) && isConditionAutomaticallySatisfied(rate);
             (satisfied ? met : unmet).add(toConditionDto(rate));
         }
 
@@ -313,7 +313,7 @@ public class RateCalculatorService {
         Set<KeywordValueEnum> applicableConditions = applicableBankConditions(property, request, keywords);
         return property.getPreferentialRates().stream()
                 .filter(rate -> applicableConditions.contains(rate.getKeywordCode()))
-                .filter(rate -> isAgeConditionSatisfied(rate, request))
+                .filter(this::isConditionAutomaticallySatisfied)
                 .map(ProductPreferentialRate::getRate)
                 .filter(rate -> rate != null)
                 .mapToDouble(BigDecimal::doubleValue)
@@ -328,6 +328,7 @@ public class RateCalculatorService {
     ) {
         Set<KeywordValueEnum> conditions = new HashSet<>(keywords.bankConditions());
         conditions.add(KeywordValueEnum.BANK_ONLINE_JOIN);
+        conditions.add(KeywordValueEnum.BANK_AGE);
 
         if (property.matchesAnyProvider(request.neverUsedBanks())) {
             conditions.add(KeywordValueEnum.BANK_FIRST_TRANSACTION);
@@ -344,8 +345,8 @@ public class RateCalculatorService {
         return conditions;
     }
 
-    // 나이 조건 만족여부
-    private boolean isAgeConditionSatisfied(ProductPreferentialRate rate, SearchRequestDto request) {
+    // 사용자 나이와 무관하게 자동 충족되는 우대조건인지 확인
+    private boolean isConditionAutomaticallySatisfied(ProductPreferentialRate rate) {
         if (rate.getKeywordCode() != KeywordValueEnum.BANK_AGE) {
             return true;
         }

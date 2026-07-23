@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -91,8 +92,11 @@ public class MatchScoreService {
         // 활성화된 은행 관련 조건
         List<KeywordValueEnum> activeBankConditions = activeBankConditions(
                 bankConditions,
+                propertyKeywords,
+                property,
                 request,
-                includeTransactionHistory
+                includeTransactionHistory,
+                isGov
         );
 
         // 가중치 분배
@@ -230,13 +234,21 @@ public class MatchScoreService {
         return (double) matched / selected.size();
     }
 
-    // 은행 거래 조건이 매칭되는지 검사
+    // 은행 상품의 우대금리 매칭되는지 검사
     private boolean matchesBankCondition(
             KeywordValueEnum keyword,
             List<KeywordValueEnum> propertyKeywords,
             ProductProperty property,
             SearchRequestDto request
     ) {
+        if (keyword == BANK_AGE) {
+            return hasYouthAgeCondition(property);
+        }
+
+        if (keyword == BANK_ONLINE_JOIN) {
+            return hasOnlineJoinCondition(propertyKeywords, property);
+        }
+
         // 상품 속성이 해당 키워드를 포함하고 있지 않으면 false
         if (!propertyKeywords.contains(keyword)) {
             return false;
@@ -261,27 +273,52 @@ public class MatchScoreService {
     // 활성화된 은행 키워드 계산
     private List<KeywordValueEnum> activeBankConditions(
             List<KeywordValueEnum> selected,
+            List<KeywordValueEnum> propertyKeywords,
+            ProductProperty property,
             SearchRequestDto request,
-            boolean includeTransactionHistory
+            boolean includeTransactionHistory,
+            boolean isGov
     ) {
-        // 선택된 은행 키워드
-        List<KeywordValueEnum> active = new ArrayList<>(selected);
+        LinkedHashSet<KeywordValueEnum> active = new LinkedHashSet<>(selected);
+        if (!isGov) {
+            if (hasOnlineJoinCondition(propertyKeywords, property)) {
+                active.add(BANK_ONLINE_JOIN);
+            }
+            if (hasYouthAgeCondition(property)) {
+                active.add(BANK_AGE);
+            }
+        }
+
         // 거래 내역 미포함시 계산하지 않음
         if (!includeTransactionHistory) {
-            return active;
+            return new ArrayList<>(active);
         }
         
         // neverUsedBanks가 하나 이상 선택되었고 BANK_FIRST_TRANSACTION이 포함되어 있지 않다면
-        if (hasAny(request.neverUsedBanks()) && !active.contains(BANK_FIRST_TRANSACTION)) {
+        if (hasAny(request.neverUsedBanks())) {
             active.add(BANK_FIRST_TRANSACTION);
         }
 
         // maturedSavingBanks가 하나 이상 선택되었고 BANK_REDEPOSITE이 포함되어 있지 않다면
-        if (hasAny(request.maturedSavingBanks()) && !active.contains(BANK_REDEPOSIT)) {
+        if (hasAny(request.maturedSavingBanks())) {
             active.add(BANK_REDEPOSIT);
         }
 
-        return active;
+        return new ArrayList<>(active);
+    }
+
+    private boolean hasOnlineJoinCondition(
+            List<KeywordValueEnum> propertyKeywords,
+            ProductProperty property
+    ) {
+        return propertyKeywords.contains(BANK_ONLINE_JOIN)
+                || property.getPreferentialRates().stream()
+                .anyMatch(rate -> rate.getKeywordCode() == BANK_ONLINE_JOIN);
+    }
+
+    private boolean hasYouthAgeCondition(ProductProperty property) {
+        return property.getPreferentialRates().stream()
+                .anyMatch(BankAgeConditionMatcher::matchesYouthRange);
     }
 
     // 리스트가 값을 가지고 있는지 검사
