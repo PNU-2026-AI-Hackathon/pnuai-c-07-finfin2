@@ -95,7 +95,7 @@ public class UserProfileService {
                 p.getNeverUsedBanks(), p.getMaturedSavingBanks());
 
         UserProfileResponseDto.Display display = new UserProfileResponseDto.Display(
-                AgeUtil.koreanAge(p.getBirthdate()),
+                AgeUtil.age(p.getBirthdate()),
                 householdIncomeGuide(p.getHouseholdSize(), p.getHouseholdIncomePercent()),
                 region,
                 preferentialConditions,

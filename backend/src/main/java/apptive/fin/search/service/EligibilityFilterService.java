@@ -15,7 +15,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 
@@ -86,7 +85,7 @@ public class EligibilityFilterService {
             DetailedOptionsDto detail,
             ResolvedKeywords keywords
     ) {
-        Integer age = detail.age(LocalDate.now());
+        Integer age = detail.age();
         Long annualIncome = detail.annualIncome();
         Integer tenureMonths = new HashSet<>(keywords.identities())
                 .contains(KeywordValueEnum.STATUS_UNEMPLOYED)

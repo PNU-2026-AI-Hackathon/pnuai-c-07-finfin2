@@ -55,7 +55,7 @@ class EligibilityFilterServiceTest {
                 any(), any(), any(), any(), any(), any(), any(), any(), any()
         )).thenReturn(List.of());
         when(resolveKeywordService.resolveKeywords(request.options()))
-                .thenReturn(emptyKeywords());
+                .thenReturn(ResolvedKeywords.emptyKeywords());
 
         service.filterEligible(request);
 
@@ -260,7 +260,7 @@ class EligibilityFilterServiceTest {
                 any(), any(), any(), any(), any(), any(), any(), any(), any()
         )).thenReturn(List.of());
         when(resolveKeywordService.resolveKeywords(request.options()))
-                .thenReturn(emptyKeywords());
+                .thenReturn(ResolvedKeywords.emptyKeywords());
 
         service.filterEligible(request);
 
@@ -282,7 +282,4 @@ class EligibilityFilterServiceTest {
         assertThat(incomeProofUnavailableCaptor.getValue()).isTrue();
     }
 
-    private ResolvedKeywords emptyKeywords() {
-        return new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of());
-    }
 }

@@ -196,7 +196,7 @@ class PrdGoldenScenarioTest {
         ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 24);
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()));
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), ResolvedKeywords.emptyKeywords());
 
         assertThat(result.achievableRate()).isCloseTo(50.0, offset(0.0001));
     }
@@ -211,7 +211,7 @@ class PrdGoldenScenarioTest {
         ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 12);
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()));
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), ResolvedKeywords.emptyKeywords());
 
         assertThat(result.achievableRate()).isCloseTo(100.0, offset(0.0001));
     }
@@ -226,7 +226,7 @@ class PrdGoldenScenarioTest {
         ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 10);
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()));
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), ResolvedKeywords.emptyKeywords());
 
         assertThat(result.achievableRate()).isCloseTo(120.0, offset(0.0001));
     }
@@ -241,7 +241,7 @@ class PrdGoldenScenarioTest {
         ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 36);
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
-        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()));
+        ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), ResolvedKeywords.emptyKeywords());
 
         assertThat(result.achievableRate()).isCloseTo(50.0, offset(0.0001));
     }
@@ -264,7 +264,7 @@ class PrdGoldenScenarioTest {
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(general, preferential)));
 
         SearchRequestDto request = createRequest();
-        ResolvedKeywords resolvedKeywords = new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of());
+        ResolvedKeywords resolvedKeywords = ResolvedKeywords.emptyKeywords();
         ProductProperty selected = rateCalculatorService.selectRepresentativeProperty(product, request, resolvedKeywords);
         ProductRateDto result = rateCalculatorService.calculate(product, selected, request, resolvedKeywords);
 
@@ -287,7 +287,7 @@ class PrdGoldenScenarioTest {
                 product,
                 property,
                 createRequest(100_000L),
-                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of())
+                ResolvedKeywords.emptyKeywords()
         );
 
         assertThat(result.achievableRate()).isCloseTo(100.0, offset(0.0001));
@@ -307,7 +307,7 @@ class PrdGoldenScenarioTest {
                 product,
                 property,
                 createRequest(300_000L),
-                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of())
+                ResolvedKeywords.emptyKeywords()
         );
 
         assertThat(result.achievableRate()).isCloseTo(33.3333, offset(0.0001));

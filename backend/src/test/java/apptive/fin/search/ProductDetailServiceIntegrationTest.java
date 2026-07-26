@@ -109,6 +109,42 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void fssDetailPrefersPropertyApplyUrlOverProviderApplyUrl() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        Long propertyId = propertyId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("UPDATE provider SET apply_url = ? WHERE code = ?",
+                "https://bank.example/apply", "SEARCH_BANK_B");
+        jdbcTemplate.update("UPDATE product_properties SET apply_url = ? WHERE id = ?",
+                "https://product.example/apply", propertyId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(propertyId, null), authenticatedUser());
+
+        assertThat(detail.applyUrl()).isEqualTo("https://product.example/apply");
+    }
+
+    @Test
+    void ontongDetailFallsBackToProviderWithoutUsingAnotherPropertyUrl() {
+        Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
+        Long propertyId = propertyId("SEARCH_YOUTH_EMPLOYMENT");
+        jdbcTemplate.update("UPDATE provider SET apply_url = ? WHERE code = ?",
+                "https://provider.example/apply", "SEARCH_GOV");
+        jdbcTemplate.update("""
+                INSERT INTO product_properties
+                    (product_id, provider_id, is_joinable, requires_homeless,
+                     requires_householder, allows_military_age_extension,
+                     exclude_from_rate_comparison, apply_url)
+                VALUES (?, (SELECT id FROM provider WHERE code = 'SEARCH_GOV'),
+                        true, false, false, false, false, 'https://other-property.example/apply')
+                """, productId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(propertyId, null), authenticatedUser());
+
+        assertThat(detail.applyUrl()).isEqualTo("https://provider.example/apply");
+    }
+
+    @Test
     void 은행상품_상세는_전체은행_상위30퍼센트면_최고이율_칩을_동적으로_붙인다() {
         // FSS 은행상품 maxRate = {4.5(SEARCH_YOUTH_SAVING), 3.45(SEARCH_SAFE_DEPOSIT)} → 상위 30% 컷 = 4.5.
         // 정적 태그가 아니라 동적 판정으로 최고이율 칩이 붙어야 한다.

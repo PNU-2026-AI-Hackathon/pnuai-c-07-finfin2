@@ -5,7 +5,9 @@ import apptive.fin.myfin.dto.MyfinResponseDto;
 import apptive.fin.myfin.entity.MyFin;
 import apptive.fin.myfin.repository.MyFinRepository;
 import apptive.fin.myfin.service.MyFinService;
+import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductProperty;
+import apptive.fin.search.entity.ProductSource;
 import apptive.fin.search.repository.ProductPropertyRepository;
 import apptive.fin.search.service.MatchScoreService;
 import apptive.fin.search.service.RateCalculatorService;
@@ -126,5 +128,30 @@ class MyFinServiceTest {
     void 찜개수조회() {
         when(myFinRepository.countByUserId(1L)).thenReturn(5);
         assertEquals(5, myFinService.getFavoriteCount(1L));
+    }
+
+    @Test
+    void 찜목록은_productProperty에서_해석한_신청URL을_반환한다() {
+        MyFin favorite = mock(MyFin.class);
+        Product product = mock(Product.class);
+        ProductSource source = mock(ProductSource.class);
+
+        when(myFinRepository.findAllByUserIdWithDetails(1L)).thenReturn(List.of(favorite));
+        when(favorite.getId()).thenReturn(10L);
+        when(favorite.getProductProperty()).thenReturn(productProperty);
+        when(productProperty.getProduct()).thenReturn(product);
+        when(productProperty.getKeywords()).thenReturn(List.of());
+        when(productProperty.getExcludeFromRateComparison()).thenReturn(false);
+        when(productProperty.getIsJoinable()).thenReturn(true);
+        when(productProperty.resolvedApplyUrl()).thenReturn("https://product.example/apply");
+        when(product.getSource()).thenReturn(source);
+        when(source.getCode()).thenReturn("ONTONG");
+        when(product.getProductCode()).thenReturn("POLICY001");
+        when(product.getProductName()).thenReturn("청년정책상품");
+
+        MyfinResponseDto.List_ result = myFinService.getFavorites(1L);
+
+        assertEquals("https://product.example/apply", result.items().getFirst().applyUrl());
+        verify(productProperty).resolvedApplyUrl();
     }
 }

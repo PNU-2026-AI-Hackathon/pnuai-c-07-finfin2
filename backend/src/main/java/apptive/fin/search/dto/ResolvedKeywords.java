@@ -10,4 +10,9 @@ public record ResolvedKeywords(
         KeywordValueEnum savingPeriod,
         List<KeywordValueEnum> coreBenefits,
         List<KeywordValueEnum> bankConditions
-){}
+){
+
+    public static ResolvedKeywords emptyKeywords() {
+        return new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of());
+    }
+}
