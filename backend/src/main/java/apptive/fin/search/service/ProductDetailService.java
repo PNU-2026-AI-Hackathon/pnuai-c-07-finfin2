@@ -63,7 +63,9 @@ public class ProductDetailService {
 
         boolean subscription = product.getType() == ProductType.SUBSCRIPTION;
         boolean government = ONTONG.equals(product.getSource().getCode()) && !subscription;
-        boolean metricsLocked = userDetails == null; // 비로그인 시 수익 지표 잠금(로그인 게이트)
+        boolean recommendationAccess = userDetails != null
+                && userDetails.getRole().canUseRecommendation();
+        boolean metricsLocked = !recommendationAccess;
         boolean showMetrics = !metricsLocked && !subscription && selected != null;
 
         // 적합도(리스트 탭A totalScore)는 잠금과 무관 — property/옵션이 있으면 계산.
@@ -71,7 +73,7 @@ public class ProductDetailService {
         Double matchScore = null;
         if (selected != null && !options.isEmpty()) {
             var detail = req.detailedOptions();
-            boolean includeTx = userDetails != null
+            boolean includeTx = recommendationAccess
                     && detail != null
                     && detail.neverUsedBanks() != null
                     && detail.maturedSavingBanks() != null;

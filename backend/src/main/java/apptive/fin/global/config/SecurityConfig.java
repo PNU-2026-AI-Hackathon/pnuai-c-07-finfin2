@@ -15,6 +15,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -30,6 +31,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -65,9 +67,12 @@ public class SecurityConfig {
 
                     auth
                             .requestMatchers("/oauth2/authorization/**", "/login/oauth2/**").permitAll()
-                            .requestMatchers("/auth/**").permitAll()
-                            .requestMatchers("/search/**").permitAll()
-                            .requestMatchers(HttpMethod.POST, "/users").permitAll()
+                            .requestMatchers(HttpMethod.POST, "/auth/logout", "/auth/refresh").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/api/categories").permitAll()
+                            .requestMatchers(HttpMethod.POST, "/search/dynamic-form").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/search/products").permitAll()
+                            .requestMatchers(HttpMethod.POST, "/search/products").permitAll()
+                            .requestMatchers(HttpMethod.POST, "/search/products/*/detail").permitAll()
                             .anyRequest().authenticated();
                 })
                 .oauth2Login(oauth2 -> oauth2

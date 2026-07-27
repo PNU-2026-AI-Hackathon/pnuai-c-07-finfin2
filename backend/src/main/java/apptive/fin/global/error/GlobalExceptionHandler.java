@@ -1,6 +1,8 @@
 package apptive.fin.global.error;
 
+import apptive.fin.auth.AuthErrorCode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -18,6 +20,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessException.class)
     protected ResponseEntity<ErrorResponseDto> handleBusinessException(BusinessException e) {
         return ErrorResponseDto.toResponseEntity(e.getErrorCode());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    protected ResponseEntity<ErrorResponseDto> handleAccessDeniedException(AccessDeniedException e) {
+        return ErrorResponseDto.toResponseEntity(AuthErrorCode.FORBIDDEN);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
