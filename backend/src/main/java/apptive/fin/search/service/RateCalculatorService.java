@@ -348,6 +348,6 @@ public class RateCalculatorService {
             return true;
         }
 
-        return BankAgeConditionMatcher.matchesYouthRange(rate);
+        return BankConditionMatcher.matchesYouthRange(rate);
     }
 }

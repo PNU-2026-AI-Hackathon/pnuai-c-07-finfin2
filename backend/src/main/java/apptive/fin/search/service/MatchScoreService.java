@@ -92,7 +92,6 @@ public class MatchScoreService {
         // 활성화된 은행 관련 조건
         List<KeywordValueEnum> activeBankConditions = activeBankConditions(
                 bankConditions,
-                propertyKeywords,
                 property,
                 request,
                 includeTransactionHistory,
@@ -242,11 +241,11 @@ public class MatchScoreService {
             SearchRequestDto request
     ) {
         if (keyword == BANK_AGE) {
-            return hasYouthAgeCondition(property);
+            return BankConditionMatcher.hasYouthAgeCondition(property);
         }
 
         if (keyword == BANK_ONLINE_JOIN) {
-            return hasOnlineJoinCondition(propertyKeywords, property);
+            return BankConditionMatcher.hasOnlineJoinCondition(property);
         }
 
         // 상품 속성이 해당 키워드를 포함하고 있지 않으면 false
@@ -273,7 +272,6 @@ public class MatchScoreService {
     // 활성화된 은행 키워드 계산
     private List<KeywordValueEnum> activeBankConditions(
             List<KeywordValueEnum> selected,
-            List<KeywordValueEnum> propertyKeywords,
             ProductProperty property,
             SearchRequestDto request,
             boolean includeTransactionHistory,
@@ -281,10 +279,10 @@ public class MatchScoreService {
     ) {
         LinkedHashSet<KeywordValueEnum> active = new LinkedHashSet<>(selected);
         if (!isGov) {
-            if (hasOnlineJoinCondition(propertyKeywords, property)) {
+            if (BankConditionMatcher.hasOnlineJoinCondition(property)) {
                 active.add(BANK_ONLINE_JOIN);
             }
-            if (hasYouthAgeCondition(property)) {
+            if (BankConditionMatcher.hasYouthAgeCondition(property)) {
                 active.add(BANK_AGE);
             }
         }
@@ -305,20 +303,6 @@ public class MatchScoreService {
         }
 
         return new ArrayList<>(active);
-    }
-
-    private boolean hasOnlineJoinCondition(
-            List<KeywordValueEnum> propertyKeywords,
-            ProductProperty property
-    ) {
-        return propertyKeywords.contains(BANK_ONLINE_JOIN)
-                || property.getPreferentialRates().stream()
-                .anyMatch(rate -> rate.getKeywordCode() == BANK_ONLINE_JOIN);
-    }
-
-    private boolean hasYouthAgeCondition(ProductProperty property) {
-        return property.getPreferentialRates().stream()
-                .anyMatch(BankAgeConditionMatcher::matchesYouthRange);
     }
 
     // 리스트가 값을 가지고 있는지 검사
