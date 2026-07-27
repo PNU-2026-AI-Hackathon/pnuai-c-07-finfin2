@@ -73,6 +73,37 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 약관동의전_사용자는_로그인했어도_수익지표를_잠근다() {
+        Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId,
+                request(null, 100L),
+                user(UserRole.BEFORE_AGREED)
+        );
+
+        assertThat(detail.metricsLocked()).isTrue();
+        assertThat(detail.government()).isNull();
+        assertThat(detail.bank()).isNull();
+        assertThat(detail.rateTable()).isNull();
+    }
+
+    @Test
+    void 관리자는_수익지표를_조회할수있다() {
+        Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
+        Long propertyId = propertyId("SEARCH_YOUTH_EMPLOYMENT");
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId,
+                request(propertyId, 100L),
+                user(UserRole.ADMIN)
+        );
+
+        assertThat(detail.metricsLocked()).isFalse();
+        assertThat(detail.government()).isNotNull();
+    }
+
+    @Test
     void 청약상품_상세는_로그인해도_간소화되어_수익지표가_없다() {
         Long productId = productId("SEARCH_SUBSCRIPTION");
         Long propertyId = propertyId("SEARCH_SUBSCRIPTION");
@@ -289,7 +320,11 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     private AuthUserDetails authenticatedUser() {
-        return new AuthUserDetails(1L, UserRole.RECOMMENDATION);
+        return user(UserRole.RECOMMENDATION);
+    }
+
+    private AuthUserDetails user(UserRole role) {
+        return new AuthUserDetails(1L, role);
     }
 
     private ProductDetailRequestDto request(Long productPropertyId, Long monthlySavingsGoal) {
