@@ -170,7 +170,8 @@ CREATE TABLE product_properties (
     apply_url VARCHAR(500),
     intr_rate_type VARCHAR(30),
     rsrv_type VARCHAR(30),
-    save_trm INT
+    save_trm INT,
+    variant_code VARCHAR(50)
 );
 
 CREATE TABLE product_property_keyword (

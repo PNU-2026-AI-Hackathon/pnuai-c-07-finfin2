@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
 
 import java.util.List;
@@ -53,6 +54,9 @@ class GovernmentSeedYieldIntegrationTest extends IntegrationTestSupport {
 
     @Autowired
     private RateCalculatorService rateCalculatorService;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     static Stream<GovYieldCase> 정부상품_수익률_명세() {
         return Stream.of(
@@ -118,6 +122,72 @@ class GovernmentSeedYieldIntegrationTest extends IntegrationTestSupport {
                     .as("%s 상품의 calculate() 결과가 rateComparable=true여야 한다", code)
                     .isTrue();
         }
+    }
+
+    @Test
+    void seedKeywordsRespectOwnershipAndEasyConditionContract() {
+        Integer ownershipViolations = jdbcTemplate.queryForObject("""
+                SELECT
+                    (SELECT count(*)
+                     FROM product_property_keyword
+                     WHERE keyword_code LIKE 'BANK\\_%' ESCAPE '\\'
+                        OR keyword_code LIKE 'STATUS\\_%' ESCAPE '\\')
+                  + (SELECT count(*)
+                     FROM product_preferential_rates
+                     WHERE keyword_code NOT LIKE 'BANK\\_%' ESCAPE '\\')
+                  + (SELECT count(*)
+                     FROM product_property_required_keyword
+                     WHERE keyword_code NOT LIKE 'STATUS\\_%' ESCAPE '\\')
+                """, Integer.class);
+        Integer easyConditionDifferences = jdbcTemplate.queryForObject("""
+                WITH rate_counts AS (
+                    SELECT pp.id, count(rate.id) AS condition_count
+                    FROM product_properties pp
+                    LEFT JOIN product_preferential_rates rate
+                      ON rate.product_property_id = pp.id
+                    GROUP BY pp.id
+                ),
+                expected AS (
+                    SELECT id FROM rate_counts WHERE condition_count BETWEEN 1 AND 3
+                ),
+                actual AS (
+                    SELECT product_property_id AS id
+                    FROM product_property_keyword
+                    WHERE keyword_code = 'BENEFIT_EASY_CONDITION'
+                )
+                SELECT
+                    (SELECT count(*) FROM (SELECT id FROM expected EXCEPT SELECT id FROM actual) missing)
+                  + (SELECT count(*) FROM (SELECT id FROM actual EXCEPT SELECT id FROM expected) unexpected)
+                """, Integer.class);
+        Integer bankEtcRates = jdbcTemplate.queryForObject("""
+                SELECT count(*)
+                FROM product_preferential_rates
+                WHERE keyword_code = 'BANK_ETC'
+                """, Integer.class);
+        Integer bankEtcTags = jdbcTemplate.queryForObject("""
+                SELECT count(*)
+                FROM product_property_keyword
+                WHERE keyword_code = 'BANK_ETC'
+                """, Integer.class);
+        assertThat(ownershipViolations).isZero();
+        assertThat(easyConditionDifferences).isZero();
+        assertThat(bankEtcRates).isPositive();
+        assertThat(bankEtcTags).isZero();
+    }
+
+    @Test
+    void seedPreservesProviderIdentity() {
+        List<String> policyProviders = jdbcTemplate.queryForList("""
+                SELECT DISTINCT product.product_code || ':' || provider.code
+                FROM product
+                JOIN product_properties property ON property.product_id = product.id
+                JOIN provider ON provider.id = property.provider_id
+                WHERE product.product_code IN ('POLICY002', 'POLICY003')
+                ORDER BY 1
+                """, String.class);
+
+        assertThat(policyProviders)
+                .containsExactly("POLICY002:KINFA", "POLICY003:BUSAN_CITY");
     }
 
     private SearchRequestDto createRequest(Long monthlySavingsGoal) {
