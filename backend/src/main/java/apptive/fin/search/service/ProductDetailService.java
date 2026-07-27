@@ -14,7 +14,6 @@ import apptive.fin.search.dto.RateTableRowDto;
 import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
-import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.entity.ProductSource;
 import apptive.fin.search.repository.ProductRepository;
@@ -177,8 +176,7 @@ public class ProductDetailService {
         // 영속된 레거시 BENEFIT_MAX_INTEREST(재정규화 전 데이터·구 정부상품 태그 등)는 먼저 걸러내고,
         // 동적 기준(전체 은행상품 상위 30%)을 충족할 때만 다시 붙여 배지가 오로지 동적 결과만 반영하게 한다.
         List<KeywordValueEnum> keywords = product.getProperties().stream()
-                .flatMap(property -> property.getKeywords().stream())
-                .map(ProductKeyword::getKeywordCode)
+                .flatMap(property -> property.keywordCodes().stream())
                 .filter(Objects::nonNull)
                 .filter(code -> code != KeywordValueEnum.BENEFIT_MAX_INTEREST)
                 .distinct()

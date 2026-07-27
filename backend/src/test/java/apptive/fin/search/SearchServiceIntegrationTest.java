@@ -94,6 +94,20 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
 
     @Test
     void 군복무_신분을_선택하면_키워드가_일치하는_상품의_신분점수가_상승한다() {
+        jdbcTemplate.update("""
+                INSERT INTO product_property_required_keyword
+                    (product_property_id, keyword_code, effect, confidence)
+                VALUES (
+                    (SELECT pp.id
+                     FROM product_properties pp
+                     JOIN product p ON p.id = pp.product_id
+                     WHERE p.product_code = 'SEARCH_YOUTH_SAVING'),
+                    'STATUS_MILITARY',
+                    'REQUIRE',
+                    'HIGH'
+                )
+                """);
+
         ProductSearchResultDto result = searchService.search(createRequest(
                 50,
                 List.of(new OptionRequestDto(CategoryIdEnum.IDENTITY.getId(), 21L))

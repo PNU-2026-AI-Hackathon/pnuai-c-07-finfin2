@@ -8,6 +8,7 @@ import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductPreferentialRate;
 import apptive.fin.search.entity.ProductProperty;
+import apptive.fin.search.entity.ProductRequiredKeyword;
 import apptive.fin.search.entity.ProductSource;
 import apptive.fin.provider.entity.Provider;
 import apptive.fin.search.dto.ProductMatchDto;
@@ -622,7 +623,7 @@ class PrdGoldenScenarioTest {
         ProductProperty property = createProperty(id, providerName, maxMonthlyLimit);
         ReflectionTestUtils.setField(property, "saveTrm", saveTrm);
         for (KeywordValueEnum keyword : keywords) {
-            addKeyword(property, keyword);
+            addOwnedKeyword(property, keyword);
         }
         return property;
     }
@@ -645,7 +646,27 @@ class PrdGoldenScenarioTest {
         return property;
     }
 
-    private void addKeyword(ProductProperty property, KeywordValueEnum keywordValue) {
+    private void addOwnedKeyword(ProductProperty property, KeywordValueEnum keywordValue) {
+        if (keywordValue.isPreferentialRate()) {
+            ProductPreferentialRate rate = preferentialRate(keywordValue, "0.00");
+            ReflectionTestUtils.setField(rate, "productProperty", property);
+            List<ProductPreferentialRate> rates = new ArrayList<>(property.getPreferentialRates());
+            rates.add(rate);
+            ReflectionTestUtils.setField(property, "preferentialRates", rates);
+            return;
+        }
+        if (keywordValue.isRequired()) {
+            ProductRequiredKeyword required = new ProductRequiredKeyword();
+            ReflectionTestUtils.setField(required, "keywordCode", keywordValue);
+            ReflectionTestUtils.setField(required, "effect", RequiredKeywordEffect.REQUIRE);
+            ReflectionTestUtils.setField(required, "confidence", ExtractionConfidence.HIGH);
+            List<ProductRequiredKeyword> requiredKeywords =
+                    new ArrayList<>(property.getRequiredKeywords());
+            requiredKeywords.add(required);
+            ReflectionTestUtils.setField(property, "requiredKeywords", requiredKeywords);
+            return;
+        }
+
         ProductKeyword keyword = new ProductKeyword();
         ReflectionTestUtils.setField(keyword, "keywordCode", keywordValue);
         List<ProductKeyword> keywords = new ArrayList<>(

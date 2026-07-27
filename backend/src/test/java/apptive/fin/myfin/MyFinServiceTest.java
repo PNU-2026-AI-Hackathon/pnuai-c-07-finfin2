@@ -6,7 +6,6 @@ import apptive.fin.myfin.entity.MyFin;
 import apptive.fin.myfin.repository.MyFinRepository;
 import apptive.fin.myfin.service.MyFinService;
 import apptive.fin.search.entity.Product;
-import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductPreferentialRate;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.entity.ProductSource;
@@ -31,6 +30,7 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -150,7 +150,7 @@ class MyFinServiceTest {
         when(favorite.getId()).thenReturn(10L);
         when(favorite.getProductProperty()).thenReturn(productProperty);
         when(productProperty.getProduct()).thenReturn(product);
-        when(productProperty.getKeywords()).thenReturn(List.of());
+        when(productProperty.keywordCodes()).thenReturn(Set.of());
         when(productProperty.getExcludeFromRateComparison()).thenReturn(false);
         when(productProperty.getIsJoinable()).thenReturn(true);
         when(productProperty.resolvedApplyUrl()).thenReturn("https://product.example/apply");
@@ -182,7 +182,7 @@ class MyFinServiceTest {
         when(favorite.getId()).thenReturn(10L);
         when(favorite.getProductProperty()).thenReturn(productProperty);
         when(productProperty.getProduct()).thenReturn(product);
-        when(productProperty.getKeywords()).thenReturn(List.of());
+        when(productProperty.keywordCodes()).thenReturn(Set.of());
         when(productProperty.getExcludeFromRateComparison()).thenReturn(false);
         when(productProperty.getIsJoinable()).thenReturn(true);
         when(product.getSource()).thenReturn(source);
@@ -236,6 +236,7 @@ class MyFinServiceTest {
         assertTrue(completeItem.fitScore() > incompleteItem.fitScore());
         assertEquals(4.0, completeItem.metrics().achievableRate());
         assertEquals(3.5, incompleteItem.metrics().achievableRate());
+        assertFalse(completeItem.keywords().contains(KeywordValueEnum.BANK_ETC.name()));
     }
 
     private Product bankProductWithFirstTransactionRate() {
@@ -261,15 +262,19 @@ class MyFinServiceTest {
         ReflectionTestUtils.setField(property, "maxRate", new BigDecimal("5.00"));
         ReflectionTestUtils.setField(property, "saveTrm", 12);
 
-        ProductKeyword keyword = new ProductKeyword();
-        ReflectionTestUtils.setField(keyword, "keywordCode", KeywordValueEnum.BANK_FIRST_TRANSACTION);
-        ReflectionTestUtils.setField(property, "keywords", new ArrayList<>(List.of(keyword)));
-
         ProductPreferentialRate rate = new ProductPreferentialRate();
         ReflectionTestUtils.setField(rate, "productProperty", property);
         ReflectionTestUtils.setField(rate, "keywordCode", KeywordValueEnum.BANK_FIRST_TRANSACTION);
         ReflectionTestUtils.setField(rate, "rate", new BigDecimal("0.50"));
-        ReflectionTestUtils.setField(property, "preferentialRates", new ArrayList<>(List.of(rate)));
+        ProductPreferentialRate etcRate = new ProductPreferentialRate();
+        ReflectionTestUtils.setField(etcRate, "productProperty", property);
+        ReflectionTestUtils.setField(etcRate, "keywordCode", KeywordValueEnum.BANK_ETC);
+        ReflectionTestUtils.setField(etcRate, "rate", new BigDecimal("1.00"));
+        ReflectionTestUtils.setField(
+                property,
+                "preferentialRates",
+                new ArrayList<>(List.of(rate, etcRate))
+        );
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
         return product;
     }

@@ -6,7 +6,6 @@ import apptive.fin.search.KeywordValueEnum;
 
 import apptive.fin.search.dto.*;
 import apptive.fin.search.entity.Product;
-import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.repository.ProductRepository;
 
@@ -280,8 +279,7 @@ public class SearchService {
 		
     // 상품에서 매칭되는 지역 있는지 확인하는 함수
     private boolean hasMatchingRegion(EligibleProductOption option, List<KeywordValueEnum> selectedRegions) {
-        List<KeywordValueEnum> productRegions = option.property().getKeywords().stream()
-                .map(ProductKeyword::getKeywordCode)
+        List<KeywordValueEnum> productRegions = option.property().keywordCodes().stream()
                 .filter(keyword -> keyword.name().startsWith("REGION_"))
                 .toList();
                 

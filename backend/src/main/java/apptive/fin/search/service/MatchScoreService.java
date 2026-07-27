@@ -6,7 +6,6 @@ import apptive.fin.search.dto.ProductMatchDto;
 import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
-import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
 import org.springframework.stereotype.Service;
 
@@ -85,9 +84,7 @@ public class MatchScoreService {
             Double bankMaxInterestThreshold
     ) {
         // 상품 속성의 키워드
-        List<KeywordValueEnum> propertyKeywords = property.getKeywords().stream()
-                .map(ProductKeyword::getKeywordCode)
-                .toList();
+        Set<KeywordValueEnum> propertyKeywords = property.keywordCodes();
 
         // 활성화된 은행 관련 조건
         List<KeywordValueEnum> activeBankConditions = activeBankConditions(
@@ -118,7 +115,7 @@ public class MatchScoreService {
                 * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_IDENTITY, ScoreWeightEnum.BANK_IDENTITY));
         double depositScore = calcDepositScore(monthlyDeposit, property)
                 * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_DEPOSIT, ScoreWeightEnum.BANK_DEPOSIT));
-        double bankCondScore = (isGovBankConditionExcluded(isGov, property)
+        double bankCondScore = (isGovBankConditionExcluded(isGov)
                 ? 0.0
                 : calcBankCondScore(activeBankConditions, propertyKeywords, property, request))
                 * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_BANK_COND, ScoreWeightEnum.BANK_BANK_COND));
@@ -145,7 +142,7 @@ public class MatchScoreService {
     private double calcBenefitScore(
             List<KeywordValueEnum> selected,
             ProductProperty property,
-            List<KeywordValueEnum> propertyKeywords,
+            Set<KeywordValueEnum> propertyKeywords,
             boolean isGov,
             Double bankMaxInterestThreshold
     ) {
@@ -162,7 +159,7 @@ public class MatchScoreService {
     private boolean isBenefitMatched(
             KeywordValueEnum keyword,
             ProductProperty property,
-            List<KeywordValueEnum> propertyKeywords,
+            Set<KeywordValueEnum> propertyKeywords,
             boolean isGov,
             Double bankMaxInterestThreshold
     ) {
@@ -188,7 +185,7 @@ public class MatchScoreService {
     }
 
     // 신분 특화도 계산
-    private double calcIdentityScore(List<KeywordValueEnum> selected, List<KeywordValueEnum> propertyKeywords, boolean isGov) {
+    private double calcIdentityScore(List<KeywordValueEnum> selected, Set<KeywordValueEnum> propertyKeywords, boolean isGov) {
         if (selected.isEmpty()) return 0;
 
         // 정부상품이면
@@ -222,7 +219,7 @@ public class MatchScoreService {
     // 은행 거래 조건 점수 계산
     private double calcBankCondScore(
             List<KeywordValueEnum> selected,
-            List<KeywordValueEnum> propertyKeywords,
+            Set<KeywordValueEnum> propertyKeywords,
             ProductProperty property,
             SearchRequestDto request
     ) {
@@ -236,16 +233,12 @@ public class MatchScoreService {
     // 은행 상품의 우대금리 매칭되는지 검사
     private boolean matchesBankCondition(
             KeywordValueEnum keyword,
-            List<KeywordValueEnum> propertyKeywords,
+            Set<KeywordValueEnum> propertyKeywords,
             ProductProperty property,
             SearchRequestDto request
     ) {
         if (keyword == BANK_AGE) {
             return BankConditionMatcher.hasYouthAgeCondition(property);
-        }
-
-        if (keyword == BANK_ONLINE_JOIN) {
-            return BankConditionMatcher.hasOnlineJoinCondition(property);
         }
 
         // 상품 속성이 해당 키워드를 포함하고 있지 않으면 false
@@ -283,7 +276,7 @@ public class MatchScoreService {
                 .filter(keyword -> keyword != BANK_ETC)
                 .forEach(active::add);
         if (!isGov) {
-            if (BankConditionMatcher.hasOnlineJoinCondition(property)) {
+            if (property.keywordCodes().contains(BANK_ONLINE_JOIN)) {
                 active.add(BANK_ONLINE_JOIN);
             }
             if (BankConditionMatcher.hasYouthAgeCondition(property)) {
@@ -349,7 +342,7 @@ public class MatchScoreService {
         }
 
         // 은행 거래 조건이 비었거나, 유형 1(은행취급상품)이 아닌 경우
-        if (bankConditions.isEmpty() || isGovBankConditionExcluded(isGov, property)) {
+        if (bankConditions.isEmpty() || isGovBankConditionExcluded(isGov)) {
             inactive.add(weightKey(isGov, ScoreWeightEnum.GOV_BANK_COND, ScoreWeightEnum.BANK_BANK_COND));
         }
 
@@ -386,7 +379,7 @@ public class MatchScoreService {
                 .toList();
     }
 
-    private boolean isGovBankConditionExcluded(boolean isGov, ProductProperty property) {
+    private boolean isGovBankConditionExcluded(boolean isGov) {
         return isGov;
     }
 

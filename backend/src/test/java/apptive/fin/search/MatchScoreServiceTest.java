@@ -8,6 +8,7 @@ import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.entity.ProductPreferentialRate;
+import apptive.fin.search.entity.ProductRequiredKeyword;
 import apptive.fin.search.entity.ProductSource;
 import apptive.fin.provider.entity.Provider;
 import apptive.fin.search.service.MatchScoreService;
@@ -596,6 +597,53 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    void 우대금리_테이블에만_있는_BANK_키워드도_은행조건으로_매칭한다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
+        addPreferentialRate(property, KeywordValueEnum.BANK_SALARY_TRANSFER, null, null);
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                property,
+                createRequest(300_000L, List.of(), List.of()),
+                new ResolvedKeywords(
+                        List.of(), List.of(), null, List.of(),
+                        List.of(KeywordValueEnum.BANK_SALARY_TRANSFER)
+                ),
+                true
+        );
+
+        assertThat(result.bankCondScore()).isGreaterThan(0.0);
+    }
+
+    @Test
+    void REQUIRE_HIGH_가입조건에만_있는_STATUS_키워드도_신분으로_매칭한다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        ProductProperty property = createProperty(10L, "정부", 500_000L, 12);
+        addRequiredKeyword(
+                property,
+                KeywordValueEnum.STATUS_UNEMPLOYED,
+                RequiredKeywordEffect.REQUIRE,
+                ExtractionConfidence.HIGH
+        );
+        Product product = createProduct("ONTONG", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                property,
+                createRequest(null),
+                new ResolvedKeywords(
+                        List.of(), List.of(KeywordValueEnum.STATUS_UNEMPLOYED),
+                        null, List.of(), List.of()
+                ),
+                false
+        );
+
+        assertThat(result.identityScore()).isGreaterThan(0.0);
+    }
+
+    @Test
     void 첫거래_거래이력은_선택한_은행에만_매칭된다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         ProductProperty property = createProperty(
@@ -960,12 +1008,26 @@ class MatchScoreServiceTest {
         ProductProperty property = createProperty(id, providerName, maxMonthlyLimit);
         ReflectionTestUtils.setField(property, "saveTrm", saveTrm);
         for (KeywordValueEnum keyword : keywords) {
-            addKeyword(property, keyword);
+            addOwnedKeyword(property, keyword);
         }
         return property;
     }
 
-    private void addKeyword(ProductProperty property, KeywordValueEnum keywordValue) {
+    private void addOwnedKeyword(ProductProperty property, KeywordValueEnum keywordValue) {
+        if (keywordValue.isPreferentialRate()) {
+            addPreferentialRate(property, keywordValue, null, null);
+            return;
+        }
+        if (keywordValue.isRequired()) {
+            addRequiredKeyword(
+                    property,
+                    keywordValue,
+                    RequiredKeywordEffect.REQUIRE,
+                    ExtractionConfidence.HIGH
+            );
+            return;
+        }
+
         ProductKeyword keyword = new ProductKeyword();
         ReflectionTestUtils.setField(keyword, "keywordCode", keywordValue);
         List<ProductKeyword> keywords = new ArrayList<>(
@@ -976,7 +1038,7 @@ class MatchScoreServiceTest {
     }
 
     private void addAutomaticBankConditions(ProductProperty property) {
-        addKeyword(property, KeywordValueEnum.BANK_ONLINE_JOIN);
+        addOwnedKeyword(property, KeywordValueEnum.BANK_ONLINE_JOIN);
         addPreferentialRate(property, KeywordValueEnum.BANK_AGE, 19, 34);
     }
 
@@ -996,6 +1058,23 @@ class MatchScoreServiceTest {
         List<ProductPreferentialRate> rates = new ArrayList<>(property.getPreferentialRates());
         rates.add(rate);
         ReflectionTestUtils.setField(property, "preferentialRates", rates);
+    }
+
+    private void addRequiredKeyword(
+            ProductProperty property,
+            KeywordValueEnum keyword,
+            RequiredKeywordEffect effect,
+            ExtractionConfidence confidence
+    ) {
+        ProductRequiredKeyword required = new ProductRequiredKeyword();
+        ReflectionTestUtils.setField(required, "productProperty", property);
+        ReflectionTestUtils.setField(required, "keywordCode", keyword);
+        ReflectionTestUtils.setField(required, "effect", effect);
+        ReflectionTestUtils.setField(required, "confidence", confidence);
+
+        List<ProductRequiredKeyword> requiredKeywords = new ArrayList<>(property.getRequiredKeywords());
+        requiredKeywords.add(required);
+        ReflectionTestUtils.setField(property, "requiredKeywords", requiredKeywords);
     }
 
     private void setProviderCode(ProductProperty property, String code) {
@@ -1031,4 +1110,3 @@ class MatchScoreServiceTest {
         );
     }
 }
-

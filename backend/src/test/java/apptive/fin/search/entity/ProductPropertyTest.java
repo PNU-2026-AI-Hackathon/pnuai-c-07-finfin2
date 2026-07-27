@@ -1,7 +1,9 @@
 package apptive.fin.search.entity;
 
 import apptive.fin.provider.entity.Provider;
+import apptive.fin.search.ExtractionConfidence;
 import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.search.RequiredKeywordEffect;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -41,35 +43,54 @@ class ProductPropertyTest {
     }
 
     @Test
-    void hasKeywordReflectsTaggedKeywordsOnly() {
+    void keywordCodesUnionsOwnedKeywordTablesAndDeduplicates() {
         ProductProperty property = new ProductProperty();
-        assertThat(property.hasKeyword(KeywordValueEnum.BANK_ONLINE_JOIN)).isFalse();
-
+        addKeyword(property, KeywordValueEnum.REGION_BUSAN);
         addKeyword(property, KeywordValueEnum.BANK_ONLINE_JOIN);
-
-        assertThat(property.hasKeyword(KeywordValueEnum.BANK_ONLINE_JOIN)).isTrue();
-        assertThat(property.hasKeyword(KeywordValueEnum.BANK_CARD_USAGE)).isFalse();
-    }
-
-    @Test
-    void hasPreferentialRateReflectsPreferentialRatesOnly() {
-        ProductProperty property = new ProductProperty();
-        assertThat(property.hasPreferentialRate(KeywordValueEnum.BANK_ONLINE_JOIN)).isFalse();
-
+        addKeyword(property, KeywordValueEnum.STATUS_UNEMPLOYED);
         addPreferentialRate(property, KeywordValueEnum.BANK_ONLINE_JOIN);
+        addPreferentialRate(property, KeywordValueEnum.BANK_CARD_USAGE);
+        addRequiredKeyword(
+                property,
+                KeywordValueEnum.STATUS_MILITARY,
+                RequiredKeywordEffect.REQUIRE,
+                ExtractionConfidence.HIGH
+        );
 
-        assertThat(property.hasPreferentialRate(KeywordValueEnum.BANK_ONLINE_JOIN)).isTrue();
-        assertThat(property.hasPreferentialRate(KeywordValueEnum.BANK_CARD_USAGE)).isFalse();
+        assertThat(property.keywordCodes()).containsExactly(
+                KeywordValueEnum.REGION_BUSAN,
+                KeywordValueEnum.STATUS_MILITARY,
+                KeywordValueEnum.BANK_CARD_USAGE,
+                KeywordValueEnum.BANK_ONLINE_JOIN
+        );
     }
 
     @Test
-    void keywordTagsAndPreferentialRatesAreTrackedSeparately() {
+    void keywordCodesOnlyIncludesOwnedRateAndHighConfidenceRequirements() {
         ProductProperty property = new ProductProperty();
-        addKeyword(property, KeywordValueEnum.BANK_ONLINE_JOIN);
-        addPreferentialRate(property, KeywordValueEnum.BANK_AGE);
+        addKeyword(property, KeywordValueEnum.BANK_AUTO_TRANSFER);
+        addKeyword(property, KeywordValueEnum.STATUS_MILITARY);
+        addPreferentialRate(property, KeywordValueEnum.BENEFIT_EASY_CONDITION);
+        addRequiredKeyword(
+                property,
+                KeywordValueEnum.STATUS_UNEMPLOYED,
+                RequiredKeywordEffect.EXCLUDE,
+                ExtractionConfidence.HIGH
+        );
+        addRequiredKeyword(
+                property,
+                KeywordValueEnum.STATUS_PART_TIME,
+                RequiredKeywordEffect.REQUIRE,
+                ExtractionConfidence.MEDIUM
+        );
+        addRequiredKeyword(
+                property,
+                KeywordValueEnum.BANK_CARD_USAGE,
+                RequiredKeywordEffect.REQUIRE,
+                ExtractionConfidence.HIGH
+        );
 
-        assertThat(property.hasKeyword(KeywordValueEnum.BANK_AGE)).isFalse();
-        assertThat(property.hasPreferentialRate(KeywordValueEnum.BANK_ONLINE_JOIN)).isFalse();
+        assertThat(property.keywordCodes()).isEmpty();
     }
 
     private void addKeyword(ProductProperty property, KeywordValueEnum keywordCode) {
@@ -88,6 +109,22 @@ class ProductPropertyTest {
         List<ProductPreferentialRate> rates = new ArrayList<>(property.getPreferentialRates());
         rates.add(rate);
         ReflectionTestUtils.setField(property, "preferentialRates", rates);
+    }
+
+    private void addRequiredKeyword(
+            ProductProperty property,
+            KeywordValueEnum keywordCode,
+            RequiredKeywordEffect effect,
+            ExtractionConfidence confidence
+    ) {
+        ProductRequiredKeyword required = new ProductRequiredKeyword();
+        ReflectionTestUtils.setField(required, "keywordCode", keywordCode);
+        ReflectionTestUtils.setField(required, "effect", effect);
+        ReflectionTestUtils.setField(required, "confidence", confidence);
+
+        List<ProductRequiredKeyword> requiredKeywords = new ArrayList<>(property.getRequiredKeywords());
+        requiredKeywords.add(required);
+        ReflectionTestUtils.setField(property, "requiredKeywords", requiredKeywords);
     }
 
     private ProductProperty property(String propertyApplyUrl, String providerApplyUrl) {

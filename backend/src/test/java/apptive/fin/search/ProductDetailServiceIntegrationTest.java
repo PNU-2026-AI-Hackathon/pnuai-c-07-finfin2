@@ -90,6 +90,11 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     void 은행상품_상세는_금리와_provider_대표_아웃링크를_반환한다() {
         Long productId = productId("SEARCH_YOUTH_SAVING");
         Long propertyId = propertyId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("""
+                INSERT INTO product_property_required_keyword
+                    (product_property_id, keyword_code, effect, confidence)
+                VALUES (?, 'STATUS_MILITARY', 'REQUIRE', 'HIGH')
+                """, propertyId);
         jdbcTemplate.update("UPDATE provider SET apply_url = ? WHERE code = ?",
                 "https://bank.example/apply", "SEARCH_BANK_B");
 
@@ -106,6 +111,33 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         assertThat(detail.keywords())
                 .contains(KeywordValueEnum.STATUS_MILITARY, KeywordValueEnum.REGION_BUSAN);
         assertThat(detail.applyUrl()).isEqualTo("https://bank.example/apply"); // FSS → provider 대표 URL
+    }
+
+    @Test
+    void BANK_ETC는_자동충족되지_않지만_상세_키워드와_조건과_금리표에_노출된다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        Long propertyId = propertyId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("""
+                INSERT INTO product_preferential_rates
+                    (product_property_id, keyword_code, rate, description)
+                VALUES (?, 'BANK_ETC', 0.70, '기타 우대조건')
+                """, propertyId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId,
+                request(propertyId, null),
+                authenticatedUser()
+        );
+
+        assertThat(detail.keywords()).contains(KeywordValueEnum.BANK_ETC);
+        assertThat(detail.bank().achievableRate()).isEqualTo(3.8);
+        assertThat(detail.bank().unmetConditions())
+                .extracting(condition -> condition.keywordCode())
+                .contains(KeywordValueEnum.BANK_ETC);
+        assertThat(detail.rateTable())
+                .flatExtracting(row -> row.preferentialRates())
+                .extracting(condition -> condition.keywordCode())
+                .contains(KeywordValueEnum.BANK_ETC);
     }
 
     @Test

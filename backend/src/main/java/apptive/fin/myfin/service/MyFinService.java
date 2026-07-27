@@ -5,13 +5,13 @@ import apptive.fin.myfin.MyFinErrorCode;
 import apptive.fin.myfin.dto.MyfinResponseDto;
 import apptive.fin.myfin.entity.MyFin;
 import apptive.fin.myfin.repository.MyFinRepository;
+import apptive.fin.search.KeywordValueEnum;
 import apptive.fin.search.dto.BankDetailDto;
 import apptive.fin.search.dto.GovernmentDetailDto;
 import apptive.fin.search.dto.ProductMatchDto;
 import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
-import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.repository.ProductPropertyRepository;
 import apptive.fin.search.service.MatchScoreService;
@@ -118,8 +118,8 @@ public class MyFinService {
         String sourceCode = product.getSource().getCode();
 
         // 키워드 추출
-        List<String> keywordList = pp.getKeywords().stream()
-                .map(ProductKeyword::getKeywordCode)
+        List<String> keywordList = pp.keywordCodes().stream()
+                .filter(keyword -> keyword != KeywordValueEnum.BANK_ETC)
                 .map(Enum::name)
                 .toList();
 
