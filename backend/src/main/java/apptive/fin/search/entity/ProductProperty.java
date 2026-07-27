@@ -3,6 +3,7 @@ package apptive.fin.search.entity;
 import apptive.fin.provider.entity.Provider;
 import apptive.fin.search.ContributionType;
 import apptive.fin.search.InterestRateType;
+import apptive.fin.search.KeywordValueEnum;
 import apptive.fin.search.ReserveType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -134,5 +135,15 @@ public class ProductProperty {
         }
         String code = provider.getCode();
         return providerCodes.stream().anyMatch(c -> c != null && c.equals(code));
+    }
+
+    // 이 property가 해당 키워드를 태그로 갖고 있는지.
+    public boolean hasKeyword(KeywordValueEnum keywordCode) {
+        return keywords.stream().anyMatch(keyword -> keyword.getKeywordCode() == keywordCode);
+    }
+
+    // 이 property가 해당 키워드의 우대금리를 갖고 있는지.
+    public boolean hasPreferentialRate(KeywordValueEnum keywordCode) {
+        return preferentialRates.stream().anyMatch(rate -> rate.getKeywordCode() == keywordCode);
     }
 }
