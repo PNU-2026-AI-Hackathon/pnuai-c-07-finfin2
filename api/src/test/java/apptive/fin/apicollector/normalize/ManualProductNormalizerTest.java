@@ -163,6 +163,27 @@ class ManualProductNormalizerTest {
     }
 
     @Test
+    void rejectsBankOrStatusCodesInManualTags() {
+        ProductRaw raw = raw("""
+                {
+                  "productCode": "POLICY999",
+                  "productName": "잘못된 태그 상품",
+                  "properties": [
+                    {
+                      "providerCode": "TEST",
+                      "providerName": "테스트기관",
+                      "keywords": ["STATUS_SME_WORKER"]
+                    }
+                  ]
+                }
+                """, ProductType.POLICY);
+
+        assertThatThrownBy(() -> normalizer.normalize(raw))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must not use a BANK_* or STATUS_* code");
+    }
+
+    @Test
     void rejectsIncompleteManualRequiredKeyword() {
         ProductRaw raw = rawWithRequiredKeyword("""
                 {
@@ -236,6 +257,10 @@ class ManualProductNormalizerTest {
 
         assertThat(draft.productCode()).isEqualTo("POLICY002");
         assertThat(draft.properties()).hasSize(2);
+        assertThat(draft.properties().get(1).keywords())
+                .doesNotContain(KeywordValueEnum.STATUS_SME_WORKER);
+        assertThat(draft.properties().get(1).requiredKeywords())
+                .isEmpty();
         assertThat(draft.properties())
                 .extracting(
                         property -> property.variantCode(),

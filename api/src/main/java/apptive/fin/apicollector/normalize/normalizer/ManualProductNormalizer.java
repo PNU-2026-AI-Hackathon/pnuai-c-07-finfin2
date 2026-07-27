@@ -135,7 +135,7 @@ public class ManualProductNormalizer implements ProductNormalizer {
                 .minTenureMonths(JsonNodes.integer(node, "minTenureMonths"))
                 .requiresHomeless(JsonNodes.bool(node, "requiresHomeless"))
                 .requiresHouseholder(JsonNodes.bool(node, "requiresHouseholder"))
-                .keywords(keywords(node))
+                .keywords(keywords(node, rawProduct))
                 .requiredKeywords(requiredKeywords(node, rawProduct))
                 .build();
     }
@@ -145,12 +145,19 @@ public class ManualProductNormalizer implements ProductNormalizer {
         return value == null ? null : ContributionType.valueOf(value);
     }
 
-    private List<KeywordValueEnum> keywords(JsonNode node) {
+    private List<KeywordValueEnum> keywords(JsonNode node, ProductRaw rawProduct) {
         List<KeywordValueEnum> keywords = new ArrayList<>();
         for (JsonNode keyword : node.path("keywords")) {
             String code = keyword.asString(null);
             if (code != null && !code.isBlank()) {
-                keywords.add(KeywordValueEnum.valueOf(code.trim()));
+                KeywordValueEnum keywordCode = KeywordValueEnum.valueOf(code.trim());
+                if (keywordCode.isPreferentialRate() || keywordCode.isRequired()) {
+                    throw new IllegalArgumentException(
+                            "Manual product tag must not use a BANK_* or STATUS_* code. rawId=%d, keywordCode=%s"
+                                    .formatted(rawProduct.getId(), keywordCode)
+                    );
+                }
+                keywords.add(keywordCode);
             }
         }
         return keywords;

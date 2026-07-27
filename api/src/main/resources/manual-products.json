@@ -69,7 +69,7 @@
         "militaryMaxAge": 40,
         "earnMaxAmt": 36000000,
         "earnPercent": 150,
-        "keywords": ["BENEFIT_GOV_SUBSIDY", "STATUS_SME_WORKER"]
+        "keywords": ["BENEFIT_GOV_SUBSIDY"]
       }
     ]
   },
@@ -305,7 +305,7 @@
         "minAge": 18,
         "maxAge": 45,
         "earnPercent": 150,
-        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GANGWON", "STATUS_SME_WORKER"],
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GANGWON"],
         "requiredKeywords": [
           {
             "keywordCode": "STATUS_SME_WORKER",
@@ -412,7 +412,7 @@
         "maxAge": 39,
         "earnPercent": 150,
         "minTenureMonths": 3,
-        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GYEONGBUK", "STATUS_SME_WORKER"]
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GYEONGBUK"]
       }
     ]
   },
@@ -435,7 +435,7 @@
         "maxMonthlyLimit": 200000,
         "minAge": 19,
         "maxAge": 49,
-        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GYEONGNAM", "STATUS_SME_WORKER"]
+        "keywords": ["BENEFIT_GOV_SUBSIDY", "REGION_GYEONGNAM"]
       }
     ]
   }

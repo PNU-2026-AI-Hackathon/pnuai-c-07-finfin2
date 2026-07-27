@@ -128,9 +128,17 @@ class ProductTest {
     void replacePropertiesSoftDisablesVanishedPropertyInsteadOfDeleting() {
         Product product = newProduct();
         Provider provider = newProvider(product.getSource());
+        ProductPropertyDraft vanishedDraft = draft(24, "F", new BigDecimal("3.20"))
+                .toBuilder()
+                .keywords(List.of(
+                        KeywordValueEnum.REGION_BUSAN,
+                        KeywordValueEnum.BANK_ONLINE_JOIN,
+                        KeywordValueEnum.STATUS_MILITARY
+                ))
+                .build();
 
         product.replaceProperties(
-                List.of(draft(12, "F", new BigDecimal("3.00")), draft(24, "F", new BigDecimal("3.20"))),
+                List.of(draft(12, "F", new BigDecimal("3.00")), vanishedDraft),
                 ignored -> provider
         );
         ProductProperty term24 = product.getProperties().stream()
@@ -143,6 +151,9 @@ class ProductTest {
         assertThat(product.getProperties()).hasSize(2);
         assertThat(product.getProperties()).contains(term24);
         assertThat(term24.getIsJoinable()).isFalse();
+        assertThat(term24.getKeywords())
+                .extracting(ProductKeyword::getKeywordCode)
+                .containsExactly(KeywordValueEnum.REGION_BUSAN);
         assertThat(product.getProperties().stream()
                 .filter(p -> p.getSaveTrm() == 12)
                 .findFirst()
