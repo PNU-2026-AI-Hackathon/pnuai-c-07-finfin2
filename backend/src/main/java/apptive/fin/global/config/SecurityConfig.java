@@ -73,6 +73,7 @@ public class SecurityConfig {
                             .requestMatchers(HttpMethod.GET, "/search/products").permitAll()
                             .requestMatchers(HttpMethod.POST, "/search/products").permitAll()
                             .requestMatchers(HttpMethod.POST, "/search/products/*/detail").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/providers/banks").permitAll()
                             .anyRequest().authenticated();
                 })
                 .oauth2Login(oauth2 -> oauth2

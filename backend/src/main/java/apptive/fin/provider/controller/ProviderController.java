@@ -13,7 +13,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/providers")
-@PreAuthorize("hasAnyAuthority('RECOMMENDATION', 'ADMIN')")
+// @PreAuthorize("hasAnyAuthority('RECOMMENDATION', 'ADMIN')")
 public class ProviderController {
 
     private final ProviderService providerService;
