@@ -164,12 +164,22 @@ public class MyFinService {
             return null;
         }
 
-        ProductMatchDto matchDto = matchScoreService.score(product, pp, request, keywords, false);
+        ProductMatchDto matchDto = matchScoreService.score(
+                product,
+                pp,
+                request,
+                keywords,
+                request.hasTransactionHistory()
+        );
         // totalScore를 0~100 스케일로 변환
         return (int) Math.round(matchDto.totalScore() * 100);
     }
 
     private MyfinResponseDto.Metrics calculateMetrics(ProductProperty pp, String sourceCode, SearchRequestDto request, ResolvedKeywords keywords) {
+        if (request == null) {
+            return null;
+        }
+
         if ("ONTONG".equals(sourceCode)) {
             // 정부 상품: RateCalculatorService.governmentDetail() 활용
             GovernmentDetailDto govDetail = rateCalculatorService.governmentDetail(pp, request);

@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -59,22 +60,23 @@ public class ProductDetailService {
         ResolvedKeywords keywords = resolveKeywordService.resolveKeywords(options);
         SearchRequestDto calcRequest = new SearchRequestDto(options, req.detailedOptions());
 
-        ProductProperty selected = selectProperty(product, req.productPropertyId(), calcRequest, keywords);
-
         boolean subscription = product.getType() == ProductType.SUBSCRIPTION;
         boolean government = ONTONG.equals(product.getSource().getCode()) && !subscription;
         boolean metricsLocked = userDetails == null; // 비로그인 시 수익 지표 잠금(로그인 게이트)
+        ProductProperty selected = selectProperty(
+                product,
+                req.productPropertyId(),
+                calcRequest,
+                keywords,
+                metricsLocked
+        );
         boolean showMetrics = !metricsLocked && !subscription && selected != null;
 
         // 적합도(리스트 탭A totalScore)는 잠금과 무관 — property/옵션이 있으면 계산.
         // includeTx는 리스트(SearchService.isTabBEnabled)와 동일하게 맞춰 값 일관성 보장.
         Double matchScore = null;
         if (selected != null && !options.isEmpty()) {
-            var detail = req.detailedOptions();
-            boolean includeTx = userDetails != null
-                    && detail != null
-                    && detail.neverUsedBanks() != null
-                    && detail.maturedSavingBanks() != null;
+            boolean includeTx = userDetails != null && calcRequest.hasTransactionHistory();
             matchScore = matchScoreService
                     .score(product, selected, calcRequest, keywords, includeTx)
                     .totalScore();
@@ -129,13 +131,24 @@ public class ProductDetailService {
             Product product,
             Long productPropertyId,
             SearchRequestDto request,
-            ResolvedKeywords keywords
+            ResolvedKeywords keywords,
+            boolean metricsLocked
     ) {
         if (productPropertyId != null) {
             return product.getProperties().stream()
                     .filter(property -> productPropertyId.equals(property.getId()))
                     .findFirst()
                     .orElseThrow(() -> new BusinessException(SearchErrorCode.PRODUCT_NOT_FOUND));
+        }
+        if (metricsLocked) {
+            Comparator<BigDecimal> rateOrder = Comparator.nullsLast(Comparator.reverseOrder());
+            return product.getProperties().stream()
+                    .sorted(Comparator
+                            .comparing(ProductProperty::getMaxRate, rateOrder)
+                            .thenComparing(ProductProperty::getBaseRate, rateOrder)
+                            .thenComparing(ProductProperty::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+                    .findFirst()
+                    .orElse(null);
         }
         // 직접 진입 등으로 productPropertyId가 없으면 대표 property 폴백 (리스트 eligibility를 안 거쳐 값이 다를 수 있음)
         return rateCalculatorService.selectRepresentativeProperty(product, request, keywords);

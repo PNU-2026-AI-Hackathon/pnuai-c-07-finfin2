@@ -67,4 +67,8 @@ public enum KeywordValueEnum {
             return null;
         }
     }
+
+    public boolean isTransactionHistoryCondition() {
+        return this == BANK_FIRST_TRANSACTION || this == BANK_REDEPOSIT;
+    }
 }

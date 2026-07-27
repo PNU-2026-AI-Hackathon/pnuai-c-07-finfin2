@@ -30,4 +30,10 @@ public record SearchRequestDto(
     public List<String> maturedSavingBanks() {
         return detailedOptions != null ? detailedOptions.maturedSavingBanks() : null;
     }
+
+    public boolean hasTransactionHistory() {
+        return detailedOptions != null
+                && detailedOptions.neverUsedBanks() != null
+                && detailedOptions.maturedSavingBanks() != null;
+    }
 }

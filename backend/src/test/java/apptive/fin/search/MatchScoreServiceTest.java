@@ -543,6 +543,59 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    void 거래이력_반영이_꺼져_있으면_선택된_첫거래도_반영하지_않는다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        ProductProperty property = createProperty(
+                10L,
+                "KB",
+                500_000L,
+                12,
+                KeywordValueEnum.BANK_FIRST_TRANSACTION
+        );
+        setProviderCode(property, "KB");
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                property,
+                createRequest(300_000L, List.of("KB"), List.of()),
+                new ResolvedKeywords(
+                        List.of(), List.of(), null, List.of(),
+                        List.of(KeywordValueEnum.BANK_FIRST_TRANSACTION)
+                ),
+                false
+        );
+
+        assertThat(result.bankCondScore()).isZero();
+    }
+
+    @Test
+    void BANK_ETC는_선택되어도_은행조건_점수에_반영하지_않는다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        ProductProperty property = createProperty(
+                10L,
+                "KB",
+                500_000L,
+                12,
+                KeywordValueEnum.BANK_ETC
+        );
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                property,
+                createRequest(300_000L, List.of(), List.of()),
+                new ResolvedKeywords(
+                        List.of(), List.of(), null, List.of(),
+                        List.of(KeywordValueEnum.BANK_ETC)
+                ),
+                true
+        );
+
+        assertThat(result.bankCondScore()).isZero();
+    }
+
+    @Test
     void 첫거래_거래이력은_선택한_은행에만_매칭된다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         ProductProperty property = createProperty(

@@ -211,15 +211,7 @@ public class SearchService {
 
     // TabB 활성화여부 판별
     private boolean isTabBEnabled(SearchRequestDto request, AuthUserDetails userDetails) {
-		    // 사용자가 로그인하지 않았거나 상세정보를 입력하지 않았다면 비활성화
-        if (userDetails == null || request.detailedOptions() == null) {
-            return false;
-        }
-				
-        // 그렇지 않고 neverUsedBanks가 null이 아니고 maturedSavingBanks가 null이 아니면 활성화
-        var detail = request.detailedOptions();
-        return detail.neverUsedBanks() != null
-                && detail.maturedSavingBanks() != null;
+        return userDetails != null && request.hasTransactionHistory();
     }
 		
     // 키워드 선택 유효성 판별

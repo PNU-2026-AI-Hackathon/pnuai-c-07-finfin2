@@ -310,6 +310,67 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 비로그인_대표_property는_거래이력과_무관하게_최고_공시금리로_선택한다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        Long originalPropertyId = propertyId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update(
+                "UPDATE product_properties SET base_rate = 2.00, max_rate = 4.50 WHERE id = ?",
+                originalPropertyId
+        );
+        jdbcTemplate.update("""
+                INSERT INTO product_preferential_rates
+                    (product_property_id, keyword_code, rate, description)
+                VALUES (?, 'BANK_FIRST_TRANSACTION', 3.00, '첫거래 우대')
+                """, originalPropertyId);
+        jdbcTemplate.update("""
+                INSERT INTO provider (source_id, code, name, apply_url)
+                VALUES (
+                    (SELECT id FROM product_source WHERE code = 'FSS'),
+                    'DETAIL_PUBLIC_BANK',
+                    '공개대표은행',
+                    'https://public.example/apply'
+                )
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO product_properties
+                    (product_id, provider_id, base_rate, max_rate, save_trm)
+                VALUES (
+                    ?,
+                    (SELECT id FROM provider WHERE code = 'DETAIL_PUBLIC_BANK'),
+                    4.00,
+                    5.00,
+                    12
+                )
+                """, productId);
+
+        DetailedOptionsDto usedBank = new DetailedOptionsDto(
+                null, null, null, null, null, null, null, null,
+                null, null, List.of("SEARCH_BANK_B"), List.of(), List.of()
+        );
+        DetailedOptionsDto unusedBank = new DetailedOptionsDto(
+                null, null, null, null, null, null, null, null,
+                null, null, List.of(), List.of(), List.of()
+        );
+
+        ProductDetailResponseDto withHistory = productDetailService.getProductDetail(
+                productId,
+                new ProductDetailRequestDto(null, List.of(), usedBank),
+                null
+        );
+        ProductDetailResponseDto withoutHistory = productDetailService.getProductDetail(
+                productId,
+                new ProductDetailRequestDto(null, List.of(), unusedBank),
+                null
+        );
+
+        for (ProductDetailResponseDto detail : List.of(withHistory, withoutHistory)) {
+            assertThat(detail.providerName()).isEqualTo("공개대표은행");
+            assertThat(detail.applyUrl()).isEqualTo("https://public.example/apply");
+            assertThat(detail.metricsLocked()).isTrue();
+        }
+    }
+
+    @Test
     void 존재하지_않는_상품은_예외를_던진다() {
         assertThatThrownBy(() -> productDetailService.getProductDetail(
                 999_999L, request(null, null), authenticatedUser()))

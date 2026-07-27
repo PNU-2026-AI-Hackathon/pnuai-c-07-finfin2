@@ -326,9 +326,17 @@ public class RateCalculatorService {
             SearchRequestDto request,
             ResolvedKeywords keywords
     ) {
-        Set<KeywordValueEnum> conditions = new HashSet<>(keywords.bankConditions());
+        Set<KeywordValueEnum> conditions = new HashSet<>();
+        keywords.bankConditions().stream()
+                .filter(keyword -> !keyword.isTransactionHistoryCondition())
+                .filter(keyword -> keyword != KeywordValueEnum.BANK_ETC)
+                .forEach(conditions::add);
         conditions.add(KeywordValueEnum.BANK_ONLINE_JOIN);
         conditions.add(KeywordValueEnum.BANK_AGE);
+
+        if (request == null || !request.hasTransactionHistory()) {
+            return conditions;
+        }
 
         if (property.matchesAnyProvider(request.neverUsedBanks())) {
             conditions.add(KeywordValueEnum.BANK_FIRST_TRANSACTION);

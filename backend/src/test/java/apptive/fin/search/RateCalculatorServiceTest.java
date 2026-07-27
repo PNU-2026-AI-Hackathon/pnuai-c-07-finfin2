@@ -113,6 +113,66 @@ class RateCalculatorServiceTest {
     }
 
     @Test
+    void 첫거래를_직접_선택해도_다른_은행의_우대금리에는_더하지_않는다() {
+        Product product = createProduct("BANK_FIRST_SELECTED", "selected first transaction product", "FSS");
+        ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");
+        addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_FIRST_TRANSACTION, "0.50"));
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        ProductRateDto result = rateCalculatorService.calculate(
+                product,
+                property,
+                createRequest(null, null, List.of("SHINHAN"), List.of()),
+                keywords(List.of(KeywordValueEnum.BANK_FIRST_TRANSACTION))
+        );
+
+        assertThat(result.achievableRate()).isEqualTo(3.5);
+    }
+
+    @Test
+    void 거래이력_목록_하나가_null이면_첫거래_우대금리를_더하지_않는다() {
+        Product product = createProduct("BANK_INCOMPLETE_HISTORY", "incomplete history product", "FSS");
+        ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");
+        addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_FIRST_TRANSACTION, "0.50"));
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        SearchRequestDto request = new SearchRequestDto(
+                List.of(),
+                new DetailedOptionsDto(
+                        null, null, null, null, null,
+                        null, null, null, null, null,
+                        List.of("KB"), null, List.of()
+                )
+        );
+
+        ProductRateDto result = rateCalculatorService.calculate(
+                product,
+                property,
+                request,
+                ResolvedKeywords.emptyKeywords()
+        );
+
+        assertThat(result.achievableRate()).isEqualTo(3.5);
+    }
+
+    @Test
+    void BANK_ETC는_선택되어도_달성금리에_더하지_않는다() {
+        Product product = createProduct("BANK_ETC_SELECTED", "etc product", "FSS");
+        ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");
+        addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_ETC, "0.50"));
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        ProductRateDto result = rateCalculatorService.calculate(
+                product,
+                property,
+                createRequest(),
+                keywords(List.of(KeywordValueEnum.BANK_ETC))
+        );
+
+        assertThat(result.achievableRate()).isEqualTo(3.5);
+    }
+
+    @Test
     void 은행상품은_만기이력_은행일_때만_재예치_우대금리를_더한다() {
         Product product = createProduct("BANK006", "redeposit product", "FSS");
         ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");

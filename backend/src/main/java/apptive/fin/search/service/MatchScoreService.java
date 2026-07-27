@@ -277,7 +277,11 @@ public class MatchScoreService {
             boolean includeTransactionHistory,
             boolean isGov
     ) {
-        LinkedHashSet<KeywordValueEnum> active = new LinkedHashSet<>(selected);
+        LinkedHashSet<KeywordValueEnum> active = new LinkedHashSet<>();
+        selected.stream()
+                .filter(keyword -> !keyword.isTransactionHistoryCondition())
+                .filter(keyword -> keyword != BANK_ETC)
+                .forEach(active::add);
         if (!isGov) {
             if (BankConditionMatcher.hasOnlineJoinCondition(property)) {
                 active.add(BANK_ONLINE_JOIN);
@@ -288,7 +292,7 @@ public class MatchScoreService {
         }
 
         // 거래 내역 미포함시 계산하지 않음
-        if (!includeTransactionHistory) {
+        if (!includeTransactionHistory || !request.hasTransactionHistory()) {
             return new ArrayList<>(active);
         }
         
