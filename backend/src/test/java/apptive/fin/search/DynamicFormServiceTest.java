@@ -63,7 +63,7 @@ class DynamicFormServiceTest {
     }
 
     @Test
-    void 군복무_옵션이면_나이상한을_39로_설정한다() {
+    void 군복무_옵션이어도_기본_나이상한을_유지한다() {
         SearchRequestDto request = createRequest(
                 List.of(new OptionRequestDto(1L, 20L)),
                 null,
@@ -76,7 +76,7 @@ class DynamicFormServiceTest {
 
         DynamicFormResponseDto result = dynamicFormService.calcFormCondition(request);
 
-        assertThat(result.ageBound()).isEqualTo(39);
+        assertThat(result.ageBound()).isEqualTo(34);
         assertThat(result.yearlyEarnDefault()).isNull();
         assertThat(result.showBankInterestRateCheckList()).isFalse();
         assertThat(result.medianIncomes()).isNull();
@@ -201,7 +201,7 @@ class DynamicFormServiceTest {
         DynamicFormResponseDto result = dynamicFormService.calcFormCondition(request);
 
         assertThat(result.yearlyEarnDefault()).isEqualTo(0);
-        assertThat(result.ageBound()).isEqualTo(39);
+        assertThat(result.ageBound()).isEqualTo(34);
         assertThat(result.showBankInterestRateCheckList()).isTrue();
         assertThat(result.medianIncomes()).isEqualTo(medianIncomesDto);
         assertThat(result.showTenure()).isFalse();

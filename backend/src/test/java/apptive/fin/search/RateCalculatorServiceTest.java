@@ -241,7 +241,7 @@ class RateCalculatorServiceTest {
     }
 
     @Test
-    void 은행상품은_달성가능금리를_최고금리로_상한처리한다() {
+    void 은행상품은_공시최고금리와_무관하게_충족한_우대금리를_모두_더한다() {
         Product product = createProduct("BANK008", "capped product", "FSS");
         ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.80", "4.00");
         addPreferentialRates(property,
@@ -256,7 +256,7 @@ class RateCalculatorServiceTest {
                 keywords(List.of(KeywordValueEnum.BANK_SALARY_TRANSFER))
         );
 
-        assertThat(result.achievableRate()).isEqualTo(4.0);
+        assertThat(result.achievableRate()).isEqualTo(4.2);
     }
 
     @Test
@@ -278,7 +278,40 @@ class RateCalculatorServiceTest {
     }
 
     @Test
-    void 은행상품은_기본금리와_우대금리_합계가_최고금리와_같으면_상한이_발동하지_않는다() {
+    void 대표옵션은_공시최고금리가_아닌_우대금리_전체합계로_선택한다() {
+        Product product = createProduct("BANK_UNCAPPED_REPRESENTATIVE", "uncapped representative", "FSS");
+        ProductProperty higherPublishedRate =
+                createProperty(10L, "KB", "KB국민은행", "4.20", "4.20");
+        ProductProperty higherAchievableRate =
+                createProperty(11L, "KB", "KB국민은행", "3.50", "4.00");
+        addPreferentialRates(
+                higherAchievableRate,
+                preferentialRate(KeywordValueEnum.BANK_ONLINE_JOIN, "1.00")
+        );
+        ReflectionTestUtils.setField(
+                product,
+                "properties",
+                new ArrayList<>(List.of(higherPublishedRate, higherAchievableRate))
+        );
+
+        ProductProperty selected = rateCalculatorService.selectRepresentativeProperty(
+                product,
+                createRequest(),
+                ResolvedKeywords.emptyKeywords()
+        );
+        ProductRateDto result = rateCalculatorService.calculate(
+                product,
+                selected,
+                createRequest(),
+                ResolvedKeywords.emptyKeywords()
+        );
+
+        assertThat(selected.getId()).isEqualTo(11L);
+        assertThat(result.achievableRate()).isEqualTo(4.5);
+    }
+
+    @Test
+    void 은행상품은_기본금리와_우대금리의_합계를_반환한다() {
         Product product = createProduct("BANK_CAP_EQUAL", "cap boundary equal product", "FSS");
         ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");
         addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_ONLINE_JOIN, "1.50"));
@@ -290,7 +323,7 @@ class RateCalculatorServiceTest {
     }
 
     @Test
-    void 은행상품은_기본금리와_우대금리_합계가_최고금리를_초과하면_최고금리로_상한처리한다() {
+    void 은행상품은_기본금리와_우대금리_합계가_공시최고금리를_초과해도_합계를_반환한다() {
         Product product = createProduct("BANK_CAP_OVER", "cap boundary over product", "FSS");
         ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");
         addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_ONLINE_JOIN, "2.00"));
@@ -298,7 +331,7 @@ class RateCalculatorServiceTest {
 
         ProductRateDto result = rateCalculatorService.calculate(product, property, createRequest(), ResolvedKeywords.emptyKeywords());
 
-        assertThat(result.achievableRate()).isEqualTo(5.0);
+        assertThat(result.achievableRate()).isEqualTo(5.5);
     }
 
     @Test

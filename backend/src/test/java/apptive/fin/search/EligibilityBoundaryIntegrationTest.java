@@ -53,17 +53,17 @@ class EligibilityBoundaryIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 병역연령확장_인정상품_만35세_군필은_포함된다() {
+    void 병역연령확장_표시상품도_만35세_군필은_제외된다() {
         List<Product> result = filter(ageRequest(35, true));
 
-        assertThat(productCodes(result)).contains("TEST_AGE_MIL_EXT");
+        assertThat(productCodes(result)).doesNotContain("TEST_AGE_MIL_EXT");
     }
 
     @Test
-    void 병역연령확장_인정상품_만39세_군필은_포함된다() {
+    void 병역연령확장_표시상품도_만39세_군필은_제외된다() {
         List<Product> result = filter(ageRequest(39, true));
 
-        assertThat(productCodes(result)).contains("TEST_AGE_MIL_EXT");
+        assertThat(productCodes(result)).doesNotContain("TEST_AGE_MIL_EXT");
     }
 
     @Test

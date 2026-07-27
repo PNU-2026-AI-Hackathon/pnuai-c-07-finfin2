@@ -300,12 +300,7 @@ public class RateCalculatorService {
             return 0.0;
         }
 
-        double calculatedRate = baseRate(property) + preferentialRateSum(property, request, keywords);
-        if (property.getMaxRate() == null) {
-            return calculatedRate;
-        }
-
-        return Math.min(calculatedRate, property.getMaxRate().doubleValue());
+        return baseRate(property) + preferentialRateSum(property, request, keywords);
     }
 
     // 우대금리의 총합

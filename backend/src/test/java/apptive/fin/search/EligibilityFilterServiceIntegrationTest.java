@@ -119,7 +119,7 @@ class EligibilityFilterServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 만36세_군복무_신분이면_병역연령확장_상품만_통과한다() {
+    void 만36세_군복무_신분이어도_연령상한을_확장하지_않는다() {
         SearchRequestDto request = createRequest(
                 36,
                 true,
@@ -128,8 +128,7 @@ class EligibilityFilterServiceIntegrationTest extends IntegrationTestSupport {
 
         List<Product> result = eligibilityFilterService.filterEligible(request);
 
-        assertThat(productCodes(result))
-                .containsExactly("TEST_MILITARY_EXTENSION");
+        assertThat(result).isEmpty();
     }
 
     @Test

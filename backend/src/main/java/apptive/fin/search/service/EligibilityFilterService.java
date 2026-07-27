@@ -41,7 +41,6 @@ public class EligibilityFilterService {
                 criteria.annualIncome(),
                 criteria.householdIncomePercent(),
                 criteria.incomeProofUnavailable(),
-                criteria.militaryAgeExtensionRequested(),
                 criteria.isHomeless(),
                 criteria.isHouseholder(),
                 criteria.tenureMonths(),
@@ -68,7 +67,6 @@ public class EligibilityFilterService {
                         criteria.annualIncome(),
                         criteria.householdIncomePercent(),
                         criteria.incomeProofUnavailable(),
-                        criteria.militaryAgeExtensionRequested(),
                         criteria.isHomeless(),
                         criteria.isHouseholder(),
                         criteria.tenureMonths(),
@@ -97,7 +95,6 @@ public class EligibilityFilterService {
                 annualIncome,
                 detail.householdIncomePercent(),
                 annualIncome != null && annualIncome == 0L,
-                keywords.identities().contains(KeywordValueEnum.STATUS_MILITARY),
                 detail.isHomeless(),
                 detail.isHouseholder(),
                 tenureMonths,
@@ -111,7 +108,7 @@ public class EligibilityFilterService {
             List<KeywordValueEnum> identities
     ) {
         return Boolean.TRUE.equals(property.getIsJoinable())
-                && isAgeEligible(property, criteria.age(), criteria.militaryAgeExtensionRequested())
+                && isAgeEligible(property, criteria.age())
                 && isIncomeEligible(property, criteria.annualIncome(), criteria.householdIncomePercent(), criteria.incomeProofUnavailable())
                 && isResidenceEligible(property, criteria.isHomeless(), criteria.isHouseholder())
                 && isTenureEligible(property, criteria.tenureMonths())
@@ -120,23 +117,14 @@ public class EligibilityFilterService {
     }
 
     // 나이 조건 확인
-    private boolean isAgeEligible(ProductProperty property, Integer age, Boolean militaryAgeExtensionRequested) {
+    private boolean isAgeEligible(ProductProperty property, Integer age) {
         if (age == null) {
             return true;
         }
         if (property.getMinAge() != null && property.getMinAge() > age) {
             return false;
         }
-        if (property.getMaxAge() == null || property.getMaxAge() >= age) {
-            return true;
-        }
-
-        int militaryMaxAge = property.getMilitaryMaxAge() != null ? property.getMilitaryMaxAge() : 39;
-        return Boolean.TRUE.equals(militaryAgeExtensionRequested)
-                && age >= 35
-                && age <= 39
-                && Boolean.TRUE.equals(property.getAllowsMilitaryAgeExtension())
-                && militaryMaxAge >= age;
+        return property.getMaxAge() == null || property.getMaxAge() >= age;
     }
 
     // 소득 조건 확인 
@@ -230,7 +218,6 @@ public class EligibilityFilterService {
             Long annualIncome,
             Integer householdIncomePercent,
             Boolean incomeProofUnavailable,
-            Boolean militaryAgeExtensionRequested,
             Boolean isHomeless,
             Boolean isHouseholder,
             Integer tenureMonths,
