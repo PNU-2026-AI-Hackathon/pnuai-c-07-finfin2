@@ -51,6 +51,9 @@ class ControllerAuthorizationIntegrationTest extends IntegrationTestSupport {
         mockMvc.perform(get("/search/products")
                         .queryParam("searchInput", "청년"))
                 .andExpect(status().isOk());
+
+        mockMvc.perform(get("/providers/banks"))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -73,7 +76,7 @@ class ControllerAuthorizationIntegrationTest extends IntegrationTestSupport {
 
     @Test
     void 보호_API는_비로그인시_401을_반환한다() throws Exception {
-        mockMvc.perform(get("/providers/banks")
+        mockMvc.perform(get("/term")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("A001"));
@@ -84,17 +87,9 @@ class ControllerAuthorizationIntegrationTest extends IntegrationTestSupport {
                 .andExpect(jsonPath("$.code").value("A001"));
     }
 
+    // 찜·계산기·프로필 = RECOMMENDATION 권한이 필요한 계층
     @Test
-    void 추천_API는_약관동의전_사용자에게_403을_반환한다() throws Exception {
-        mockMvc.perform(get("/providers/banks")
-                        .with(principal(UserRole.BEFORE_AGREED))
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("A002"));
-    }
-
-    @Test
-    void 찜과_계산기_API는_약관동의전_사용자에게_403을_반환한다() throws Exception {
+    void 추천권한_API는_약관동의전_사용자에게_403을_반환한다() throws Exception {
         mockMvc.perform(get("/favorites/count")
                         .with(principal(UserRole.BEFORE_AGREED))
                         .accept(MediaType.APPLICATION_JSON))
@@ -117,17 +112,25 @@ class ControllerAuthorizationIntegrationTest extends IntegrationTestSupport {
                                 """))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("A002"));
+
+        mockMvc.perform(get("/user/me/profile")
+                        .with(principal(UserRole.BEFORE_AGREED))
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("A002"));
     }
 
     @Test
-    void 추천사용자와_관리자는_추천_API에_접근할수있다() throws Exception {
-        mockMvc.perform(get("/providers/banks")
-                        .with(principal(UserRole.RECOMMENDATION)))
-                .andExpect(status().isOk());
+    void 추천사용자와_관리자는_추천권한_API에_접근할수있다() throws Exception {
+        for (UserRole role : new UserRole[]{UserRole.RECOMMENDATION, UserRole.ADMIN}) {
+            mockMvc.perform(get("/favorites/count")
+                            .with(principal(role)))
+                    .andExpect(status().isOk());
 
-        mockMvc.perform(get("/providers/banks")
-                        .with(principal(UserRole.ADMIN)))
-                .andExpect(status().isOk());
+            mockMvc.perform(get("/user/me/profile")
+                            .with(principal(role)))
+                    .andExpect(status().isOk());
+        }
     }
 
     @Test
@@ -179,26 +182,6 @@ class ControllerAuthorizationIntegrationTest extends IntegrationTestSupport {
                 "SELECT COUNT(*) FROM user_profiles WHERE user_id = 999998", Integer.class)).isZero();
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT COUNT(*) FROM refresh_tokens WHERE user_id = 999998", Integer.class)).isZero();
-    }
-
-    @Test
-    void 프로필_API는_약관동의전_사용자를_차단한다() throws Exception {
-        mockMvc.perform(get("/user/me/profile")
-                        .with(principal(UserRole.BEFORE_AGREED))
-                        .accept(MediaType.APPLICATION_JSON))
-                .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("A002"));
-    }
-
-    @Test
-    void 추천사용자와_관리자는_프로필_API에_접근할수있다() throws Exception {
-        mockMvc.perform(get("/user/me/profile")
-                        .with(principal(UserRole.RECOMMENDATION)))
-                .andExpect(status().isOk());
-
-        mockMvc.perform(get("/user/me/profile")
-                        .with(principal(UserRole.ADMIN)))
-                .andExpect(status().isOk());
     }
 
     private RequestPostProcessor principal(UserRole role) {
