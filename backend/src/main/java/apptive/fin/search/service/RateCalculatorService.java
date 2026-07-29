@@ -110,7 +110,7 @@ public class RateCalculatorService {
         List<PreferentialConditionDto> met = new ArrayList<>();
         List<PreferentialConditionDto> unmet = new ArrayList<>();
         for (ProductPreferentialRate rate : property.getPreferentialRates()) {
-            boolean satisfied = applicable.contains(rate.getKeywordCode()) && isAgeConditionSatisfied(rate, request);
+            boolean satisfied = applicable.contains(rate.getKeywordCode()) && passesAgeRangeFilter(rate);
             (satisfied ? met : unmet).add(toConditionDto(rate));
         }
 
@@ -313,7 +313,7 @@ public class RateCalculatorService {
         Set<KeywordValueEnum> applicableConditions = applicableBankConditions(property, request, keywords);
         return property.getPreferentialRates().stream()
                 .filter(rate -> applicableConditions.contains(rate.getKeywordCode()))
-                .filter(rate -> isAgeConditionSatisfied(rate, request))
+                .filter(this::passesAgeRangeFilter)
                 .map(ProductPreferentialRate::getRate)
                 .filter(rate -> rate != null)
                 .mapToDouble(BigDecimal::doubleValue)
@@ -328,6 +328,7 @@ public class RateCalculatorService {
     ) {
         Set<KeywordValueEnum> conditions = new HashSet<>(keywords.bankConditions());
         conditions.add(KeywordValueEnum.BANK_ONLINE_JOIN);
+        conditions.add(KeywordValueEnum.BANK_AGE);
 
         if (property.matchesAnyProvider(request.neverUsedBanks())) {
             conditions.add(KeywordValueEnum.BANK_FIRST_TRANSACTION);
@@ -337,26 +338,16 @@ public class RateCalculatorService {
             conditions.add(KeywordValueEnum.BANK_REDEPOSIT);
         }
 
-        if (request.age() != null) {
-            conditions.add(KeywordValueEnum.BANK_AGE);
-        }
-
         return conditions;
     }
 
-    // 나이 조건 만족여부
-    private boolean isAgeConditionSatisfied(ProductPreferentialRate rate, SearchRequestDto request) {
+    // BANK_AGE 우대금리는 상품의 우대구간이 청년 구간과 겹칠 때만 인정한다(사용자 나이와 무관, MatchScoreService와 동일 규칙).
+    // 그 외 키워드는 applicableBankConditions에서 이미 판정되므로 여기서는 통과시킨다.
+    private boolean passesAgeRangeFilter(ProductPreferentialRate rate) {
         if (rate.getKeywordCode() != KeywordValueEnum.BANK_AGE) {
             return true;
         }
 
-        Integer age = request.age();
-        if (age == null) {
-            return false;
-        }
-
-        boolean minSatisfied = rate.getMinAge() == null || rate.getMinAge() <= age;
-        boolean maxSatisfied = rate.getMaxAge() == null || rate.getMaxAge() >= age;
-        return minSatisfied && maxSatisfied;
+        return BankConditionMatcher.matchesYouthRange(rate);
     }
 }

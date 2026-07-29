@@ -7,12 +7,15 @@ import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
+import apptive.fin.search.entity.ProductPreferentialRate;
 import apptive.fin.search.entity.ProductSource;
 import apptive.fin.provider.entity.Provider;
 import apptive.fin.search.service.MatchScoreService;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -81,6 +84,7 @@ class MatchScoreServiceTest {
                 KeywordValueEnum.BENEFIT_EASY_CONDITION,
                 KeywordValueEnum.BANK_CARD_USAGE
         ));
+        addAutomaticBankConditions(product.getProperties().get(0));
 
         ProductMatchDto result = matchScoreService.score(
                 product,
@@ -111,6 +115,7 @@ class MatchScoreServiceTest {
                 KeywordValueEnum.STATUS_MILITARY,
                 KeywordValueEnum.BANK_CARD_USAGE
         ));
+        addAutomaticBankConditions(product.getProperties().get(0));
 
         ProductMatchDto result = matchScoreService.score(
                 product,
@@ -144,6 +149,7 @@ class MatchScoreServiceTest {
                 12,
                 KeywordValueEnum.BANK_CARD_USAGE
         ));
+        addAutomaticBankConditions(product.getProperties().get(0));
 
         ProductMatchDto result = matchScoreService.score(
                 product,
@@ -179,6 +185,7 @@ class MatchScoreServiceTest {
                 KeywordValueEnum.STATUS_MILITARY,
                 KeywordValueEnum.BANK_CARD_USAGE
         ));
+        addAutomaticBankConditions(product.getProperties().get(0));
 
         ProductMatchDto result = matchScoreService.score(
                 product,
@@ -210,6 +217,7 @@ class MatchScoreServiceTest {
                 KeywordValueEnum.STATUS_MILITARY,
                 KeywordValueEnum.BANK_CARD_USAGE
         ));
+        addAutomaticBankConditions(product.getProperties().get(0));
 
         ProductMatchDto result = matchScoreService.score(
                 product,
@@ -241,6 +249,7 @@ class MatchScoreServiceTest {
                 KeywordValueEnum.STATUS_MILITARY,
                 KeywordValueEnum.BANK_SALARY_TRANSFER
         ));
+        addAutomaticBankConditions(product.getProperties().get(0));
 
         ProductMatchDto result = matchScoreService.score(
                 product,
@@ -256,8 +265,8 @@ class MatchScoreServiceTest {
                 false
         );
 
-        assertThat(result.bankCondScore()).isCloseTo(20.0, offset(0.001));
-        assertThat(result.totalScore()).isCloseTo(80.0, offset(0.001));
+        assertThat(result.bankCondScore()).isCloseTo(30.0, offset(0.001));
+        assertThat(result.totalScore()).isCloseTo(90.0, offset(0.001));
     }
 
     @Test
@@ -403,6 +412,7 @@ class MatchScoreServiceTest {
                 KeywordValueEnum.STATUS_MILITARY,
                 KeywordValueEnum.BANK_CARD_USAGE
         ));
+        addAutomaticBankConditions(product.getProperties().get(0));
 
         ProductMatchDto result = matchScoreService.score(
                 product,
@@ -719,6 +729,122 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    void 은행상품은_온라인가입을_선택하지_않아도_자동_매칭한다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
+        addPreferentialRate(property, KeywordValueEnum.BANK_ONLINE_JOIN, null, null);
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                property,
+                createRequest(null),
+                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                false
+        );
+
+        assertThat(result.bankCondScore()).isCloseTo(100.0, offset(0.001));
+    }
+
+    @Test
+    void 은행상품은_사용자나이와_무관하게_청년구간과_겹치는_BANK_AGE를_자동_매칭한다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
+        addPreferentialRate(property, KeywordValueEnum.BANK_AGE, 20, 30);
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto withoutBirthdate = matchScoreService.score(
+                product,
+                property,
+                createRequest(null),
+                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                false
+        );
+        ProductMatchDto seniorUser = matchScoreService.score(
+                product,
+                property,
+                createRequest(LocalDate.now().minusYears(65), null, null, null),
+                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                false
+        );
+
+        assertThat(withoutBirthdate.bankCondScore()).isCloseTo(100.0, offset(0.001));
+        assertThat(seniorUser.bankCondScore()).isEqualTo(withoutBirthdate.bankCondScore());
+    }
+
+    @Test
+    void 은행상품은_청년구간_전체를_덮는_BANK_AGE도_자동_매칭한다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
+        addPreferentialRate(property, KeywordValueEnum.BANK_AGE, 18, 40);
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                property,
+                createRequest(null),
+                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                false
+        );
+
+        assertThat(result.bankCondScore()).isCloseTo(100.0, offset(0.001));
+    }
+
+    @Test
+    void 은행상품은_열린_연령경계가_청년구간과_겹치면_BANK_AGE를_자동_매칭한다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
+        addPreferentialRate(property, KeywordValueEnum.BANK_AGE, null, 34);
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                property,
+                createRequest(null),
+                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                false
+        );
+
+        assertThat(result.bankCondScore()).isCloseTo(100.0, offset(0.001));
+    }
+
+    @Test
+    void 은행상품은_청년구간과_겹치지_않는_BANK_AGE를_매칭하지_않는다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
+        addPreferentialRate(property, KeywordValueEnum.BANK_AGE, 65, null);
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                property,
+                createRequest(null),
+                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                false
+        );
+
+        assertThat(result.bankCondScore()).isZero();
+    }
+
+    @Test
+    void 은행상품은_다른_키워드의_연령범위를_BANK_AGE로_매칭하지_않는다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
+        addPreferentialRate(property, KeywordValueEnum.BENEFIT_MAX_INTEREST, 19, 34);
+        Product product = createProduct("FSS", property);
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                property,
+                createRequest(null),
+                new ResolvedKeywords(List.of(), List.of(), null, List.of(), List.of()),
+                false
+        );
+
+        assertThat(result.bankCondScore()).isZero();
+    }
+
+    @Test
     void 은행_최고이율은_임계금리_미만이면_매칭되지_않는다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
@@ -796,6 +922,29 @@ class MatchScoreServiceTest {
         ReflectionTestUtils.setField(property, "keywords", keywords);
     }
 
+    private void addAutomaticBankConditions(ProductProperty property) {
+        addKeyword(property, KeywordValueEnum.BANK_ONLINE_JOIN);
+        addPreferentialRate(property, KeywordValueEnum.BANK_AGE, 19, 34);
+    }
+
+    private void addPreferentialRate(
+            ProductProperty property,
+            KeywordValueEnum keyword,
+            Integer minAge,
+            Integer maxAge
+    ) {
+        ProductPreferentialRate rate = new ProductPreferentialRate();
+        ReflectionTestUtils.setField(rate, "productProperty", property);
+        ReflectionTestUtils.setField(rate, "keywordCode", keyword);
+        ReflectionTestUtils.setField(rate, "rate", new BigDecimal("0.10"));
+        ReflectionTestUtils.setField(rate, "minAge", minAge);
+        ReflectionTestUtils.setField(rate, "maxAge", maxAge);
+
+        List<ProductPreferentialRate> rates = new ArrayList<>(property.getPreferentialRates());
+        rates.add(rate);
+        ReflectionTestUtils.setField(property, "preferentialRates", rates);
+    }
+
     private void setProviderCode(ProductProperty property, String code) {
         Provider provider = property.getProvider();
         ReflectionTestUtils.setField(provider, "code", code);
@@ -810,10 +959,19 @@ class MatchScoreServiceTest {
             List<String> neverUsedBanks,
             List<String> maturedSavingBanks
     ) {
+        return createRequest(null, monthlySavingsGoal, neverUsedBanks, maturedSavingBanks);
+    }
+
+    private SearchRequestDto createRequest(
+            LocalDate birthdate,
+            Long monthlySavingsGoal,
+            List<String> neverUsedBanks,
+            List<String> maturedSavingBanks
+    ) {
         return new SearchRequestDto(
                 List.of(),
                 new DetailedOptionsDto(
-                        null, null, null, null, null,
+                        birthdate, null, null, null, null,
                         null, null, null, monthlySavingsGoal, null,
                         neverUsedBanks, maturedSavingBanks, List.of()
                 )

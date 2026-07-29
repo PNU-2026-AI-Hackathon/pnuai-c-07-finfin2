@@ -130,10 +130,44 @@ class RateCalculatorServiceTest {
     }
 
     @Test
-    void 은행상품은_나이조건이_맞으면_연령_우대금리를_더한다() {
+    void 은행상품은_사용자나이와_무관하게_청년구간_BANK_AGE_우대금리를_더한다() {
         Product product = createProduct("BANK007", "age product", "FSS");
         ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");
-        addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_AGE, "0.20", 19, 34));
+        addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_AGE, "0.20", 20, 30));
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        ProductRateDto result = rateCalculatorService.calculate(
+                product,
+                property,
+                createRequest(LocalDate.now().minusYears(65), null, List.of(), List.of()),
+                ResolvedKeywords.emptyKeywords()
+        );
+
+        assertThat(result.achievableRate()).isEqualTo(3.7);
+    }
+
+    @Test
+    void 은행상품은_청년구간_전체를_덮는_BANK_AGE_우대금리를_더한다() {
+        Product product = createProduct("BANK_AGE_WIDE", "wide age product", "FSS");
+        ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");
+        addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_AGE, "0.20", 18, 40));
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        ProductRateDto result = rateCalculatorService.calculate(
+                product,
+                property,
+                createRequest(),
+                ResolvedKeywords.emptyKeywords()
+        );
+
+        assertThat(result.achievableRate()).isEqualTo(3.7);
+    }
+
+    @Test
+    void 은행상품은_청년구간과_겹치지_않는_BANK_AGE_우대금리를_더하지_않는다() {
+        Product product = createProduct("BANK_AGE_SENIOR", "senior age product", "FSS");
+        ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");
+        addPreferentialRates(property, preferentialRate(KeywordValueEnum.BANK_AGE, "0.20", 65, null));
         ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
 
         ProductRateDto result = rateCalculatorService.calculate(
@@ -143,7 +177,7 @@ class RateCalculatorServiceTest {
                 ResolvedKeywords.emptyKeywords()
         );
 
-        assertThat(result.achievableRate()).isEqualTo(3.7);
+        assertThat(result.achievableRate()).isEqualTo(3.5);
     }
 
     @Test
@@ -433,6 +467,26 @@ class RateCalculatorServiceTest {
                 .containsExactlyInAnyOrder(KeywordValueEnum.BANK_SALARY_TRANSFER, KeywordValueEnum.BANK_ONLINE_JOIN);
         assertThat(detail.unmetConditions()).extracting(PreferentialConditionDto::keywordCode)
                 .containsExactly(KeywordValueEnum.BANK_CARD_USAGE);
+    }
+
+    @Test
+    void 은행상품_상세는_BANK_AGE를_청년구간_중첩여부로_분류한다() {
+        ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "5.00");
+        addPreferentialRates(property,
+                preferentialRate(KeywordValueEnum.BANK_AGE, "0.20", 20, 30),
+                preferentialRate(KeywordValueEnum.BANK_AGE, "0.30", 65, null));
+
+        BankDetailDto detail = rateCalculatorService.bankDetail(
+                property,
+                createRequest(),
+                ResolvedKeywords.emptyKeywords()
+        );
+
+        assertThat(detail.achievableRate()).isEqualTo(3.7);
+        assertThat(detail.metConditions()).extracting(PreferentialConditionDto::rate)
+                .containsExactly(0.2);
+        assertThat(detail.unmetConditions()).extracting(PreferentialConditionDto::rate)
+                .containsExactly(0.3);
     }
 
     @Test

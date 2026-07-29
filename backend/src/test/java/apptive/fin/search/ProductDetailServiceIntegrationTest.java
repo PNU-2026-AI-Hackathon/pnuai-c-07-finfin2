@@ -257,6 +257,47 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 은행상품의_자동조건은_추천목록과_상세에_동일하게_반영된다() {
+        Long propertyId = propertyId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("""
+                INSERT INTO product_preferential_rates
+                    (product_property_id, keyword_code, rate, description, min_age, max_age)
+                VALUES
+                    (?, 'BANK_ONLINE_JOIN', 0.10, '온라인 가입', NULL, NULL),
+                    (?, 'BANK_AGE', 0.20, '청년 우대', 20, 30)
+                """, propertyId, propertyId);
+
+        List<OptionRequestDto> options =
+                List.of(new OptionRequestDto(CategoryIdEnum.REGION.getId(), 2L));
+        DetailedOptionsDto detailedOptions = detailedOptions(50L);
+
+        ProductSearchResultDto list = searchService.search(
+                new SearchRequestDto(options, detailedOptions),
+                authenticatedUser()
+        );
+        ProductMatchDto card = list.bankRanked().stream()
+                .filter(match -> match.productName().equals("청년우대적금"))
+                .findFirst()
+                .orElseThrow();
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                card.productId(),
+                new ProductDetailRequestDto(card.productPropertyId(), options, detailedOptions),
+                authenticatedUser()
+        );
+
+        assertThat(detail.matchScore()).isCloseTo(card.totalScore(), offset(0.0001));
+        assertThat(detail.bank().achievableRate()).isEqualTo(4.1);
+        assertThat(detail.bank().metConditions())
+                .extracting(condition -> condition.keywordCode())
+                .containsExactlyInAnyOrder(
+                        KeywordValueEnum.BANK_ONLINE_JOIN,
+                        KeywordValueEnum.BANK_AGE
+                );
+        assertThat(detail.bank().unmetConditions()).isEmpty();
+    }
+
+    @Test
     void 옵션없이_직접진입하면_적합도는_null이다() {
         Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
         Long propertyId = propertyId("SEARCH_YOUTH_EMPLOYMENT");
