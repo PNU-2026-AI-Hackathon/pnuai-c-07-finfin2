@@ -1,237 +1,328 @@
-# Template for Hackathon
-이 레파지토리는 참여자들이 해커톤 결과물을 위한 레파지토리 생성시에 참고할 내용들을 담고 있습니다.
-1. 레파지토리 생성
-2. 레파지토리 구성
-3. README.md 가이드라인
-4. README.md 작성팁
-<br/>
+# Y-Fin. <img src="https://img.shields.io/badge/PNU%202026%20AI%20Hackathon-Startup%20Track%20C--07-2E7D32" align="right" />
 
-
-## 1. 레파지토리 생성
-- https://classroom.github.com/a/VDJSvmVC
-- 위 Github Classroom 링크에 접속해 본인 조의 github 레파지토리를 생성하세요.
-<img width="1125" height="790" alt="image" src="https://github.com/user-attachments/assets/7377b191-d36a-43bd-ba16-9742be532ecf" />
-
-
-- 레파지토리 생성 시 팀 이름은 `{트랙}-{팀번호}-{팀명}` 형식으로 생성하세요.
-- 트랙 란에는 융합트랙은 'A', 지정과제 트랙은 'B', 창업트랙은 'C'를 기입합니다.
-- 예를 들어, 융합트랙 3조의 팀명은 `A-03-ExampleTeamName` 입니다.
-- 이 경우 `PNUAI-A-03-ExampleTeamName`이라는 이름으로 레포지토리가 생성됩니다.
-<br/>
-
-
-
-## 2. 레파지토리 구성
-- 레파지토리 내에 `README.md` 파일 생성하고 아래의 가이드라인과 작성팁을 참고하여 파일을 작성하세요.
-- 레파지토리 내에 `docs` 폴더를 생성하고 폴더 내에는 과제 수행 하면서 작성한 각종 보고서, 발표자료를 올려둡니다.
-- 그 밖에 레파지토리의 폴더 구성은 과제 결과물에 따라 자유롭게 구성하되 가급적 코드의 목적이나 기능에 따라 폴더를 나누어 구성하세요.  
-<br/>
-
-
-## 3. README.md 가이드라인
-- README 파일 작성시에 아래의 5가지 항목의 내용은 필수적으로 포함해야 합니다.
-- 아래의 7가지 항목이외에 프로젝트의 이해를 돕기위한 내용을 추가해도 됩니다.
-- `SAMPLE_README.md`가 단순한 형태의 예제이니 참고하세요.
-```markdown
-### 1. 프로젝트 소개
-#### 1.1. 개발배경 및 필요성
-> 프로젝트를 실행하게 된 배경 및 필요성을 작성하세요.
-
-#### 1.2. 개발 목표 및 주요 내용
-> 프로젝트의 목표 및 주요 내용을 작성하세요.
-
-#### 1.3. 세부내용
-> 위 내용을 작성하세요.
-
-#### 1.4. 기존 서비스 대비 차별성
-> 위 내용을 작성하세요.
-
-#### 1.5. 사회적가치 도입 계획
-> 위 내용을 작성하세요.
-
-
-### 2. 상세설계
-#### 2.1. 시스템 구성도
-> 시스템 구성도(infra, front, back등의 node 간의 관계)의 사진을 삽입하세요.
-
-#### 2.1. 사용 기술
-> 스택 별(backend, frontend, designer등) 사용한 기술 및 버전을 작성하세요.
-> 
-> ex) React.Js - React14, Node.js - v20.0.2
-> (필수)활용한 생성형 AI, AI 코딩 도구에 대해서도 기술하세요.
-
-### 3. 개발결과
-#### 3.1. 전체시스템 흐름도
-> 위 내용을 작성하세요.
-
-#### 3.2. 기능설명
-> 각 페이지 마다 사용자의 입력의 종류와 입력에 따른 결과 설명 및 시연 영상.
-> 
-> ex. 로그인 페이지:
-> 
-> - 이메일 주소와 비밀번호를 입력하면 입력창에서 유효성 검사가 진행됩니다.
-> 
-> - 요효성 검사를 통과하지 못한 경우, 각 경고 문구가 입력창 하단에 표시됩니다.
->   
-> - 유효성 검사를 통과한 경우, 로그인 버튼이 활성화 됩니다.
->   
-> - 로그인 버튼을 클릭 시, 입력한 이메일 주소와 비밀번호에 대한 계정이 있는지 확인합니다.
->   
-> - 계정이 없는 경우, 경고문구가 나타납니다.
+> **청년(Youth)들의 금융(Finance) 고민을 끝(Finish)내다**
 >
-> (영상)
+> 19~34세 금융초보 청년을 위한 맞춤 예적금 추천 서비스
 
-#### 3.3. 기능명세서
-> 개발한 제품에 대한 기능명세서를 작성해 제출하세요.
-> 
-> 노션 링크, 한글 문서, pdf 파일, 구글 스프레드 시트 등...
+정부 정책 상품과 은행 상품을 한곳에 통합하고, 사용자 조건 기반 자격요건 자동 필터링과 "적합도 / 내가 받을 수 있는 금리" 순 정렬을 제공해 청년의 예적금 탐색-비교 과정을 간편하게 만드는 서비스입니다.
 
-#### 3.4. 디렉토리 구조
-> 위 레포지토리의 디렉토리 구조를 설명하세요.
+- 발표(피칭) 자료: [Notion - Y-Fin 피칭용 발표 자료](https://app.notion.com/p/38b31a9c05e180e1a419cab24ee2b509)
+- 개발 계획서: [`Y-Fin_개발계획서_수정.pdf`](./Y-Fin_개발계획서_수정.pdf)
 
-#### 3.5 AI 도구 활용
-> AI 도구를 어떤 단계에서 어떻게 활용했는지, 어떤 성과가 도출되었는지 기술해주세요.
+---
 
-### 4. 설치 및 사용 방법
-> 제품을 설치하기 위헤 필요한 소프트웨어 및 설치 방법을 작성하세요.
->
-> 제품을 설치하고 난 후, 실행 할 수 있는 방법을 작성하세요.
+## 목차
 
-### 5. 소개 및 시연 영상
-> 프로젝트에 대한 소개와 시연 영상을 넣으세요.
-> 프로젝트 소개 동영상을 교육원 메일(swedu@pusan.ac.kr)로 제출 이후 센터에서 부여받은 youtube URL주소를 넣으세요.
+1. [프로젝트 소개](#1-프로젝트-소개)
+2. [상세설계](#2-상세설계)
+3. [개발결과](#3-개발결과)
+4. [설치 및 사용 방법](#4-설치-및-사용-방법)
+5. [소개 및 시연 영상](#5-소개-및-시연-영상)
+6. [팀 소개](#6-팀-소개)
+7. [해커톤 참여 후기](#7-해커톤-참여-후기)
 
-### 6. 팀 소개
-> 팀원 소개 & 구성원 별 역할 분담 & 간단한 연락처를 작성하세요.
+---
 
-### 7. 해커톤 참여 후기
-> 팀원 별 해커톤 참여 후기를 작성하세요.
+## 1. 프로젝트 소개
+
+### 1.1. 개발배경 및 필요성
+
+청년이 예적금을 제대로 고르면 **3년간 200만 원 이상의 차이**가 발생함. 이 차이는 저축 습관이 아니라 **상품 선택의 결과**임. 그리고 지금 그 선택을 좌우하는 세 축이 동시에 상승 중임.
+
+| 축 | 현황 |
+|---|---|
+| **금리** | 기준금리 2.50% 동결에도 저축은행 평균 예금금리 2.92% → 3.74%, 특판·인터넷·지방은행 연 4%대 재등장(최고 4.15%) |
+| **정책** | 6개 부처가 청년 자산형성 사업 운영, 2026년 예산 3조 227억 원. 청년미래적금 신설(기여금 매칭 3% → 6~12%로 2배 상향) |
+| **수요** | 청년 저축·투자 참여율 76.5%, 월 평균 저축 94.1만 원. 미래적금 출시 4일 만에 신청 101만 명 돌파 |
+
+선택지는 정부 63개 + 은행 328개 = **총 391개**로 역대 최대인데, 상승은 선택의 난이도를 함께 끌어올림.
+
+- 광고 최고금리와 실제 달성 금리가 평균 1~3%p 다름
+- 정책은 늘었지만 자격 판단이 어려움
+- 그 결과 청년의 **64%가 비교 단계에서 이탈**, 미래적금 기여금 약 80만 명분이 미신청으로 잔존
+
+> 지금 시장에 부족한 것은 상품이 아니라, **391개 중 "내가 받을 수 있는 것"을 가려내는 비교 도구**임. Y-Fin.의 진입 논거가 여기에 있음.
+
+### 1.2. 개발 목표 및 주요 내용
+
+세 가지 핵심 문제를 해결하는 것을 목표로 함. 각 문제는 자체 설문(61명)으로 검증됨.
+
+| 핵심 문제 | 연계 핵심 기능 | 설문 검증 |
+|---|---|---|
+| 정보 과부하 / 분산 | 3단계 추천 로직, 정부·은행 상품 통합 리스트 | 탐색 어려움 75% (Q3) |
+| 우대금리 불투명 | "내가 받을 수 있는 금리" 순 정렬, 수익률 계산기 | 수익률 계산기 필요 97% (Q8) |
+| 금융 용어 이해 어려움 | 전역 금융 용어 풀이(필요 시 LLM 활용) | 용어 어려움 57%, 약관 미독 43% (Q6) |
+
+- **핵심 문제 정의:** 예적금을 처음 가입하거나 갈아타려는 19~34세 청년은, 정보 과부하·우대금리 불투명·용어 장벽 때문에 비교에 수 시간을 쓰고도 연 최대 10만 원의 이자와 최대 216만 원의 정부 기여금을 놓친 채, 64%가 신청 전에 이탈하고 15~20%가 중도해지함
+
+### 1.3. 세부내용 - 3단계 추천 로직
+
+1. **정보 입력** - 키워드 선택(적합도) + 수동 입력(자격 요건)
+2. **자격요건 자동 필터링** - 수동 입력 기준 가입 불가 상품 자동 제외, "총 OO개 중 자격 미충족 XX개 제외" 노출
+3. **적합도 / 금리 순 정렬** - 탭 A(나에게 맞는 순) / 탭 B(내가 받을 수 있는 금리 순)
+
+**탭 A 적합도:** 정부·은행 상품 배점을 분리해 100점 만점 산출. 가중치는 설문(Q12) 중요도 기반(월 납입 희망액 4.39·저축 기간 4.38·핵심 혜택 4.30 등)으로, 느낌이 아니라 청년 응답 데이터로 정렬함
+
+**탭 B 달성 가능 금리:**
+- 정부 상품 = 공시되지 않는 기여금을 **연환산 수익률로 변환하는 자체 산식**으로 은행 상품과 동일 선상 비교
+- 은행 상품 = 기본금리 + 사용자가 **실제 충족 가능한 우대금리만** 합산 (광고 최고금리 X)
+
+### 1.4. 기존 서비스 대비 차별성
+
+| 핵심 기능 | **Y-Fin** | 온통청년·파인 | 토스·뱅크샐러드 | 핀다 | 은행 앱 |
+|---|:---:|:---:|:---:|:---:|:---:|
+| 정부 + 은행 상품 통합 | **O** | X | X | X | X |
+| 자격요건 자동 필터링 | **O** | X | △ | △ | X |
+| 적합도 순 정렬 | **O** | X | X | X | X |
+| 달성 가능 금리순 정렬(정부상품 포함) | **O** | X | X | X | X |
+| 전역 금융 용어 풀이 | **O** | X | △ | △ | X |
+| 정렬에 광고비 미반영(중립) | **O** | O | X | X | X |
+
+- **포지셔닝:** "정부·은행 통합 + 청년 맞춤 추천" 사분면은 어떤 경쟁사도 없는 화이트 스페이스
+- **적합도 / 달성 가능 금리순 정렬은 Y-Fin.만의 고유 기능**이며, 통합·자동 필터링·용어 풀이·중립 비교를 완결성 있게 통합한 유일한 서비스
+
+### 1.5. 사회적가치 도입 계획
+
+- **정책 효과성 제고:** 청년미래적금 7,446억 예산도 청년이 자격을 모르면 효과 반감됨. Y-Fin.이 발견·이해·신청 경로를 단축해 정책 예산 대비 실제 가입률을 높임
+- **포용금융 / ESG 연계:** 금융위 2026 기조「생산적·포용·신뢰받는 금융」과 직접 연계. 다크패턴 방지(달성 가능 금리 표시)와 지역 청년 금융격차 해소(영남권 우선)
+- **신뢰 보호 원칙:** 추천 정렬에 광고비를 절대 반영하지 않고, 광고 수익은 별도 영역으로 격리·명시
+
+---
+
+## 2. 상세설계
+
+### 2.1. 시스템 구성도
+
+AWS EC2 위에 Frontend·Core Backend·Data Pipeline을 올리고, AWS RDS(PostgreSQL)를 공용 저장소로 사용함. 전 구간을 Security Layer(TLS 1.3·JWT·bcrypt)로 보호함
+
+```mermaid
+flowchart LR
+    User([사용자])
+    SEC["Security Layer<br/>TLS 1.3 · JWT · bcrypt<br/>전송·인증·자격정보 보호"]
+    subgraph EC2["AWS EC2 · Application Server"]
+        FE["Frontend<br/>React 19 + Vite 7<br/>금융 입력폼 · 빠른 UI"]
+        BE["Core Backend<br/>Java 21 + Spring Boot 4<br/>도메인 로직 · 트랜잭션 · 복합 검색"]
+        DP["Data Pipeline<br/>Spring Batch<br/>금융 데이터 수집·정규화·보강"]
+    end
+    RDS[("AWS RDS<br/>PostgreSQL<br/>서비스·정규화 데이터")]
+    GEM["Gemini API<br/>2.5 Flash 계열<br/>비정형 필드 보강"]
+    SRC["금융 데이터 소스<br/>FSS · 온통청년"]
+    User -->|HTTPS · TLS 1.3| FE
+    FE -->|REST API · JWT| BE
+    BE -->|JPA · Transaction| RDS
+    SRC -->|Raw Data| DP
+    DP -->|Structured Prompt| GEM
+    GEM -->|Structured JSON| DP
+    DP -->|정규화 · Upsert| RDS
+    SEC -.-> FE
+    SEC -.-> BE
 ```
-<br/>
 
+**5단계 데이터 파이프라인:** 외부 공공 API → 정기 수집·정제(Spring Batch) → DB 적재(정규화 스키마) → API 서버 처리(필터링·계산) → 사용자 맞춤 추천 결과. 수집·가공·서빙 계층을 분리해 신규 API 추가나 마이데이터 2.0 연동 시에도 구조 훼손 없이 확장 가능함
 
-## 4. README.md 작성 팁
-- 마크다운 언어를 이용해 README.md 파일을 작성할 때 참고할 수 있는 마크다운 언어 문법을 공유합니다.
-- 다양한 예제와 보다 자세한 문법은 [이 문서](https://www.markdownguide.org/basic-syntax/)를 참고하세요.
+**LLM 보강 정규화 흐름:** 규칙 기반 정규화를 먼저 적용하고, 보강이 필요한 비정형 필드만 Gemini를 호출함. 캐시·폴백을 두어 LLM 실패 시에도 기존 정규화 결과를 유지함
 
-### 4.1. 헤더 Header
+```mermaid
+flowchart LR
+    A["FSS/온통청년<br/>원천 데이터"] --> B["규칙 기반 정규화"]
+    B --> C{"LLM 보강 가능?"}
+    C -->|No| H["기존 정규화 결과 유지"]
+    C -->|Yes| D{"성공 캐시 존재?"}
+    D -->|Hit| E["캐시 결과 재사용"]
+    D -->|Miss| F["Gemini 호출<br/>Structured JSON"]
+    F -->|호출·검증 실패| H
+    F --> G["응답 검증·필터링"]
+    E --> G
+    G --> I["정규화 결과와 병합<br/>기존 값 우선 · 누락 값 보완"]
+    I --> DB[("상품 DB 저장")]
+    H --> DB
+    DB --> J["연산 계층<br/>필터링 · 산출"]
+    J --> K["서빙 계층<br/>추천 리스트 출력"]
 ```
-# This is a Header 1
-## This is a Header 2
-### This is a Header 3
-#### This is a Header 4
-##### This is a Header 5
-###### This is a Header 6
-####### This is a Header 7 은 지원되지 않습니다.
-```
 
-# This is a Header 1
-## This is a Header 2
-### This is a Header 3
-#### This is a Header 4
-##### This is a Header 5
-###### This is a Header 6
-####### This is a Header 7 은 지원되지 않습니다.
-<br />
+### 2.2. 사용 기술
 
-### 4.2. 인용문 BlockQuote
-```
-> This is a first blockqute.
->	> This is a second blockqute.
->	>	> This is a third blockqute.
-```
-> This is a first blockqute.
->	> This is a second blockqute.
->	>	> This is a third blockqute.
-<br />
+**Frontend (Fin-FE)**
 
-### 4.3. 목록 List
-* **Ordered List**
-```
-1. first
-2. second
-3. third  
-```
-1. first
-2. second
-3. third
-<br />
+| 구분 | 기술 |
+|---|---|
+| 언어·런타임 | JavaScript, Node.js 22.x, pnpm 10.x |
+| 프레임워크 | React 19.2, React Router DOM 7.13 |
+| 빌드 | Vite 7.3, React Compiler |
+| 스타일 | Tailwind CSS 4.2, styled-components 6.3 |
+| 기타 | framer-motion 12.38(인터랙션), axios 1.13(HTTP), ESLint 9 |
 
-* **Unordered List**
-```
-* 하나
-  * 둘
+**Backend (Fin-BE) - API 서버**
 
-+ 하나
-  + 둘
+| 구분 | 기술 |
+|---|---|
+| 언어·런타임 | Java 21, Gradle |
+| 프레임워크 | Spring Boot 4.0.3, Spring Web / Data JPA / Security / Validation |
+| 인증·보안 | Spring OAuth2 Client, JWT(jjwt 0.12.x), bcrypt, TLS 1.3 |
+| 문서화 | springdoc-openapi 2.8(Swagger UI) |
+| 캐시·테스트 | Spring Cache, Testcontainers(PostgreSQL) |
 
-- 하나
-  - 둘
-```
-* 하나
-  * 둘
+**Collector (Fin-API) - 데이터 수집 서버**
 
-+ 하나
-  + 둘
+| 구분 | 기술 |
+|---|---|
+| 프레임워크 | Spring Boot 4.x, Spring Batch(정기 배치 Job) |
+| 외부 연동 | 금감원 금융상품한눈에 API, 온통청년 API |
+| 정규화 | Gemini 2.5 Flash 계열 LLM 기반 데이터 정규화·보강 |
 
-- 하나
-  - 둘
-<br />
+**Infra / DB**
 
-### 4.4. 코드 CodeBlock
-* 코드 블럭 이용 '``'
-```
-여러줄 주석 "```" 이용
-"```
-#include <stdio.h>
-int main(void){
-  printf("Hello world!");
-  return 0;
-}
-```"
+| 구분 | 기술 |
+|---|---|
+| 인프라 | AWS EC2(Application Server), AWS RDS(PostgreSQL) |
+| DB | PostgreSQL 16 + pgvector |
+| 로컬 개발 | Docker Compose |
+| 모니터링 | Sentry(API 오류율), GA4(퍼널 분석) |
 
-단어 주석 "`" 이용
-"`Hello world`"
+### 2.3. 활용 생성형 AI / AI 코딩 도구
 
-* 큰 따옴표(") 없이 사용하세요.
-``` 
-<br />
+- **Gemini 2.5 Flash 계열 LLM** - 외부 API로 수집한 상품 데이터의 비정형 필드 정규화·보강, 전역 금융 용어 풀이에 활용. Structured JSON 응답 검증과 프롬프트 버전 관리(`llm.prompt-version`)로 로직 변경 시 재처리 제어
+- **AI 코딩 도구** - 레포 내 `CLAUDE.md` / `AGENTS.md`로 AI 에이전트 협업 규칙을 명문화해, 아키텍처 일관성을 유지하며 FE/BE 개발을 가속함
 
-### 4.5. 링크 Link
-```
-[Title](link)
-[부산대학교 AI융합교육원](https://swedu.pusan.ac.kr/swedu/index.do)
+---
 
-<link>
-<https://swedu.pusan.ac.kr>
-``` 
-[부산대학교 AI융합교육원](https://swedu.pusan.ac.kr)
+## 3. 개발결과
 
-<https://swedu.pusan.ac.kr>  
-<br />
-
-### 4.6. 강조 Highlighting
-```
-*single asterisks*
-_single underscores_
-**double asterisks**
-__double underscores__
-~~cancelline~~<img width="1994" height="253" alt="KakaoTalk_20260520_160616446_01" src="https://github.com/user-attachments/assets/9269b8bd-7539-4120-a97c-705f96fd5e71" />
+### 3.1. 전체 시스템 흐름도 (P0 기능 플로우)
 
 ```
-*single asterisks* <br />
-_single underscores_ <br />
-**double asterisks** <br />
-__double underscores__ <br />
-~~cancelline~~  <br />
-<br />
+Y1 회원가입/로그인 → Y2 서비스 소개·탐색 → Y3 정보 입력·리스트
+   → Y4 수익률 계산기·신청 아웃링크 → Y5 찜해둔 Fin.·개인정보 수정
+```
 
-### 4.7. 이미지 Image
+전역 금융 용어 풀이는 특정 단계가 아니라 Y1~Y5 전 화면을 가로지르는 공통 UX 레이어임
+
+### 3.2. 기능설명
+
+> **진척도:** P0 기능 중 핵심 포함 7종 완료 + 2종 진행 = 약 80% 완성. 단순 기획서가 아니라 **동작하는 결과물**로 증명함
+
+| 기능 | 핵심 구현 내용 | 현황 |
+|---|---|:---:|
+| **Y1 회원가입/로그인** | SNS OAuth 2.0 간편 로그인, JWT 세션·자동 로그인, 최소 약관 동의 | ✅ 완료 |
+| **Y2-1 서비스 소개** | 스크롤 기반 랜딩 페이지 렌더링, 인터랙션 연출 | ✅ 완료 |
+| **Y2-2 서비스 탐색** | 비로그인 권한 분기, 제한 기능 클릭 시 모달 UX | ✅ 완료 |
+| **Y3-1 정보 입력** | 키워드 + 수동 입력, 동적 입력 폼(예: #미취업 시 근속기간 항목 자동 숨김) | ✅ 완료 |
+| **Y3-2 리스트** | 자격요건 Hard Filter, 필터링 수 노출, 탭 A 적합도·탭 B 금리 정렬 통합 | ✅ 완료 |
+| **Y4-1 수익률 계산기** | 세전·세후 실수령액 시뮬레이션, 비과세/과세 분기, 금리 시나리오 비교 | 🟡 진행 중 |
+| **Y4-2 신청 아웃링크** | 외부 신청 페이지 직결 라우팅, 사전 서류 안내 모달, GA4 클릭 트래킹 | 🟡 진행 중 |
+| **Y5-1 찜해둔 Fin.** | 관심 상품 저장·조회·해제, 비교 뷰, 만기 알림 | 🟡 예정 |
+| **Y5-2 개인정보 저장** | 저장된 키워드·수동 입력 확인, 재추천 시 프리필 | 🟡 예정 |
+| **전역 금융 용어 풀이** | Y1~Y5 공통 레이어, 어려운 용어를 쉬운 말로 풀이(필요 시 LLM) | 🟡 반영 중 |
+
+**데이터 처리 규모:** 은행 상품(FSS) 328건 + 정부 상품(온통청년) 63건 정규화 완료
+
+**4계층 데이터 검증 체계:** 자격요건 필터링(오판정률 0% 목표), 적합도 점수, 달성 가능 금리(공시값 오차 0 목표), 금융 용어 풀이(LLM 환각 검출)를 단계별로 검증
+
+### 3.3. 기능명세서
+
+- 발표·기능 상세: [Notion - Y-Fin 피칭용 발표 자료](https://app.notion.com/p/38b31a9c05e180e1a419cab24ee2b509)
+- 상세 설계·시장 분석: [`Y-Fin_개발계획서_수정.pdf`](./Y-Fin_개발계획서_수정.pdf)
+
+### 3.4. 디렉토리 구조
+
 ```
-<img src="/path/to/img.jpg" width="600px" title="Title" alt="Alt text"></img>
-![Alt text](/path/to/img.jpg "Optional title")
+pnuai-c-07-finfin2/
+├── frontend/                 # Fin-FE : React + Vite 웹 클라이언트
+│   ├── src/
+│   ├── vite.config.js
+│   └── package.json
+├── backend/                  # Fin-BE : Spring Boot API 서버
+│   └── src/main/java/apptive/fin/
+│       ├── auth/             # OAuth2 인증, JWT
+│       ├── user/             # 사용자 정보
+│       ├── search/           # 자격요건 필터링·적합도/금리 정렬
+│       ├── calculator/       # 수익률 계산기
+│       ├── myfin/            # 찜해둔 Fin.(favorites)
+│       ├── category/         # 카테고리·키워드
+│       ├── provider/         # 금융 상품 공급자
+│       └── global/           # 공통 설정·에러 처리
+├── api/                      # Fin-API : Spring Batch 데이터 수집기(Collector)
+│   └── src/main/java/apptive/fin/apicollector/
+│       ├── batch/           # 배치 Job
+│       ├── client/          # 외부 API 클라이언트(FSS, 온통청년)
+│       ├── normalize/       # 데이터 정규화·보강
+│       ├── llm/             # Gemini LLM 연동
+│       ├── product/         # 상품 엔티티·리포지토리
+│       ├── raw/             # 원천 데이터
+│       └── tasklet/         # 배치 태스크릿
+├── docs/                     # 보고서·발표자료
+└── Y-Fin_개발계획서_수정.pdf
 ```
-<img src="https://github.com/user-attachments/assets/3c717ecf-6e22-487b-ae12-72d11e8af5ff" width="600px" title="부산대학교 AI융합교육원" alt="부산대학교 AI융합교육원"></img>
-<br/>
-![부산대학교 AI융합교육원](https://github.com/user-attachments/assets/3c717ecf-6e22-487b-ae12-72d11e8af5ff "부산대학교 AI융합교육원")
-<br/>
+
+### 3.5. AI 도구 활용
+
+- **데이터 정규화 단계:** 서로 다른 공공 API(FSS·온통청년)의 비정형 상품 데이터를 Gemini LLM으로 정규화·보강해, 정부·은행 상품을 동일 스키마로 비교 가능하게 만듦. 프롬프트 버전 관리로 재현성 확보
+- **사용자 대면 단계:** 전 화면 금융 용어 풀이에 LLM을 활용하되, 원문-설명 사실 일치 검수(환각 검출)와 면책 문구로 신뢰성 보완
+- **개발 단계:** `CLAUDE.md`·`AGENTS.md`에 아키텍처·컨벤션을 문서화해 AI 코딩 도구가 일관된 코드를 생성하도록 가이드, FE/BE 개발 속도 향상
+
+---
+
+## 4. 설치 및 사용 방법
+
+### 요구 사항
+
+- Node.js 22.x, pnpm 10.x
+- Java 21, Docker / Docker Compose
+- PostgreSQL 16 (+ pgvector) — Docker Compose로 자동 구동
+
+### Backend (Fin-BE)
+
+```bash
+cd backend
+docker compose up -d        # PostgreSQL 16(pgvector) 기동
+./gradlew bootRun           # API 서버 실행
+```
+
+### Collector (Fin-API) - 상품 데이터 수집
+
+```bash
+cd api
+./gradlew bootRun           # 부팅 시 financialProductSyncJob 배치 실행
+```
+
+### Frontend (Fin-FE)
+
+```bash
+cd frontend
+pnpm install
+pnpm dev                    # 개발 서버
+pnpm build                  # 프로덕션 빌드
+```
+
+> 외부 API 키·DB 접속 정보 등 환경 변수는 각 모듈의 설정 파일 및 `.env` 예시를 참고해 설정
+
+---
+
+## 5. 소개 및 시연 영상
+
+- 프로젝트 소개 영상: _(교육원 메일 제출 후 부여받은 YouTube URL 기입 예정)_
+- 서비스 데모: _(추가 예정)_
+
+---
+
+## 6. 팀 소개
+
+> 팀 **APPTIVE** (창업트랙 C-07)
+
+| 구분 | 이름 | 역할 | 담당 | 연락처 |
+|---|---|---|---|---|
+| 팀장 | 이서빈 | 기획 | 서비스 기획·PRD·시장 분석·설문 설계 | myloverv0801@pusan.ac.kr |
+| 팀원 | 강지원 | Backend | User·Term·Category·Search 도메인 (자격요건 필터링, 적합도/금리 정렬 로직) | kjw497@pusan.ac.kr |
+| 팀원 | 최유렬 | Backend | Auth·Data 도메인 (OAuth2 인증, JWT, 외부 API 전처리·저장) | yuyeol@pusan.ac.kr |
+| 팀원 | 안지원 | Frontend | Fin-FE 화면 개발 (React 19 + Vite) | wldnjs7805@pusan.ac.kr |
+| 팀원 | 정예담 | Design | UX/UI 디자인 | yedam@pusan.ac.kr |
+
+## 7. 해커톤 참여 후기
+
+> _(팀원별 참여 후기를 작성해 주세요)_
+
+---
+
+<div align="center">
+  <sub>PNU 2026 AI Hackathon · Startup Track · Team C-07 APPTIVE</sub>
+</div>
