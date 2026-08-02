@@ -32,6 +32,4 @@ final class BankConditionMatcher {
         return startsBeforeYouthRangeEnds && endsAfterYouthRangeStarts;
     }
 
-    // 상품에 비대면가입 우대조건이 있는지.
-    // BANK_AGE와 달리 키워드 태그로만 표기된 상품이 있어 태그/우대금리 양쪽을 본다.
 }
