@@ -1,6 +1,6 @@
 package apptive.fin.search.dto;
 
-import apptive.fin.search.InterestRateType;
+import apptive.fin.search.enums.InterestRateType;
 
 import java.util.List;
 

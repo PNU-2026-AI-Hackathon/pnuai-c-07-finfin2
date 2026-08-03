@@ -1,7 +1,7 @@
 package apptive.fin.search.service;
 
 import apptive.fin.category.service.CategoryOptionService;
-import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.dto.DynamicFormResponseDto;
 import apptive.fin.search.dto.OptionRequestDto;
 import apptive.fin.search.dto.SearchRequestDto;

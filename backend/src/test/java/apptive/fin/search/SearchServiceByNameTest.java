@@ -1,5 +1,6 @@
 package apptive.fin.search;
 
+import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.dto.ProductNameSearchDto;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductProperty;

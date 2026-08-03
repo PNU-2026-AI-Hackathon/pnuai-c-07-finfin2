@@ -1,8 +1,8 @@
 package apptive.fin.search.service;
 
-import apptive.fin.search.ExtractionConfidence;
-import apptive.fin.search.KeywordValueEnum;
-import apptive.fin.search.RequiredKeywordEffect;
+import apptive.fin.search.enums.ExtractionConfidence;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.RequiredKeywordEffect;
 import apptive.fin.search.dto.DetailedOptionsDto;
 import apptive.fin.search.dto.EligibleProductOption;
 import apptive.fin.search.dto.ResolvedKeywords;

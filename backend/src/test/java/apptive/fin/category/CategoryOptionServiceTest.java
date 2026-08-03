@@ -3,7 +3,7 @@ package apptive.fin.category;
 import apptive.fin.category.entity.CategoryOption;
 import apptive.fin.category.repository.CategoryOptionRepository;
 import apptive.fin.category.service.CategoryOptionService;
-import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

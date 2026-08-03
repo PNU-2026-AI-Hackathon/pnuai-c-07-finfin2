@@ -1,8 +1,8 @@
 package apptive.fin.search.service;
 
-import apptive.fin.search.ContributionType;
-import apptive.fin.search.KeywordValueEnum;
-import apptive.fin.search.ProductType;
+import apptive.fin.search.enums.ContributionType;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.dto.BankDetailDto;
 import apptive.fin.search.dto.GovernmentDetailDto;
 import apptive.fin.search.dto.PreferentialConditionDto;

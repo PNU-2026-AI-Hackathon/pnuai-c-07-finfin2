@@ -1,6 +1,7 @@
-package apptive.fin.search;
+package apptive.fin.search.util;
 
 import apptive.fin.search.entity.ProductProperty;
+import apptive.fin.search.enums.ProductApplyStatus;
 
 public final class ProductAvailability {
 

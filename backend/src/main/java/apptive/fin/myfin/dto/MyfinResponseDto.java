@@ -1,6 +1,6 @@
 package apptive.fin.myfin.dto;
 
-import apptive.fin.search.ProductApplyStatus;
+import apptive.fin.search.enums.ProductApplyStatus;
 
 import java.util.List;
 

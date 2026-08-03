@@ -1,4 +1,4 @@
-package apptive.fin.search;
+package apptive.fin.search.enums;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

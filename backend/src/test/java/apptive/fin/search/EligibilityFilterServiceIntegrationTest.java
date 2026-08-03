@@ -1,5 +1,6 @@
 package apptive.fin.search;
 
+import apptive.fin.search.enums.CategoryIdEnum;
 import apptive.fin.search.dto.DetailedOptionsDto;
 import apptive.fin.search.dto.OptionRequestDto;
 import apptive.fin.search.dto.SearchRequestDto;

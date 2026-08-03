@@ -1,5 +1,10 @@
 package apptive.fin.search;
 
+import apptive.fin.search.enums.CategoryIdEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ProductApplyStatus;
+import apptive.fin.search.enums.ProductType;
+import apptive.fin.search.enums.ReserveType;
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.global.error.BusinessException;
 import apptive.fin.search.dto.DetailedOptionsDto;

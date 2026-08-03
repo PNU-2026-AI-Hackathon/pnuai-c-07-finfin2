@@ -1,9 +1,9 @@
 package apptive.fin.search.entity;
 
 import apptive.fin.provider.entity.Provider;
-import apptive.fin.search.ExtractionConfidence;
-import apptive.fin.search.KeywordValueEnum;
-import apptive.fin.search.RequiredKeywordEffect;
+import apptive.fin.search.enums.ExtractionConfidence;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.RequiredKeywordEffect;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 

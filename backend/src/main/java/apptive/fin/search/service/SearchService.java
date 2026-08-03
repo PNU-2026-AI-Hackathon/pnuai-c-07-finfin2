@@ -2,7 +2,7 @@ package apptive.fin.search.service;
 
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.global.error.BusinessException;
-import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
 
 import apptive.fin.search.dto.*;
 import apptive.fin.search.entity.Product;

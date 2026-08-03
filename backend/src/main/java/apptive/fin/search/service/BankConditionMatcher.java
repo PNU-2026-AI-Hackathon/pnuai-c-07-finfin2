@@ -1,6 +1,6 @@
 package apptive.fin.search.service;
 
-import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.entity.ProductPreferentialRate;
 import apptive.fin.search.entity.ProductProperty;
 

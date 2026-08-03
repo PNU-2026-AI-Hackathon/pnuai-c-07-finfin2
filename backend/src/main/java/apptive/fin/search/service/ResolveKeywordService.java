@@ -2,8 +2,8 @@ package apptive.fin.search.service;
 
 import apptive.fin.category.service.CategoryOptionService;
 import apptive.fin.global.error.BusinessException;
-import apptive.fin.search.CategoryIdEnum;
-import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.search.enums.CategoryIdEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.SearchErrorCode;
 import apptive.fin.search.dto.OptionRequestDto;
 import apptive.fin.search.dto.ResolvedKeywords;

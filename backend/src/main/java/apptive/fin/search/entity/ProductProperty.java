@@ -1,12 +1,12 @@
 package apptive.fin.search.entity;
 
 import apptive.fin.provider.entity.Provider;
-import apptive.fin.search.ContributionType;
-import apptive.fin.search.ExtractionConfidence;
-import apptive.fin.search.InterestRateType;
-import apptive.fin.search.KeywordValueEnum;
-import apptive.fin.search.RequiredKeywordEffect;
-import apptive.fin.search.ReserveType;
+import apptive.fin.search.enums.ContributionType;
+import apptive.fin.search.enums.ExtractionConfidence;
+import apptive.fin.search.enums.InterestRateType;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.RequiredKeywordEffect;
+import apptive.fin.search.enums.ReserveType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

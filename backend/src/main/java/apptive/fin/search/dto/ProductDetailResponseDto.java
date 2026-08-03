@@ -1,9 +1,9 @@
 package apptive.fin.search.dto;
 
-import apptive.fin.search.KeywordValueEnum;
-import apptive.fin.search.ProductApplyStatus;
-import apptive.fin.search.ProductType;
-import apptive.fin.search.ReserveType;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ProductApplyStatus;
+import apptive.fin.search.enums.ProductType;
+import apptive.fin.search.enums.ReserveType;
 import lombok.Builder;
 
 import java.util.List;

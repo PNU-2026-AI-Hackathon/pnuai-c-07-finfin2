@@ -1,6 +1,6 @@
 package apptive.fin.search.entity;
 
-import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
 import jakarta.persistence.*;
 import lombok.Getter;
 

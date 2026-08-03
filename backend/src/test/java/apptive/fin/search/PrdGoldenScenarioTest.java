@@ -1,5 +1,10 @@
 package apptive.fin.search;
 
+import apptive.fin.search.enums.ContributionType;
+import apptive.fin.search.enums.ExtractionConfidence;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ProductType;
+import apptive.fin.search.enums.RequiredKeywordEffect;
 import apptive.fin.search.dto.DetailedOptionsDto;
 import apptive.fin.search.dto.ProductRateDto;
 import apptive.fin.search.dto.ResolvedKeywords;

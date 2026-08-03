@@ -1,7 +1,7 @@
 package apptive.fin.search.service;
 
-import apptive.fin.search.KeywordValueEnum;
-import apptive.fin.search.ScoreWeightEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ScoreWeightEnum;
 import apptive.fin.search.dto.ProductMatchDto;
 import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static apptive.fin.search.KeywordValueEnum.*;
+import static apptive.fin.search.enums.KeywordValueEnum.*;
 
 @Service
 public class MatchScoreService {
