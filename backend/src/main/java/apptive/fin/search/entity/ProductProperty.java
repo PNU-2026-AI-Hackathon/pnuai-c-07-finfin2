@@ -121,6 +121,10 @@ public class ProductProperty {
         return provider != null ? provider.getName() : null;
     }
 
+    public boolean isJoinable() {
+        return Boolean.TRUE.equals(isJoinable);
+    }
+
     public String resolvedApplyUrl() {
         if (applyUrl != null && !applyUrl.isBlank()) {
             return applyUrl;

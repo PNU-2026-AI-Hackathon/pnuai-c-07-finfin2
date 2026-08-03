@@ -83,6 +83,24 @@ class CalculatorServiceTest {
     }
 
     @Test
+    @DisplayName("비활성 상품 옵션도 과거 조건 참고용으로 계산할 수 있다")
+    void inactiveProductProperty_canBeCalculatedForReference() {
+        ReflectionTestUtils.setField(dummyProperty, "isJoinable", false);
+        CalculatorRequestDto request = new CalculatorRequestDto(
+                1L, ProductType.DEPOSIT, InterestRateType.SINGLE_INTEREST, null,
+                new BigDecimal("0.04"), new BigDecimal("1000000"), 12, TaxType.GENERAL
+        );
+        when(productPropertyRepository.findById(1L)).thenReturn(Optional.of(dummyProperty));
+        when(calculatorFactory.getCalculator(ProductType.DEPOSIT)).thenReturn(rateCalculator);
+        when(rateCalculator.calculate(request)).thenReturn(dummyResponse);
+
+        CalculatorResponseDto result = calculatorService.simulate(request);
+
+        assertThat(result).isEqualTo(dummyResponse);
+        verify(rateCalculator).calculate(request);
+    }
+
+    @Test
     @DisplayName("적금 요청에 reserveType이 없으면 IllegalArgumentException을 던진다")
     void saving_withoutReserveType_throwsException() {
         CalculatorRequestDto request = new CalculatorRequestDto(

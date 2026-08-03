@@ -134,16 +134,25 @@ public class RateCalculatorService {
 
     // productPropertyId 미전달 시 대표 property 선정(정부=max 수익률, 은행=max 실질금리). 리스트가 고르는 것과 동일 로직.
     public ProductProperty selectRepresentativeProperty(Product product, SearchRequestDto request, ResolvedKeywords keywords) {
+        return selectRepresentativeProperty(product, product.getProperties(), request, keywords);
+    }
+
+    public ProductProperty selectRepresentativeProperty(
+            Product product,
+            List<ProductProperty> properties,
+            SearchRequestDto request,
+            ResolvedKeywords keywords
+    ) {
         ResolvedKeywords resolvedKeywords = keywords != null ? keywords : ResolvedKeywords.emptyKeywords();
 
         if (product.isGovernment()) {
-            return product.getProperties().stream()
+            return properties.stream()
                     .filter(property -> calculateGovernmentYield(property, request) != null)
                     .max(Comparator.comparingDouble(property -> calculateGovernmentYield(property, request)))
-                    .orElseGet(() -> product.getProperties().stream().findFirst().orElse(null));
+                    .orElseGet(() -> properties.stream().findFirst().orElse(null));
         }
 
-        return product.getProperties().stream()
+        return properties.stream()
                 .max(Comparator.comparingDouble(property -> achievableBankRate(property, request, resolvedKeywords)))
                 .orElse(null);
     }

@@ -11,6 +11,7 @@ import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.entity.ProductSource;
 import apptive.fin.provider.entity.Provider;
 import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.search.ProductApplyStatus;
 import apptive.fin.search.ProductType;
 import apptive.fin.search.dto.DetailedOptionsDto;
 import apptive.fin.search.dto.SearchRequestDto;
@@ -24,6 +25,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
@@ -69,7 +72,7 @@ class MyFinServiceTest {
     void 찜추가_성공() {
         when(myFinRepository.countByUserId(1L)).thenReturn(0);
         when(myFinRepository.existsByUserIdAndProductPropertyId(1L, 100L)).thenReturn(false);
-        when(productPropertyRepository.findById(100L)).thenReturn(Optional.of(productProperty));
+        when(productPropertyRepository.findByIdAndIsJoinableTrue(100L)).thenReturn(Optional.of(productProperty));
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
         assertDoesNotThrow(() -> myFinService.addFavorite(1L, 100L));
@@ -95,6 +98,19 @@ class MyFinServiceTest {
                 () -> myFinService.addFavorite(1L, 100L));
 
         assertEquals(MyFinErrorCode.FAVORITE_ALREADY_EXISTS, ex.getErrorCode());
+    }
+
+    @Test
+    void 비활성_상품속성은_새로_찜할_수_없다() {
+        when(myFinRepository.countByUserId(1L)).thenReturn(0);
+        when(myFinRepository.existsByUserIdAndProductPropertyId(1L, 100L)).thenReturn(false);
+        when(productPropertyRepository.findByIdAndIsJoinableTrue(100L)).thenReturn(Optional.empty());
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> myFinService.addFavorite(1L, 100L));
+
+        assertEquals(MyFinErrorCode.PRODUCT_NOT_FOUND, ex.getErrorCode());
+        verify(myFinRepository, never()).save(any(MyFin.class));
     }
 
     @Test
@@ -152,7 +168,7 @@ class MyFinServiceTest {
         when(productProperty.getProduct()).thenReturn(product);
         when(productProperty.keywordCodes()).thenReturn(Set.of());
         when(productProperty.getExcludeFromRateComparison()).thenReturn(false);
-        when(productProperty.getIsJoinable()).thenReturn(true);
+        when(productProperty.isJoinable()).thenReturn(true);
         when(productProperty.resolvedApplyUrl()).thenReturn("https://product.example/apply");
         when(product.getSource()).thenReturn(source);
         when(source.getCode()).thenReturn("ONTONG");
@@ -163,6 +179,35 @@ class MyFinServiceTest {
 
         assertEquals("https://product.example/apply", result.items().getFirst().applyUrl());
         verify(productProperty).resolvedApplyUrl();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"FSS", "ONTONG"})
+    void 기존_비활성_상품_찜은_소스와_무관하게_종료상태로_남기고_신청URL을_숨긴다(String sourceCode) {
+        MyFin favorite = mock(MyFin.class);
+        Product product = mock(Product.class);
+        ProductSource source = mock(ProductSource.class);
+        Provider provider = mock(Provider.class);
+
+        when(myFinRepository.findAllByUserIdWithDetails(1L)).thenReturn(List.of(favorite));
+        when(favorite.getId()).thenReturn(10L);
+        when(favorite.getProductProperty()).thenReturn(productProperty);
+        when(productProperty.getProduct()).thenReturn(product);
+        when(productProperty.getProvider()).thenReturn(provider);
+        when(productProperty.keywordCodes()).thenReturn(Set.of());
+        when(productProperty.getExcludeFromRateComparison()).thenReturn(false);
+        when(productProperty.isJoinable()).thenReturn(false);
+        when(productProperty.resolvedApplyUrl()).thenReturn("https://bank.example/apply");
+        when(provider.getName()).thenReturn("국민은행");
+        when(product.getSource()).thenReturn(source);
+        when(source.getCode()).thenReturn(sourceCode);
+        when(product.getProductCode()).thenReturn("CLOSED_BANK");
+        when(product.getProductName()).thenReturn("판매종료 적금");
+
+        MyfinResponseDto.Item item = myFinService.getFavorites(1L).items().getFirst();
+
+        assertEquals(ProductApplyStatus.RECRUIT_CLOSED, item.applyStatus());
+        assertNull(item.applyUrl());
     }
 
     @Test
@@ -184,7 +229,7 @@ class MyFinServiceTest {
         when(productProperty.getProduct()).thenReturn(product);
         when(productProperty.keywordCodes()).thenReturn(Set.of());
         when(productProperty.getExcludeFromRateComparison()).thenReturn(false);
-        when(productProperty.getIsJoinable()).thenReturn(true);
+        when(productProperty.isJoinable()).thenReturn(true);
         when(product.getSource()).thenReturn(source);
         when(source.getCode()).thenReturn("ONTONG");
         when(product.getProductCode()).thenReturn("POLICY001");

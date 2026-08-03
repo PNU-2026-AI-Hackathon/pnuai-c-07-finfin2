@@ -403,6 +403,151 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 로그인_기본상세는_가입가능한_속성만_대표값과_집계에_사용한다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("""
+                INSERT INTO product_properties
+                    (product_id, provider_id, base_rate, max_rate, save_trm, is_joinable)
+                VALUES (
+                    ?,
+                    (SELECT id FROM provider WHERE code = 'SEARCH_BANK_B'),
+                    9.00,
+                    9.90,
+                    24,
+                    false
+                )
+                """, productId);
+        jdbcTemplate.update("""
+                INSERT INTO product_property_keyword (product_property_id, keyword_code)
+                SELECT pp.id, 'STATUS_MILITARY'
+                FROM product_properties pp
+                WHERE pp.product_id = ? AND pp.save_trm = 24
+                """, productId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(null, null), authenticatedUser());
+
+        assertThat(detail.bank().baseRate()).isEqualTo(3.8);
+        assertThat(detail.saveTrms()).containsExactly(12);
+        assertThat(detail.rateTable())
+                .extracting(row -> row.saveTrm())
+                .containsExactly(12);
+        assertThat(detail.keywords()).doesNotContain(KeywordValueEnum.STATUS_MILITARY);
+    }
+
+    @Test
+    void 비로그인_기본상세도_가입가능한_속성만_대표값과_집계에_사용한다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("""
+                INSERT INTO product_properties
+                    (product_id, provider_id, base_rate, max_rate, save_trm, is_joinable)
+                VALUES (
+                    ?,
+                    (SELECT id FROM provider WHERE code = 'SEARCH_BANK_B'),
+                    9.00,
+                    9.90,
+                    24,
+                    false
+                )
+                """, productId);
+        jdbcTemplate.update("""
+                INSERT INTO product_property_required_keyword
+                    (product_property_id, keyword_code, effect, confidence)
+                SELECT pp.id, 'STATUS_MILITARY', 'REQUIRE', 'HIGH'
+                FROM product_properties pp
+                WHERE pp.product_id = ? AND pp.save_trm = 24
+                """, productId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(null, null), null);
+
+        assertThat(detail.providerName()).isEqualTo("국민은행");
+        assertThat(detail.saveTrms()).containsExactly(12);
+        assertThat(detail.keywords()).doesNotContain(KeywordValueEnum.STATUS_MILITARY);
+        assertThat(detail.metricsLocked()).isTrue();
+    }
+
+    @Test
+    void 모든_속성이_비활성이면_종료된_과거상품_상세를_반환한다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update(
+                "UPDATE product_properties SET is_joinable = false WHERE product_id = ?",
+                productId
+        );
+        jdbcTemplate.update("UPDATE provider SET apply_url = ? WHERE code = ?",
+                "https://bank.example/apply", "SEARCH_BANK_B");
+        jdbcTemplate.update("""
+                INSERT INTO product_properties
+                    (product_id, provider_id, base_rate, max_rate, save_trm, is_joinable)
+                VALUES (
+                    ?,
+                    (SELECT id FROM provider WHERE code = 'SEARCH_BANK_B'),
+                    2.00,
+                    9.90,
+                    24,
+                    false
+                )
+                """, productId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(null, null), authenticatedUser());
+        ProductDetailResponseDto locked = productDetailService.getProductDetail(
+                productId, request(null, null), null);
+
+        assertThat(detail.applyStatus()).isEqualTo(ProductApplyStatus.RECRUIT_CLOSED);
+        assertThat(detail.applyUrl()).isNull();
+        assertThat(detail.bank()).isNotNull();
+        assertThat(detail.bank().maxRate()).isEqualTo(9.9);
+        assertThat(detail.saveTrms()).containsExactly(12, 24);
+        assertThat(locked.applyStatus()).isEqualTo(ProductApplyStatus.RECRUIT_CLOSED);
+        assertThat(locked.applyUrl()).isNull();
+        assertThat(locked.metricsLocked()).isTrue();
+        assertThat(locked.bank()).isNull();
+        assertThat(locked.rateTable()).isNull();
+    }
+
+    @Test
+    void 비활성_property를_직접_조회하면_선택한_과거옵션만_반환한다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("UPDATE provider SET apply_url = ? WHERE code = ?",
+                "https://bank.example/apply", "SEARCH_BANK_B");
+        jdbcTemplate.update("""
+                INSERT INTO product_properties
+                    (product_id, provider_id, base_rate, max_rate, save_trm, is_joinable)
+                VALUES (
+                    ?,
+                    (SELECT id FROM provider WHERE code = 'SEARCH_BANK_B'),
+                    9.00,
+                    9.90,
+                    24,
+                    false
+                )
+                """, productId);
+        Long inactivePropertyId = jdbcTemplate.queryForObject(
+                "SELECT id FROM product_properties WHERE product_id = ? AND save_trm = 24",
+                Long.class,
+                productId
+        );
+        jdbcTemplate.update("""
+                INSERT INTO product_property_required_keyword
+                    (product_property_id, keyword_code, effect, confidence)
+                VALUES (?, 'STATUS_MILITARY', 'REQUIRE', 'HIGH')
+                """, inactivePropertyId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(inactivePropertyId, null), authenticatedUser());
+
+        assertThat(detail.applyStatus()).isEqualTo(ProductApplyStatus.RECRUIT_CLOSED);
+        assertThat(detail.applyUrl()).isNull();
+        assertThat(detail.bank().maxRate()).isEqualTo(9.9);
+        assertThat(detail.saveTrms()).containsExactly(24);
+        assertThat(detail.rateTable())
+                .extracting(row -> row.saveTrm())
+                .containsExactly(24);
+        assertThat(detail.keywords()).containsExactly(KeywordValueEnum.STATUS_MILITARY);
+    }
+
+    @Test
     void 존재하지_않는_상품은_예외를_던진다() {
         assertThatThrownBy(() -> productDetailService.getProductDetail(
                 999_999L, request(null, null), authenticatedUser()))

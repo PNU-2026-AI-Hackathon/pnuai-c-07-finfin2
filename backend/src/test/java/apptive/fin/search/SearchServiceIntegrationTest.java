@@ -208,6 +208,24 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
         assertThat(result.subscriptionProducts()).isEmpty();
     }
 
+    @Test
+    void 모든_속성이_비활성인_상품은_추천과_상품명검색에_노출되지_않는다() {
+        jdbcTemplate.update("""
+                UPDATE product_properties
+                SET is_joinable = false
+                WHERE product_id = (
+                    SELECT id FROM product WHERE product_code = 'SEARCH_YOUTH_SAVING'
+                )
+                """);
+
+        ProductSearchResultDto result = searchService.search(
+                createRequest(50, List.of()), authenticatedUser());
+
+        assertThat(matchNames(result.bankRanked())).doesNotContain("청년우대적금");
+        assertThat(rateNames(result.bankRateRanked())).doesNotContain("청년우대적금");
+        assertThat(searchService.searchByName("청년우대적금")).isEmpty();
+    }
+
     private SearchRequestDto createRequest(long monthlySavingsGoal, List<OptionRequestDto> options) {
         List<OptionRequestDto> selectedOptions = options.isEmpty()
                 ? List.of(new OptionRequestDto(CategoryIdEnum.REGION.getId(), 2L))

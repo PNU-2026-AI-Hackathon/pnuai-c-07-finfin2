@@ -6,6 +6,8 @@ import apptive.fin.myfin.dto.MyfinResponseDto;
 import apptive.fin.myfin.entity.MyFin;
 import apptive.fin.myfin.repository.MyFinRepository;
 import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.search.ProductAvailability;
+import apptive.fin.search.ProductApplyStatus;
 import apptive.fin.search.dto.BankDetailDto;
 import apptive.fin.search.dto.GovernmentDetailDto;
 import apptive.fin.search.dto.ProductMatchDto;
@@ -78,7 +80,7 @@ public class MyFinService {
             throw new BusinessException(MyFinErrorCode.FAVORITE_ALREADY_EXISTS);
         }
 
-        ProductProperty productProperty = productPropertyRepository.findById(productPropertyId)
+        ProductProperty productProperty = productPropertyRepository.findByIdAndIsJoinableTrue(productPropertyId)
                 .orElseThrow(() -> new BusinessException(MyFinErrorCode.PRODUCT_NOT_FOUND));
 
         User user = userRepository.findById(userId)
@@ -136,10 +138,10 @@ public class MyFinService {
         String calcBasisCaption = buildCalcBasisCaption(pp, sourceCode, request);
 
         // 신청 상태 확인
-        String applyStatus = determineApplyStatus(pp, sourceCode);
+        ProductApplyStatus applyStatus = ProductAvailability.applyStatus(pp);
 
         // 신청 URL
-        String applyUrl = pp.resolvedApplyUrl();
+        String applyUrl = ProductAvailability.applyUrl(pp);
 
         return new MyfinResponseDto.Item(
                 myFin.getId(),
@@ -266,12 +268,4 @@ public class MyFinService {
         }
     }
 
-    private String determineApplyStatus(ProductProperty pp, String sourceCode) {
-        if ("ONTONG".equals(sourceCode)) {
-            if (!pp.getIsJoinable()) {
-                return "RECRUIT_CLOSED";
-            }
-        }
-        return "AVAILABLE";
-    }
 }
