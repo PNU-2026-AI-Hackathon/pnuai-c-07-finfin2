@@ -51,7 +51,7 @@ collector:
     provider: GEMINI
     model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
     prompt-version: 7
-    schema-version: 13
+    schema-version: 15
     chunk-size: ${LLM_CHUNK_SIZE:10}
     max-concurrency: ${LLM_MAX_CONCURRENCY:3}
     temperature: ${LLM_TEMPERATURE:0}
