@@ -5,10 +5,10 @@ import apptive.fin.calculator.dto.CalculatorResponseDto;
 import apptive.fin.calculator.service.CalculatorService;
 import apptive.fin.calculator.service.RateCalculator;
 import apptive.fin.calculator.service.RateCalculatorFactory;
-import apptive.fin.search.InterestRateType;
-import apptive.fin.search.ProductType;
-import apptive.fin.search.ReserveType;
-import apptive.fin.search.TaxType;
+import apptive.fin.search.enums.InterestRateType;
+import apptive.fin.search.enums.ProductType;
+import apptive.fin.search.enums.ReserveType;
+import apptive.fin.search.enums.TaxType;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.repository.ProductPropertyRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,6 +79,24 @@ class CalculatorServiceTest {
 
         assertThat(result).isEqualTo(dummyResponse);
         verify(calculatorFactory).getCalculator(ProductType.DEPOSIT);
+        verify(rateCalculator).calculate(request);
+    }
+
+    @Test
+    @DisplayName("비활성 상품 옵션도 과거 조건 참고용으로 계산할 수 있다")
+    void inactiveProductProperty_canBeCalculatedForReference() {
+        ReflectionTestUtils.setField(dummyProperty, "isJoinable", false);
+        CalculatorRequestDto request = new CalculatorRequestDto(
+                1L, ProductType.DEPOSIT, InterestRateType.SINGLE_INTEREST, null,
+                new BigDecimal("0.04"), new BigDecimal("1000000"), 12, TaxType.GENERAL
+        );
+        when(productPropertyRepository.findById(1L)).thenReturn(Optional.of(dummyProperty));
+        when(calculatorFactory.getCalculator(ProductType.DEPOSIT)).thenReturn(rateCalculator);
+        when(rateCalculator.calculate(request)).thenReturn(dummyResponse);
+
+        CalculatorResponseDto result = calculatorService.simulate(request);
+
+        assertThat(result).isEqualTo(dummyResponse);
         verify(rateCalculator).calculate(request);
     }
 

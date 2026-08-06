@@ -2,8 +2,6 @@ package apptive.fin.search.service;
 
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.global.error.BusinessException;
-import apptive.fin.search.KeywordValueEnum;
-import apptive.fin.search.ProductType;
 import apptive.fin.search.SearchErrorCode;
 import apptive.fin.search.dto.BankDetailDto;
 import apptive.fin.search.dto.GovernmentDetailDto;
@@ -14,16 +12,19 @@ import apptive.fin.search.dto.RateTableRowDto;
 import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
-import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.entity.ProductSource;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.repository.ProductRepository;
+import apptive.fin.search.util.ProductAvailability;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -59,22 +60,37 @@ public class ProductDetailService {
         ResolvedKeywords keywords = resolveKeywordService.resolveKeywords(options);
         SearchRequestDto calcRequest = new SearchRequestDto(options, req.detailedOptions());
 
-        ProductProperty selected = selectProperty(product, req.productPropertyId(), calcRequest, keywords);
-
         boolean subscription = product.getType() == ProductType.SUBSCRIPTION;
         boolean government = ONTONG.equals(product.getSource().getCode()) && !subscription;
         boolean metricsLocked = userDetails == null; // 비로그인 시 수익 지표 잠금(로그인 게이트)
+        List<ProductProperty> joinableProperties = product.getProperties().stream()
+                .filter(ProductProperty::isJoinable)
+                .toList();
+        boolean archivedProduct = joinableProperties.isEmpty();
+        List<ProductProperty> detailCandidates = archivedProduct
+                ? product.getProperties()
+                : joinableProperties;
+        ProductProperty selected = selectProperty(
+                product,
+                detailCandidates,
+                archivedProduct,
+                req.productPropertyId(),
+                calcRequest,
+                keywords,
+                metricsLocked
+        );
+        List<ProductProperty> detailProperties = req.productPropertyId() != null
+                && selected != null
+                && !selected.isJoinable()
+                ? List.of(selected)
+                : detailCandidates;
         boolean showMetrics = !metricsLocked && !subscription && selected != null;
 
         // 적합도(리스트 탭A totalScore)는 잠금과 무관 — property/옵션이 있으면 계산.
         // includeTx는 리스트(SearchService.isTabBEnabled)와 동일하게 맞춰 값 일관성 보장.
         Double matchScore = null;
         if (selected != null && !options.isEmpty()) {
-            var detail = req.detailedOptions();
-            boolean includeTx = userDetails != null
-                    && detail != null
-                    && detail.neverUsedBanks() != null
-                    && detail.maturedSavingBanks() != null;
+            boolean includeTx = userDetails != null && calcRequest.hasTransactionHistory();
             matchScore = matchScoreService
                     .score(product, selected, calcRequest, keywords, includeTx)
                     .totalScore();
@@ -89,7 +105,7 @@ public class ProductDetailService {
             } else {
                 bankDetail = rateCalculatorService.bankDetail(selected, calcRequest, keywords);
             }
-            rateTable = buildRateTable(product, government);
+            rateTable = buildRateTable(detailProperties, government);
         }
 
         return ProductDetailResponseDto.builder()
@@ -98,10 +114,10 @@ public class ProductDetailService {
                 .sourceCode(product.getSource().getCode())
                 .productName(product.getProductName())
                 .providerName(providerName(selected))
-                .keywords(distinctKeywords(product))
+                .keywords(distinctKeywords(product, detailProperties))
                 .content(product.getContent())
                 .contentSummary(product.getContentSummary())
-                .saveTrms(saveTrms(product))
+                .saveTrms(saveTrms(detailProperties))
                 .matchScore(matchScore)
                 .minAge(selected != null ? selected.getMinAge() : null)
                 .maxAge(selected != null ? selected.getMaxAge() : null)
@@ -116,7 +132,8 @@ public class ProductDetailService {
                 .reserveType(selected != null ? selected.getReserveType() : null)
                 .reserveTypeName(selected != null && selected.getReserveType() != null
                         ? selected.getReserveType().getLabel() : null)
-                .applyUrl(selected != null ? selected.resolvedApplyUrl() : null)
+                .applyStatus(ProductAvailability.applyStatus(selected))
+                .applyUrl(ProductAvailability.applyUrl(selected))
                 .metricsLocked(metricsLocked)
                 .lockMessage(metricsLocked ? METRICS_LOCK_MESSAGE : null)
                 .government(governmentDetail)
@@ -127,9 +144,12 @@ public class ProductDetailService {
 
     private ProductProperty selectProperty(
             Product product,
+            List<ProductProperty> detailCandidates,
+            boolean archivedProduct,
             Long productPropertyId,
             SearchRequestDto request,
-            ResolvedKeywords keywords
+            ResolvedKeywords keywords,
+            boolean metricsLocked
     ) {
         if (productPropertyId != null) {
             return product.getProperties().stream()
@@ -137,13 +157,27 @@ public class ProductDetailService {
                     .findFirst()
                     .orElseThrow(() -> new BusinessException(SearchErrorCode.PRODUCT_NOT_FOUND));
         }
+        if (metricsLocked || archivedProduct) {
+            return detailCandidates.stream()
+                    .sorted(publishedRateOrder())
+                    .findFirst()
+                    .orElse(null);
+        }
         // 직접 진입 등으로 productPropertyId가 없으면 대표 property 폴백 (리스트 eligibility를 안 거쳐 값이 다를 수 있음)
-        return rateCalculatorService.selectRepresentativeProperty(product, request, keywords);
+        return rateCalculatorService.selectRepresentativeProperty(product, detailCandidates, request, keywords);
+    }
+
+    private Comparator<ProductProperty> publishedRateOrder() {
+        Comparator<BigDecimal> rateOrder = Comparator.nullsLast(Comparator.reverseOrder());
+        return Comparator
+                .comparing(ProductProperty::getMaxRate, rateOrder)
+                .thenComparing(ProductProperty::getBaseRate, rateOrder)
+                .thenComparing(ProductProperty::getId, Comparator.nullsLast(Comparator.naturalOrder()));
     }
 
     // 정부형은 기본/최고금리 공시 상품만 금리표 노출, 은행형은 전체 옵션.
-    private List<RateTableRowDto> buildRateTable(Product product, boolean government) {
-        return product.getProperties().stream()
+    private List<RateTableRowDto> buildRateTable(List<ProductProperty> properties, boolean government) {
+        return properties.stream()
                 .filter(property -> !government || property.getBaseRate() != null || property.getMaxRate() != null)
                 .map(property -> new RateTableRowDto(
                         property.getSaveTrm(),
@@ -159,19 +193,18 @@ public class ProductDetailService {
                 .toList();
     }
 
-    private List<KeywordValueEnum> distinctKeywords(Product product) {
+    private List<KeywordValueEnum> distinctKeywords(Product product, List<ProductProperty> properties) {
         // 최고이율은 정적 태그가 아니라 검색과 동일 철학으로 동적 판정한다(PRD A-2).
         // 영속된 레거시 BENEFIT_MAX_INTEREST(재정규화 전 데이터·구 정부상품 태그 등)는 먼저 걸러내고,
         // 동적 기준(전체 은행상품 상위 30%)을 충족할 때만 다시 붙여 배지가 오로지 동적 결과만 반영하게 한다.
-        List<KeywordValueEnum> keywords = product.getProperties().stream()
-                .flatMap(property -> property.getKeywords().stream())
-                .map(ProductKeyword::getKeywordCode)
+        List<KeywordValueEnum> keywords = properties.stream()
+                .flatMap(property -> property.keywordCodes().stream())
                 .filter(Objects::nonNull)
                 .filter(code -> code != KeywordValueEnum.BENEFIT_MAX_INTEREST)
                 .distinct()
                 .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
 
-        if (isTopRateBank(product)) {
+        if (properties.stream().anyMatch(ProductProperty::isJoinable) && isTopRateBank(product)) {
             keywords.add(KeywordValueEnum.BENEFIT_MAX_INTEREST);
         }
         return keywords;
@@ -185,7 +218,7 @@ public class ProductDetailService {
             return false;
         }
         Double productMaxRate = product.getProperties().stream()
-                .filter(property -> Boolean.TRUE.equals(property.getIsJoinable()))
+                .filter(ProductProperty::isJoinable)
                 .map(ProductProperty::getMaxRate)
                 .filter(Objects::nonNull)
                 .map(BigDecimal::doubleValue)
@@ -201,8 +234,8 @@ public class ProductDetailService {
         return threshold != null && productMaxRate >= threshold;
     }
 
-    private List<Integer> saveTrms(Product product) {
-        return product.getProperties().stream()
+    private List<Integer> saveTrms(List<ProductProperty> properties) {
+        return properties.stream()
                 .map(ProductProperty::getSaveTrm)
                 .filter(Objects::nonNull)
                 .distinct()

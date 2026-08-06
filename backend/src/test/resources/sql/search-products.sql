@@ -27,5 +27,4 @@ INSERT INTO product_properties (
 ((SELECT id FROM product WHERE product_code = 'SEARCH_YOUTH_SAVING'), (SELECT id FROM provider WHERE code = 'SEARCH_BANK_B'), 3.8, 4.5, 10, 50, NULL, NULL, NULL, NULL, 19, 29, NULL, false, false, true, 'SINGLE_INTEREST', 12);
 
 INSERT INTO product_property_keyword (product_property_id, keyword_code) VALUES
-((SELECT pp.id FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code = 'SEARCH_YOUTH_SAVING'), 'STATUS_MILITARY'),
 ((SELECT pp.id FROM product_properties pp JOIN product p ON p.id = pp.product_id WHERE p.product_code = 'SEARCH_YOUTH_SAVING'), 'REGION_BUSAN');

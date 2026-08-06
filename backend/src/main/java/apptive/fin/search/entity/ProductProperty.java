@@ -1,10 +1,12 @@
 package apptive.fin.search.entity;
 
 import apptive.fin.provider.entity.Provider;
-import apptive.fin.search.ContributionType;
-import apptive.fin.search.InterestRateType;
-import apptive.fin.search.KeywordValueEnum;
-import apptive.fin.search.ReserveType;
+import apptive.fin.search.enums.ContributionType;
+import apptive.fin.search.enums.ExtractionConfidence;
+import apptive.fin.search.enums.InterestRateType;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.RequiredKeywordEffect;
+import apptive.fin.search.enums.ReserveType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -23,7 +25,11 @@ import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 @Entity
 @Getter
@@ -115,6 +121,10 @@ public class ProductProperty {
         return provider != null ? provider.getName() : null;
     }
 
+    public boolean isJoinable() {
+        return Boolean.TRUE.equals(isJoinable);
+    }
+
     public String resolvedApplyUrl() {
         if (applyUrl != null && !applyUrl.isBlank()) {
             return applyUrl;
@@ -137,13 +147,30 @@ public class ProductProperty {
         return providerCodes.stream().anyMatch(c -> c != null && c.equals(code));
     }
 
-    // 이 property가 해당 키워드를 태그로 갖고 있는지.
-    public boolean hasKeyword(KeywordValueEnum keywordCode) {
-        return keywords.stream().anyMatch(keyword -> keyword.getKeywordCode() == keywordCode);
-    }
-
-    // 이 property가 해당 키워드의 우대금리를 갖고 있는지.
-    public boolean hasPreferentialRate(KeywordValueEnum keywordCode) {
-        return preferentialRates.stream().anyMatch(rate -> rate.getKeywordCode() == keywordCode);
+    /**
+     * 이 property의 전체 키워드.
+     * 순수 태그, BANK_* 우대금리, REQUIRE/HIGH인 STATUS_* 가입조건의 합집합이다.
+     */
+    public Set<KeywordValueEnum> keywordCodes() {
+        EnumSet<KeywordValueEnum> codes = EnumSet.noneOf(KeywordValueEnum.class);
+        keywords.stream()
+                .map(ProductKeyword::getKeywordCode)
+                .filter(Objects::nonNull)
+                .filter(code -> !code.isPreferentialRate())
+                .filter(code -> !code.isRequired())
+                .forEach(codes::add);
+        preferentialRates.stream()
+                .map(ProductPreferentialRate::getKeywordCode)
+                .filter(Objects::nonNull)
+                .filter(KeywordValueEnum::isPreferentialRate)
+                .forEach(codes::add);
+        requiredKeywords.stream()
+                .filter(required -> required.getEffect() == RequiredKeywordEffect.REQUIRE)
+                .filter(required -> required.getConfidence() == ExtractionConfidence.HIGH)
+                .map(ProductRequiredKeyword::getKeywordCode)
+                .filter(Objects::nonNull)
+                .filter(KeywordValueEnum::isRequired)
+                .forEach(codes::add);
+        return Collections.unmodifiableSet(codes);
     }
 }

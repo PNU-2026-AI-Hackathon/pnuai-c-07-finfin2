@@ -2,11 +2,10 @@ package apptive.fin.search.service;
 
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.global.error.BusinessException;
-import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
 
 import apptive.fin.search.dto.*;
 import apptive.fin.search.entity.Product;
-import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.repository.ProductRepository;
 
@@ -211,15 +210,7 @@ public class SearchService {
 
     // TabB 활성화여부 판별
     private boolean isTabBEnabled(SearchRequestDto request, AuthUserDetails userDetails) {
-		    // 사용자가 로그인하지 않았거나 상세정보를 입력하지 않았다면 비활성화
-        if (userDetails == null || request.detailedOptions() == null) {
-            return false;
-        }
-				
-        // 그렇지 않고 neverUsedBanks가 null이 아니고 maturedSavingBanks가 null이 아니면 활성화
-        var detail = request.detailedOptions();
-        return detail.neverUsedBanks() != null
-                && detail.maturedSavingBanks() != null;
+        return userDetails != null && request.hasTransactionHistory();
     }
 		
     // 키워드 선택 유효성 판별
@@ -288,8 +279,7 @@ public class SearchService {
 		
     // 상품에서 매칭되는 지역 있는지 확인하는 함수
     private boolean hasMatchingRegion(EligibleProductOption option, List<KeywordValueEnum> selectedRegions) {
-        List<KeywordValueEnum> productRegions = option.property().getKeywords().stream()
-                .map(ProductKeyword::getKeywordCode)
+        List<KeywordValueEnum> productRegions = option.property().keywordCodes().stream()
                 .filter(keyword -> keyword.name().startsWith("REGION_"))
                 .toList();
                 

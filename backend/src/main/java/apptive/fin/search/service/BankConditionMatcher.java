@@ -1,6 +1,6 @@
 package apptive.fin.search.service;
 
-import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.entity.ProductPreferentialRate;
 import apptive.fin.search.entity.ProductProperty;
 
@@ -32,10 +32,4 @@ final class BankConditionMatcher {
         return startsBeforeYouthRangeEnds && endsAfterYouthRangeStarts;
     }
 
-    // 상품에 비대면가입 우대조건이 있는지.
-    // BANK_AGE와 달리 키워드 태그로만 표기된 상품이 있어 태그/우대금리 양쪽을 본다.
-    static boolean hasOnlineJoinCondition(ProductProperty property) {
-        return property.hasKeyword(KeywordValueEnum.BANK_ONLINE_JOIN)
-                || property.hasPreferentialRate(KeywordValueEnum.BANK_ONLINE_JOIN);
-    }
 }

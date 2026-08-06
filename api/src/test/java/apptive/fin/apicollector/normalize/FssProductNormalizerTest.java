@@ -8,11 +8,9 @@ import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
 import apptive.fin.apicollector.normalize.extractor.FssPreferentialRateExtractor;
 import apptive.fin.apicollector.normalize.extractor.FssRequiredKeywordExtractor;
 import apptive.fin.apicollector.normalize.extractor.KeywordExtractor;
-import apptive.fin.apicollector.normalize.extractor.keywords.BankKeywordRecognizer;
 import apptive.fin.apicollector.normalize.extractor.keywords.BenefitKeywordRecognizer;
 import apptive.fin.apicollector.normalize.extractor.keywords.InterestKeywordRecognizer;
 import apptive.fin.apicollector.normalize.extractor.keywords.RegionKeywordRecognizer;
-import apptive.fin.apicollector.normalize.extractor.keywords.StatusKeywordRecognizer;
 import apptive.fin.apicollector.normalize.extractor.keywords.TermKeywordRecognizer;
 import apptive.fin.apicollector.normalize.normalizer.FssBankNameNormalizer;
 import apptive.fin.apicollector.normalize.normalizer.FssBankUrlNormalizer;
@@ -103,12 +101,11 @@ class FssProductNormalizerTest {
         ProductDraft draft = normalizer.normalize(raw);
 
         assertThat(draft.properties().getFirst().keywords())
-                .contains(
+                .containsExactly(
                         KeywordValueEnum.INTEREST_SAVINGS,
-                        KeywordValueEnum.BANK_SALARY_TRANSFER,
-                        KeywordValueEnum.BANK_CARD_USAGE,
-                        KeywordValueEnum.BANK_FIRST_TRANSACTION
+                        KeywordValueEnum.TERM_AROUND_1_YEAR
                 );
+        assertThat(draft.properties().getFirst().preferentialRates()).isEmpty();
     }
 
     @Test
@@ -285,10 +282,8 @@ class FssProductNormalizerTest {
     private KeywordExtractor keywordExtractor() {
         return new KeywordExtractor(List.of(
                 new BenefitKeywordRecognizer(),
-                new BankKeywordRecognizer(),
                 new InterestKeywordRecognizer(),
                 new RegionKeywordRecognizer(),
-                new StatusKeywordRecognizer(),
                 new TermKeywordRecognizer()
         ));
     }

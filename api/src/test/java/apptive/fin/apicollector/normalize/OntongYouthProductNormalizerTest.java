@@ -8,11 +8,9 @@ import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
 import apptive.fin.apicollector.normalize.extractor.KeywordExtractor;
 import apptive.fin.apicollector.normalize.extractor.MonthlyLimitExtractor;
-import apptive.fin.apicollector.normalize.extractor.keywords.BankKeywordRecognizer;
 import apptive.fin.apicollector.normalize.extractor.keywords.BenefitKeywordRecognizer;
 import apptive.fin.apicollector.normalize.extractor.keywords.InterestKeywordRecognizer;
 import apptive.fin.apicollector.normalize.extractor.keywords.RegionKeywordRecognizer;
-import apptive.fin.apicollector.normalize.extractor.keywords.StatusKeywordRecognizer;
 import apptive.fin.apicollector.normalize.extractor.keywords.TermKeywordRecognizer;
 import apptive.fin.apicollector.normalize.normalizer.OntongYouthProductNormalizer;
 import apptive.fin.apicollector.product.KeywordValueEnum;
@@ -168,10 +166,8 @@ class OntongYouthProductNormalizerTest {
     private KeywordExtractor keywordExtractor() {
         return new KeywordExtractor(List.of(
                 new BenefitKeywordRecognizer(),
-                new BankKeywordRecognizer(),
                 new InterestKeywordRecognizer(),
                 new RegionKeywordRecognizer(),
-                new StatusKeywordRecognizer(),
                 new TermKeywordRecognizer()
         ));
     }

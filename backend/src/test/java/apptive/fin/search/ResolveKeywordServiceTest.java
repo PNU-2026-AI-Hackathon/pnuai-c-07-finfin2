@@ -1,5 +1,7 @@
 package apptive.fin.search;
 
+import apptive.fin.search.enums.CategoryIdEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.category.service.CategoryOptionService;
 import apptive.fin.search.dto.OptionRequestDto;
 import apptive.fin.search.dto.ResolvedKeywords;

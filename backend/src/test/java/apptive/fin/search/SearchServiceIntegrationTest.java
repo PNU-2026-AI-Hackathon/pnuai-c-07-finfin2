@@ -1,5 +1,6 @@
 package apptive.fin.search;
 
+import apptive.fin.search.enums.CategoryIdEnum;
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.search.dto.DetailedOptionsDto;
 import apptive.fin.search.dto.OptionRequestDto;
@@ -94,6 +95,20 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
 
     @Test
     void 군복무_신분을_선택하면_키워드가_일치하는_상품의_신분점수가_상승한다() {
+        jdbcTemplate.update("""
+                INSERT INTO product_property_required_keyword
+                    (product_property_id, keyword_code, effect, confidence)
+                VALUES (
+                    (SELECT pp.id
+                     FROM product_properties pp
+                     JOIN product p ON p.id = pp.product_id
+                     WHERE p.product_code = 'SEARCH_YOUTH_SAVING'),
+                    'STATUS_MILITARY',
+                    'REQUIRE',
+                    'HIGH'
+                )
+                """);
+
         ProductSearchResultDto result = searchService.search(createRequest(
                 50,
                 List.of(new OptionRequestDto(CategoryIdEnum.IDENTITY.getId(), 21L))
@@ -192,6 +207,24 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
         assertThat(result.governmentRateRanked()).isEmpty();
         assertThat(result.bankRateRanked()).isEmpty();
         assertThat(result.subscriptionProducts()).isEmpty();
+    }
+
+    @Test
+    void 모든_속성이_비활성인_상품은_추천과_상품명검색에_노출되지_않는다() {
+        jdbcTemplate.update("""
+                UPDATE product_properties
+                SET is_joinable = false
+                WHERE product_id = (
+                    SELECT id FROM product WHERE product_code = 'SEARCH_YOUTH_SAVING'
+                )
+                """);
+
+        ProductSearchResultDto result = searchService.search(
+                createRequest(50, List.of()), authenticatedUser());
+
+        assertThat(matchNames(result.bankRanked())).doesNotContain("청년우대적금");
+        assertThat(rateNames(result.bankRateRanked())).doesNotContain("청년우대적금");
+        assertThat(searchService.searchByName("청년우대적금")).isEmpty();
     }
 
     private SearchRequestDto createRequest(long monthlySavingsGoal, List<OptionRequestDto> options) {

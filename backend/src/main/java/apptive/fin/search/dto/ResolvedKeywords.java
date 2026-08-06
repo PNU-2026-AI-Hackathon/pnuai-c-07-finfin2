@@ -1,6 +1,6 @@
 package apptive.fin.search.dto;
 
-import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
 
 import java.util.List;
 

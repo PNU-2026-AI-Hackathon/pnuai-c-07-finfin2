@@ -1,8 +1,9 @@
 package apptive.fin.search.dto;
 
-import apptive.fin.search.KeywordValueEnum;
-import apptive.fin.search.ProductType;
-import apptive.fin.search.ReserveType;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ProductApplyStatus;
+import apptive.fin.search.enums.ProductType;
+import apptive.fin.search.enums.ReserveType;
 import lombok.Builder;
 
 import java.util.List;
@@ -37,7 +38,8 @@ public record ProductDetailResponseDto(
         ReserveType reserveType,
         String reserveTypeName,
 
-        // CTA (공개 정보 — 잠금과 무관하게 항상 반환, null = 비활성)
+        // CTA (공개 정보 — 잠금과 무관하게 항상 반환)
+        ProductApplyStatus applyStatus,
         String applyUrl,
 
         // 수익 지표 잠금 (비로그인 시 true → 아래 지표/금리표 전부 null)

@@ -1,6 +1,6 @@
 package apptive.fin.search.repository;
 
-import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.entity.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -32,12 +32,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                     :age IS NULL
                     OR pp.maxAge IS NULL
                     OR pp.maxAge >= :age
-                    OR (
-                        :militaryAgeExtensionRequested = TRUE
-                        AND :age BETWEEN 35 AND 39
-                        AND pp.allowsMilitaryAgeExtension = TRUE
-                        AND COALESCE(pp.militaryMaxAge, 39) >= :age
-                    )
                 )
                 AND (:incomeProofUnavailable = FALSE OR (pp.earnMaxAmt IS NULL AND pp.earnPercent IS NULL))
                 AND (:incomeProofUnavailable = TRUE OR :annualIncome IS NULL OR pp.earnMaxAmt IS NULL OR pp.earnMaxAmt >= :annualIncome)
@@ -52,7 +46,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("annualIncome") Long annualIncome,
             @Param("householdIncomePercent") Integer householdIncomePercent,
             @Param("incomeProofUnavailable") Boolean incomeProofUnavailable,
-            @Param("militaryAgeExtensionRequested") Boolean militaryAgeExtensionRequested,
             @Param("isHomeless") Boolean isHomeless,
             @Param("isHouseholder") Boolean isHouseholder,
             @Param("tenureMonths") Integer tenureMonths,

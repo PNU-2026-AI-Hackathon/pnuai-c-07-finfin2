@@ -1,5 +1,7 @@
 package apptive.fin.myfin.dto;
 
+import apptive.fin.search.enums.ProductApplyStatus;
+
 import java.util.List;
 
 public record MyfinResponseDto() {
@@ -27,7 +29,7 @@ public record MyfinResponseDto() {
             String calcBasisCaption,
 
             boolean excludeFromRateComparison,
-            String applyStatus,
+            ProductApplyStatus applyStatus,
 
             String applyUrl
             //TODO: String resolutionLevel    : Y4-3 아웃링크 해소 함수 재사용
