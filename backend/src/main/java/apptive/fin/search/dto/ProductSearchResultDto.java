@@ -12,6 +12,7 @@ public record ProductSearchResultDto(
         List<ProductRateDto> governmentRateRanked,
         List<ProductRateDto> bankRateRanked,
         List<ProductRateDto> subscriptionProducts,
-        List<ProductDetailResponseDto> productDetails
+        List<ProductDetailResponseDto> productDetails,
+        Long eligibleProductCount
 ) {
 }

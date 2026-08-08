@@ -10,18 +10,12 @@ import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.repository.ProductRepository;
 
 import apptive.fin.search.SearchErrorCode;
-import apptive.fin.search.dto.EligibleProductOption;
-import apptive.fin.search.dto.ProductMatchDto;
-import apptive.fin.search.dto.ProductRateDto;
-import apptive.fin.search.dto.ProductSearchResultDto;
-import apptive.fin.search.dto.RecommendationDetailTarget;
-import apptive.fin.search.dto.ResolvedKeywords;
-import apptive.fin.search.dto.SearchRequestDto;
-import apptive.fin.search.dto.TabAvailabilityDto;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductKeyword;
 
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -203,6 +197,12 @@ public class SearchService {
                 .bankRateRanked(bankRateRanked)
                 .subscriptionProducts(subscriptions)
                 .productDetails(productDetails)
+                .eligibleProductCount(
+                        eligible.stream()
+                                .map(o->o.product().getId())
+                                .distinct()
+                                .count()
+                )
                 .build();
     }
 
@@ -219,15 +219,14 @@ public class SearchService {
             List<ProductRateDto> governmentRateRanked,
             List<ProductRateDto> bankRateRanked
     ) {
-        Map<Long, EligibleProductOption> optionByPropertyId = eligible.stream()
-                .collect(Collectors.toMap(
-                        option -> option.property().getId(),
-                        Function.identity(),
-                        (left, right) -> left,
-                        LinkedHashMap::new
-                ));
+        // propertyId, EligibleProductOption
+        Map<Long, EligibleProductOption> optionByPropertyId = new LinkedHashMap<>();
+        for (EligibleProductOption option : eligible) {
+                optionByPropertyId.putIfAbsent(option.property().getId(), option);
+        }
 
-        return Stream.of(
+        List<Long> propertyIds 
+                = Stream.of(
                         governmentRanked.stream().map(ProductMatchDto::productPropertyId),
                         bankRanked.stream().map(ProductMatchDto::productPropertyId),
                         governmentRateRanked.stream().map(ProductRateDto::productPropertyId),
@@ -236,6 +235,10 @@ public class SearchService {
                 .flatMap(Function.identity())
                 .filter(Objects::nonNull)
                 .distinct()
+                .toList();
+
+
+        return propertyIds.stream()
                 .map(optionByPropertyId::get)
                 .filter(Objects::nonNull)
                 .map(option -> new RecommendationDetailTarget(option.product(), option.property()))

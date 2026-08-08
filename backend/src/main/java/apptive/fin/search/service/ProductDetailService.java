@@ -20,6 +20,7 @@ import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.repository.ProductRepository;
 import apptive.fin.search.util.ProductAvailability;
+import apptive.fin.search.dto.OptionRequestDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -60,7 +61,7 @@ public class ProductDetailService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(SearchErrorCode.PRODUCT_NOT_FOUND));
 
-        List<apptive.fin.search.dto.OptionRequestDto> options =
+        List<OptionRequestDto> options =
                 req.options() != null ? req.options() : List.of();
         ResolvedKeywords keywords = resolveKeywordService.resolveKeywords(options);
         SearchRequestDto calcRequest = new SearchRequestDto(options, req.detailedOptions());
@@ -124,15 +125,14 @@ public class ProductDetailService {
             return List.of();
         }
 
-        Map<Long, List<ProductProperty>> propertiesByProduct = eligibleOptions.stream()
-                .collect(Collectors.groupingBy(
-                        option -> option.product().getId(),
-                        LinkedHashMap::new,
-                        Collectors.mapping(
-                                EligibleProductOption::property,
-                                Collectors.toList()
-                        )
-                ));
+        // { 상품id : ProductProperty[] }
+        Map<Long, List<ProductProperty>> propertiesByProduct = new LinkedHashMap<>();
+        for (EligibleProductOption option : eligibleOptions) {
+                propertiesByProduct
+                        .computeIfAbsent(option.product().getId(), id->new ArrayList<>())
+                        .add(option.property());
+        }
+
 
         return detailTargets.stream()
                 .map(target -> {
