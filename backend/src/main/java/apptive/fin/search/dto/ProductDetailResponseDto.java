@@ -12,6 +12,8 @@ import java.util.List;
 public record ProductDetailResponseDto(
         // 헤더/요약
         Long productId,
+        // 이 상세가 어느 옵션(property) 기준인지. 추천 응답의 리스트 카드와 상세를 짝지을 때 쓴다.
+        Long productPropertyId,
         ProductType productType,
         String sourceCode,
         String productName,

@@ -34,6 +34,9 @@ import static org.assertj.core.api.Assertions.offset;
 @Sql(scripts = "/sql/cleanup-product-fixtures.sql", executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
 
+    // data.sql의 category_option 삽입 순서로 결정되는 옵션 id
+    private static final Long MAX_INTEREST_BENEFIT_OPTION_ID = 25L; // BENEFIT_MAX_INTEREST
+
     @Autowired
     private ProductDetailService productDetailService;
 
@@ -290,6 +293,36 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
                 authenticatedUser());
 
         assertThat(detail.matchScore()).isNotNull();
+        assertThat(detail.matchScore()).isCloseTo(card.totalScore(), offset(0.0001));
+    }
+
+    @Test
+    void 최고이율_중심을_선택해도_상세_적합도는_리스트의_totalScore와_일치한다() {
+        // #최고이율_중심은 정적 태그가 아니라 상위 30% 컷으로 동적 판정한다(PRD A-2).
+        // 상세가 그 임계값 없이 채점하면 정적 태그 폴백으로 떨어져 카드보다 낮은 점수가 나온다.
+        //
+        // 이 픽스처에서는 전체 은행 컷과 결과셋 컷이 모두 4.5로 같아서 두 경로가 일치한다.
+        // 상세 API가 아직 '전체 은행 joinable' 모집단으로 컷을 계산하므로, 두 모집단이 갈리는
+        // 상황에서는 여전히 어긋날 수 있다 — 컷 기준 일원화는 별도 작업이다.
+        List<OptionRequestDto> options = List.of(
+                new OptionRequestDto(CategoryIdEnum.REGION.getId(), 2L),
+                new OptionRequestDto(CategoryIdEnum.BENEFIT.getId(), MAX_INTEREST_BENEFIT_OPTION_ID)
+        );
+        DetailedOptionsDto detailedOptions = detailedOptions(50L);
+
+        ProductSearchResultDto list = searchService.search(
+                new SearchRequestDto(options, detailedOptions), authenticatedUser());
+        ProductMatchDto card = list.bankRanked().stream()
+                .filter(match -> match.productName().equals("청년우대적금"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(card.benefitScore()).isPositive(); // 컷(4.5) 충족 → 동적 판정으로 혜택 점수를 받는다
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                card.productId(),
+                new ProductDetailRequestDto(card.productPropertyId(), options, detailedOptions),
+                authenticatedUser());
+
         assertThat(detail.matchScore()).isCloseTo(card.totalScore(), offset(0.0001));
     }
 

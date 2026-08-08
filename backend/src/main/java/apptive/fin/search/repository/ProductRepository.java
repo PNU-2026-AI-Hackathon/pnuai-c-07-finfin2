@@ -25,7 +25,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     // 조건 조회
     @Query("""
             SELECT DISTINCT p FROM Product p
+            JOIN FETCH p.source
             JOIN FETCH p.properties pp
+            LEFT JOIN FETCH pp.provider
             WHERE pp.isJoinable = TRUE
                 AND (:age IS NULL OR pp.minAge IS NULL OR pp.minAge <= :age)
                 AND (

@@ -1,28 +1,43 @@
 package apptive.fin.search;
 
 import apptive.fin.search.enums.CategoryIdEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.search.dto.DetailedOptionsDto;
 import apptive.fin.search.dto.OptionRequestDto;
 import apptive.fin.search.dto.ProductMatchDto;
+import apptive.fin.search.dto.ProductDetailResponseDto;
 import apptive.fin.search.dto.ProductRateDto;
 import apptive.fin.search.dto.ProductSearchResultDto;
 import apptive.fin.search.dto.SearchRequestDto;
+import apptive.fin.search.repository.ProductRepository;
 import apptive.fin.global.error.BusinessException;
 import apptive.fin.search.service.SearchService;
 import apptive.fin.support.IntegrationTestSupport;
 import apptive.fin.user.UserRole;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.jdbc.Sql;
 
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.offset;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 @Sql(
         scripts = "/sql/search-products.sql",
@@ -34,11 +49,153 @@ import static org.assertj.core.api.Assertions.offset;
 )
 class SearchServiceIntegrationTest extends IntegrationTestSupport {
 
+    // data.sql의 category_option 삽입 순서로 결정되는 옵션 id (다른 테스트도 같은 방식으로 하드코딩한다)
+    private static final Long BUSAN_REGION_OPTION_ID = 2L;          // REGION_BUSAN
+    private static final Long AROUND_1_YEAR_PERIOD_OPTION_ID = 24L; // TERM_AROUND_1_YEAR
+    private static final Long MAX_INTEREST_BENEFIT_OPTION_ID = 25L; // BENEFIT_MAX_INTEREST
+
     @Autowired
     private SearchService searchService;
 
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
+    @MockitoSpyBean
+    private ProductRepository productRepository;
+
+    @Autowired
+    private EntityManagerFactory entityManagerFactory;
+
+    @Test
+    void 추천응답은_모든_추천카드의_상세정보를_옵션단위로_포함한다() {
+        ProductSearchResultDto result = searchService.search(createRequest(50, List.of()), authenticatedUser());
+
+        // 상세는 상품이 아니라 (상품, 옵션) 단위다 — 카드가 고른 옵션과 상세가 본 옵션이 같아야 값이 일치한다.
+        assertThat(result.productDetails())
+                .extracting(ProductDetailResponseDto::productPropertyId)
+                .containsExactlyInAnyOrderElementsOf(rankedPropertyIds(result));
+    }
+
+    @Test
+    void 추천상품상세는_로그인시_화면용_정보와_수익지표를_포함한다() {
+        ProductSearchResultDto result = searchService.search(createRequest(50, List.of()), authenticatedUser());
+
+        ProductDetailResponseDto bankDetail = result.productDetails().stream()
+                .filter(detail -> detail.productName().equals("청년우대적금"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(bankDetail.providerName()).isEqualTo("국민은행");
+        assertThat(bankDetail.content()).isEqualTo("만 19~29세 전용 우대 적금");
+        assertThat(bankDetail.metricsLocked()).isFalse();
+        assertThat(bankDetail.bank()).isNotNull();
+        assertThat(bankDetail.government()).isNull();
+        assertThat(bankDetail.rateTable()).isNotEmpty();
+    }
+
+    @Test
+    void 비로그인_추천상품상세는_수익지표를_잠근다() {
+        ProductSearchResultDto result = searchService.search(createRequest(50, List.of()));
+
+        assertThat(result.productDetails())
+                .isNotEmpty() // allSatisfy는 빈 리스트에 무조건 통과하므로 먼저 비어있지 않음을 확인
+                .allSatisfy(detail -> {
+                    assertThat(detail.metricsLocked()).isTrue();
+                    assertThat(detail.government()).isNull();
+                    assertThat(detail.bank()).isNull();
+                    assertThat(detail.rateTable()).isNull();
+                });
+    }
+
+    @Test
+    void 추천상품상세에는_청약상품도_포함되고_같은_옵션이_중복되지_않는다() {
+        ProductSearchResultDto result = searchService.search(createRequest(50, List.of()), authenticatedUser());
+
+        // 청약상품은 ProductRateDto의 productPropertyId가 null이지만 govRanked를 통해 커버돼야 한다.
+        assertThat(result.productDetails())
+                .extracting(ProductDetailResponseDto::productName)
+                .contains("청년우대형 청약통장");
+        assertThat(result.productDetails())
+                .extracting(ProductDetailResponseDto::productPropertyId)
+                .doesNotHaveDuplicates();
+    }
+
+    @Test
+    void 추천상품상세는_상품별_저장소_재조회_없이_검색에서_확보한_엔티티를_사용한다() {
+        searchService.search(createRequest(50, List.of()), authenticatedUser());
+
+        verify(productRepository, times(1)).findEligibleProducts(
+                any(), any(), any(), any(), any(), any(), any(), any());
+        verify(productRepository, never()).findById(anyLong());
+        verify(productRepository, never()).findJoinableMaxRatesBySourceCode(anyString());
+    }
+
+    @Test
+    void 추천상세는_상품수가_늘어도_쿼리수가_비례해_늘지_않는다() {
+        SearchRequestDto request = createRequest(50, List.of());
+        long baseline = queryCountOf(() -> searchService.search(request, authenticatedUser()));
+        // statistics가 꺼져 있으면 0이 나와 무조건 통과하므로 계측이 살아있는지 먼저 확인
+        assertThat(baseline).isPositive();
+
+        insertExtraEligibleBankProducts(10);
+        long scaled = queryCountOf(() -> searchService.search(request, authenticatedUser()));
+
+        // @BatchSize(100) 배치 로딩이면 상품이 10개 늘어도 쿼리 수는 사실상 그대로다.
+        // 상세를 만들면서 상품별 lazy 왕복이 생기면 수십 개가 붙어 바로 걸린다.
+        assertThat(scaled).isLessThanOrEqualTo(baseline + 2);
+    }
+
+    @Test
+    void 최고이율_중심을_선택하면_상세_적합도가_리스트_카드_점수와_일치한다() {
+        // #최고이율_중심은 정적 태그가 아니라 결과셋 상위 30% 컷으로 동적 판정한다.
+        // 상세가 그 임계값을 못 받으면 정적 태그 폴백으로 떨어지는데, 픽스처에 정적
+        // BENEFIT_MAX_INTEREST 행이 없어서 상위권 은행상품의 점수가 카드보다 낮게 나온다.
+        ProductSearchResultDto result = searchService.search(
+                createRequest(50, List.of(
+                        new OptionRequestDto(CategoryIdEnum.REGION.getId(), BUSAN_REGION_OPTION_ID),
+                        new OptionRequestDto(CategoryIdEnum.BENEFIT.getId(), MAX_INTEREST_BENEFIT_OPTION_ID)
+                )),
+                authenticatedUser());
+
+        ProductMatchDto topRateCard = findMatch(result.bankRanked(), "청년우대적금");
+        ProductDetailResponseDto topRateDetail = findDetail(result, topRateCard.productPropertyId());
+
+        assertThat(topRateCard.benefitScore()).isPositive(); // 컷(4.5) 충족 → 동적 판정으로 혜택 점수를 받는다
+        assertThat(topRateDetail.matchScore()).isCloseTo(topRateCard.totalScore(), offset(0.0001));
+        assertThat(topRateDetail.keywords()).contains(KeywordValueEnum.BENEFIT_MAX_INTEREST);
+
+        // 컷 미달 상품도 같은 기준으로 판정돼야 한다(양쪽 다 0점으로 일치).
+        ProductMatchDto belowCutCard = findMatch(result.bankRanked(), "e-쎄이프 정기예금");
+        ProductDetailResponseDto belowCutDetail = findDetail(result, belowCutCard.productPropertyId());
+
+        assertThat(belowCutCard.benefitScore()).isZero();
+        assertThat(belowCutDetail.matchScore()).isCloseTo(belowCutCard.totalScore(), offset(0.0001));
+        assertThat(belowCutDetail.keywords()).doesNotContain(KeywordValueEnum.BENEFIT_MAX_INTEREST);
+    }
+
+    @Test
+    void 적합도_대표옵션과_금리_대표옵션이_다르면_카드마다_자기_옵션_상세를_받는다() {
+        // 청년우대적금에 36개월·고금리 옵션을 붙이면 탭A(적합도)는 12개월, 탭B(금리)는 36개월을 고른다.
+        // 상세를 상품당 1건만 만들면 금리순 카드의 금리와 상세의 금리가 갈린다.
+        insertLongTermHighRateOption();
+
+        ProductSearchResultDto result = searchService.search(
+                createRequest(50, List.of(
+                        new OptionRequestDto(CategoryIdEnum.PERIOD.getId(), AROUND_1_YEAR_PERIOD_OPTION_ID)
+                )),
+                authenticatedUser());
+
+        ProductMatchDto matchCard = findMatch(result.bankRanked(), "청년우대적금");
+        ProductRateDto rateCard = findRate(result.bankRateRanked(), "청년우대적금");
+        assertThat(matchCard.productPropertyId()).isNotEqualTo(rateCard.productPropertyId());
+
+        ProductDetailResponseDto matchDetail = findDetail(result, matchCard.productPropertyId());
+        ProductDetailResponseDto rateDetail = findDetail(result, rateCard.productPropertyId());
+
+        assertThat(matchDetail.matchScore()).isCloseTo(matchCard.totalScore(), offset(0.0001));
+        assertThat(rateDetail.bank().achievableRate()).isEqualTo(rateCard.achievableRate());
+        assertThat(matchDetail.bank().achievableRate()).isNotEqualTo(rateDetail.bank().achievableRate());
+    }
 
     @Test
     void 기본상황이면_정부와_은행_상품을_적합도와_금리순으로_반환한다() {
@@ -266,6 +423,31 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                 .orElseThrow();
     }
 
+    // 상세 생성 대상이 되어야 하는 옵션 id 집합.
+    // subscriptionProducts는 productPropertyId가 null이라 제외한다 — govRanked가 같은 상품을 커버한다.
+    private Set<Long> rankedPropertyIds(ProductSearchResultDto result) {
+        Set<Long> propertyIds = new HashSet<>();
+        result.governmentRanked().forEach(card -> propertyIds.add(card.productPropertyId()));
+        result.bankRanked().forEach(card -> propertyIds.add(card.productPropertyId()));
+        result.governmentRateRanked().forEach(card -> propertyIds.add(card.productPropertyId()));
+        result.bankRateRanked().forEach(card -> propertyIds.add(card.productPropertyId()));
+        return propertyIds;
+    }
+
+    private ProductDetailResponseDto findDetail(ProductSearchResultDto result, Long productPropertyId) {
+        return result.productDetails().stream()
+                .filter(detail -> productPropertyId.equals(detail.productPropertyId()))
+                .findFirst()
+                .orElseThrow();
+    }
+
+    private long queryCountOf(Runnable action) {
+        Statistics statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        statistics.clear();
+        action.run();
+        return statistics.getPrepareStatementCount();
+    }
+
     private List<String> matchNames(List<ProductMatchDto> products) {
         return products.stream()
                 .map(ProductMatchDto::productName)
@@ -280,6 +462,50 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
 
     private AuthUserDetails authenticatedUser() {
         return new AuthUserDetails(1L, UserRole.RECOMMENDATION);
+    }
+
+    // 청년우대적금에 36개월·고금리 옵션 추가.
+    // 기존 12개월 옵션(base 3.8)보다 금리는 높지만 1년 내외 선택 시 기간 점수는 0이라
+    // 적합도 대표 옵션(12개월)과 금리 대표 옵션(36개월)이 갈린다.
+    private void insertLongTermHighRateOption() {
+        jdbcTemplate.update("""
+                INSERT INTO product_properties (
+                    product_id, provider_id, base_rate, max_rate, min_monthly_limit, max_monthly_limit,
+                    min_age, max_age, requires_homeless, requires_householder,
+                    is_joinable, intr_rate_type, save_trm
+                )
+                VALUES (
+                    (SELECT id FROM product WHERE product_code = 'SEARCH_YOUTH_SAVING'),
+                    (SELECT id FROM provider WHERE code = 'SEARCH_BANK_B'),
+                    4.9, 5.0, 10, 50,
+                    19, 29, false, false,
+                    true, 'SINGLE_INTEREST', 36
+                )
+                """);
+    }
+
+    // 쿼리 수가 상품 수에 비례하는지 보기 위한 더미 은행상품. 만 27세 기준으로 모두 가입 가능하다.
+    private void insertExtraEligibleBankProducts(int count) {
+        for (int i = 0; i < count; i++) {
+            jdbcTemplate.update("""
+                    INSERT INTO product (source_id, type, product_code, product_name, content)
+                    VALUES ((SELECT id FROM product_source WHERE code = 'FSS'), 'SAVING', ?, ?, '더미 상품')
+                    """, "SEARCH_EXTRA_" + i, "더미적금" + i);
+            jdbcTemplate.update("""
+                    INSERT INTO product_properties (
+                        product_id, provider_id, base_rate, max_rate, min_monthly_limit, max_monthly_limit,
+                        min_age, max_age, requires_homeless, requires_householder,
+                        is_joinable, intr_rate_type, save_trm
+                    )
+                    VALUES (
+                        (SELECT id FROM product WHERE product_code = ?),
+                        (SELECT id FROM provider WHERE code = 'SEARCH_BANK_A'),
+                        2.0, 2.5, 10, 50,
+                        19, 34, false, false,
+                        true, 'SINGLE_INTEREST', 12
+                    )
+                    """, "SEARCH_EXTRA_" + i);
+        }
     }
 
     private void insertHighYieldSmeOnlyOption() {

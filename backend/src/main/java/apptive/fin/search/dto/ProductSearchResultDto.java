@@ -11,6 +11,7 @@ public record ProductSearchResultDto(
         List<ProductMatchDto> bankRanked,
         List<ProductRateDto> governmentRateRanked,
         List<ProductRateDto> bankRateRanked,
-        List<ProductRateDto> subscriptionProducts
+        List<ProductRateDto> subscriptionProducts,
+        List<ProductDetailResponseDto> productDetails
 ) {
 }

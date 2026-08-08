@@ -14,6 +14,7 @@ import apptive.fin.search.dto.EligibleProductOption;
 import apptive.fin.search.dto.ProductMatchDto;
 import apptive.fin.search.dto.ProductRateDto;
 import apptive.fin.search.dto.ProductSearchResultDto;
+import apptive.fin.search.dto.RecommendationDetailTarget;
 import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.dto.TabAvailabilityDto;
@@ -26,7 +27,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -41,6 +45,7 @@ public class SearchService {
     private final RateCalculatorService rateCalculatorService;
     private final ResolveKeywordService resolveKeywordService;
     private final ProductRepository productRepository;
+    private final ProductDetailService productDetailService;
 
     public ProductSearchResultDto search(SearchRequestDto request) {
         return search(request, null);
@@ -174,6 +179,22 @@ public class SearchService {
                         ))
                 : List.of();
 
+        List<RecommendationDetailTarget> detailTargets = recommendationDetailTargets(
+                eligible,
+                govRanked,
+                bankRanked,
+                governmentRateRanked,
+                bankRateRanked
+        );
+        List<ProductDetailResponseDto> productDetails = productDetailService.getRecommendationDetails(
+                eligible,
+                detailTargets,
+                request,
+                resolvedKeywords,
+                userDetails,
+                bankMaxInterestThreshold
+        );
+
         return ProductSearchResultDto.builder()
                 .tabs(tabs)
                 .governmentRanked(govRanked)
@@ -181,7 +202,44 @@ public class SearchService {
                 .governmentRateRanked(governmentRateRanked)
                 .bankRateRanked(bankRateRanked)
                 .subscriptionProducts(subscriptions)
+                .productDetails(productDetails)
                 .build();
+    }
+
+    // 추천 목록에 실린 카드마다 자기 옵션 기준 상세를 갖도록, 상세 생성 대상을 productPropertyId 단위로 모은다.
+    // 상품 단위로 묶으면 안 된다 — 적합도 대표 옵션(탭A)과 금리 대표 옵션(탭B)이 다를 수 있어서
+    // 금리순 카드의 achievableRate와 상세의 값이 갈린다. propertyId는 PK라 (상품, 옵션)을 유일하게 식별한다.
+    //
+    // 청약상품은 ProductRateDto의 productPropertyId가 null(금리 비교 대상이 아님)이라 걸러내지만,
+    // govRanked에 실제 옵션으로 항상 들어있으므로(subscriptions ⊆ govList ⊆ govRanked 모집단) 누락되지 않는다.
+    private List<RecommendationDetailTarget> recommendationDetailTargets(
+            List<EligibleProductOption> eligible,
+            List<ProductMatchDto> governmentRanked,
+            List<ProductMatchDto> bankRanked,
+            List<ProductRateDto> governmentRateRanked,
+            List<ProductRateDto> bankRateRanked
+    ) {
+        Map<Long, EligibleProductOption> optionByPropertyId = eligible.stream()
+                .collect(Collectors.toMap(
+                        option -> option.property().getId(),
+                        Function.identity(),
+                        (left, right) -> left,
+                        LinkedHashMap::new
+                ));
+
+        return Stream.of(
+                        governmentRanked.stream().map(ProductMatchDto::productPropertyId),
+                        bankRanked.stream().map(ProductMatchDto::productPropertyId),
+                        governmentRateRanked.stream().map(ProductRateDto::productPropertyId),
+                        bankRateRanked.stream().map(ProductRateDto::productPropertyId)
+                )
+                .flatMap(Function.identity())
+                .filter(Objects::nonNull)
+                .distinct()
+                .map(optionByPropertyId::get)
+                .filter(Objects::nonNull)
+                .map(option -> new RecommendationDetailTarget(option.product(), option.property()))
+                .toList();
     }
 
     // 이름으로 찾기
@@ -232,7 +290,7 @@ public class SearchService {
     private Double topRateThreshold(List<EligibleProductOption> bankList) {
         List<Double> rates = bankList.stream()
                 .map(option -> option.property().getMaxRate())
-                .filter(java.util.Objects::nonNull)
+                .filter(Objects::nonNull)
                 .map(java.math.BigDecimal::doubleValue)
                 .toList();
         return computeTopRateThreshold(rates);
