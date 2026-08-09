@@ -244,7 +244,7 @@ public class ProductDetailService {
                 : productRepository.findJoinableMaxRatesBySourceCode(ProductSource.BANK_CODE).stream()
                         .map(BigDecimal::doubleValue)
                         .toList();
-        return SearchService.computeTopRateThreshold(rates);
+        return BankMaxInterestPolicy.calculateThreshold(rates);
     }
 
     private List<Integer> saveTrms(List<ProductProperty> properties) {

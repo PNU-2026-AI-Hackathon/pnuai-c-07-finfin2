@@ -78,7 +78,12 @@ public class SearchService {
         );
 
         // 은행 #최고이율_중심 상위 30% 판정용 임계 금리(결과셋 maxRate 기준). null이면 정적 태그 방식으로 폴백.
-        Double bankMaxInterestThreshold = topRateThreshold(bankList);
+        List<Double> bankMaxInterestRates = bankList.stream()
+                .map(option -> option.property().getMaxRate())
+                .filter(Objects::nonNull)
+                .map(java.math.BigDecimal::doubleValue)
+                .toList();
+        Double bankMaxInterestThreshold = BankMaxInterestPolicy.calculateThreshold(bankMaxInterestRates);
 
         // 정부상품 점수 계산 후 각 상품별로 총점이 가장 높은 (Product, ProductProperty) 쌍만 남긴 뒤 점수순 내림차순 정렬
         List<ProductMatchDto> govRanked = collapseToBestPerProduct(
@@ -225,34 +230,6 @@ public class SearchService {
                             .build();
                 })
                 .toList();
-    }
-
-    // 결과셋(은행 상품)의 maxRate 상위 30% 컷 금리를 계산한다. 이 값 이상이면 #최고이율 매칭(동점 포함).
-    // 금리 정보가 하나도 없으면 null → 호출부에서 정적 태그 방식으로 폴백.
-    private Double topRateThreshold(List<EligibleProductOption> bankList) {
-        List<Double> rates = bankList.stream()
-                .map(option -> option.property().getMaxRate())
-                .filter(Objects::nonNull)
-                .map(java.math.BigDecimal::doubleValue)
-                .toList();
-        return computeTopRateThreshold(rates);
-    }
-
-    // 상위 30% 컷 금리 계산(순수 함수, 테스트 용이하도록 분리). 빈 리스트면 null.
-    static Double computeTopRateThreshold(List<Double> rates) {
-        if (rates == null || rates.isEmpty()) {
-            return null;
-        }
-
-        List<Double> sortedDesc = rates.stream()
-                .sorted(Comparator.reverseOrder())
-                .toList();
-
-        int cutoffIndex = (int) Math.ceil(sortedDesc.size() * 0.3) - 1;
-        if (cutoffIndex < 0) {
-            cutoffIndex = 0;
-        }
-        return sortedDesc.get(cutoffIndex);
     }
 
     // 상품별로 총점이 가장 높은 (Product, ProductProperty) 쌍만 남기고 총점 내림차순 정렬(순수 함수, 테스트 용이하도록 분리).

@@ -5,7 +5,6 @@ import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.enums.KeywordValueEnum;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -27,30 +26,13 @@ public class ProductDisplayKeywordService {
             }
         }
 
-        if (isTopRateBank(product, properties, bankMaxInterestThreshold)) {
+        if (product.isBank()
+                && BankMaxInterestPolicy.anyJoinableQualifies(
+                        properties,
+                        bankMaxInterestThreshold
+                )) {
             keywords.add(KeywordValueEnum.BENEFIT_MAX_INTEREST);
         }
         return List.copyOf(keywords);
-    }
-
-    private boolean isTopRateBank(
-            Product product,
-            List<ProductProperty> properties,
-            Double threshold
-    ) {
-        if (!product.isBank() || threshold == null) {
-            return false;
-        }
-
-        BigDecimal productMaxRate = null;
-        for (ProductProperty property : properties) {
-            if (!property.isJoinable() || property.getMaxRate() == null) {
-                continue;
-            }
-            if (productMaxRate == null || property.getMaxRate().compareTo(productMaxRate) > 0) {
-                productMaxRate = property.getMaxRate();
-            }
-        }
-        return productMaxRate != null && productMaxRate.doubleValue() >= threshold;
     }
 }
