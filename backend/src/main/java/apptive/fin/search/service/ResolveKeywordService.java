@@ -14,13 +14,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import apptive.fin.category.service.CategoryOptionService.OptionMapping;
+
 @Service
 @RequiredArgsConstructor
 public class ResolveKeywordService {
     private final CategoryOptionService categoryOptionService;
 
     public ResolvedKeywords resolveKeywords(List<OptionRequestDto> options){
-        Map<Long, KeywordValueEnum> mapping = categoryOptionService.getOptionMap();
+        Map<Long, OptionMapping> mapping = categoryOptionService.getOptionMappings();
 
         List<KeywordValueEnum> regions = new ArrayList<>();
         List<KeywordValueEnum> identities = new ArrayList<>();
@@ -29,12 +31,16 @@ public class ResolveKeywordService {
         List<KeywordValueEnum> bankConds = new ArrayList<>();
 
         for (OptionRequestDto option : options){
-            KeywordValueEnum kw = mapping.get(option.optionId());
-            if(kw == null) continue;
+            OptionMapping optionMapping = mapping.get(option.optionId());
+            if (optionMapping == null) continue;
 
             Long categoryId = option.categoryId();
             CategoryIdEnum category = CategoryIdEnum.fromId(categoryId)
                     .orElseThrow(()->new BusinessException(SearchErrorCode.OPTION_CATEGORY_NOT_FOUND));
+            if (!categoryId.equals(optionMapping.categoryId())) {
+                throw new BusinessException(SearchErrorCode.OPTION_CATEGORY_NOT_FOUND);
+            }
+            KeywordValueEnum kw = optionMapping.keyword();
 
             switch(category){
                 case REGION -> regions.add(kw);

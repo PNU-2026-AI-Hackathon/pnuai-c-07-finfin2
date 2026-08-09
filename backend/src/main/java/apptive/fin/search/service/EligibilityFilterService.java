@@ -28,7 +28,7 @@ public class EligibilityFilterService {
     // 사용자가 가입가능한 상품만 필터링하는 메서드
     @Transactional(readOnly = true)
     public List<Product> filterEligible(SearchRequestDto request){
-        var detail = request.detailedOptions();
+        DetailedOptionsDto detail = request.detailedOptions();
         if (detail == null) return List.of(); // 상세옵션 선택안하면 빈 리스트 
 				
         // 키워드 Resolve
@@ -53,12 +53,12 @@ public class EligibilityFilterService {
 
     // 사용자가 가입가능한 상품 옵션만 필터링하는 메서드
     @Transactional(readOnly = true)
-    public List<EligibleProductOption> filterEligibleOptions(SearchRequestDto request) {
-        var detail = request.detailedOptions();
+    public List<EligibleProductOption> filterEligibleOptions(
+            SearchRequestDto request,
+            ResolvedKeywords keywords
+    ) {
+        DetailedOptionsDto detail = request.detailedOptions();
         if (detail == null) return List.of(); // 상세옵션 선택안하면 빈 리스트
-
-        // 키워드 Resolve
-        ResolvedKeywords keywords = resolveKeywordService.resolveKeywords(request.options());
         EligibilityCriteria criteria = eligibilityCriteria(detail, keywords);  // 사용자의 가입 기준 정리
         
         // 가입가능한 상품 옵션(product, productProperty) 반환
@@ -72,9 +72,11 @@ public class EligibilityFilterService {
                         criteria.tenureMonths(),
                         criteria.monthlyDeposit()
                 ).stream()
-                .flatMap(product -> product.getProperties().stream()
-                        .filter(property -> isPropertyEligible(property, criteria, keywords.identities()))
-                        .map(property -> new EligibleProductOption(product, property)))
+                .flatMap(product
+                        -> product.getProperties().stream()
+                                .filter(property -> isPropertyEligible(property, criteria, keywords.identities()))
+                                .map(property -> new EligibleProductOption(product, property))
+                )
                 .toList();
     }
 

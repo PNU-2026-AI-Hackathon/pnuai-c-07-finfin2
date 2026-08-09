@@ -27,6 +27,7 @@ import org.springframework.test.context.jdbc.Sql;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -55,6 +56,7 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
     private static final Long BUSAN_REGION_OPTION_ID = 2L;          // REGION_BUSAN
     private static final Long AROUND_1_YEAR_PERIOD_OPTION_ID = 24L; // TERM_AROUND_1_YEAR
     private static final Long MAX_INTEREST_BENEFIT_OPTION_ID = 25L; // BENEFIT_MAX_INTEREST
+    private static final Long FIRST_TRANSACTION_OPTION_ID = 31L;    // BANK_FIRST_TRANSACTION
 
     @Autowired
     private SearchService searchService;
@@ -253,8 +255,10 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
         assertThat(matchNames(result.bankRanked()))
                 .containsExactlyInAnyOrder("e-쎄이프 정기예금", "청년우대적금");
 
-        assertThat(result.governmentRanked())
-                .allSatisfy(product -> assertThat(product.totalScore()).isCloseTo(100.0, offset(0.0001)));
+        assertThat(findMatch(result.governmentRanked(), "청년내일채움공제").totalScore())
+                .isCloseTo(72.5, offset(0.0001));
+        assertThat(findMatch(result.governmentRanked(), "청년우대형 청약통장").totalScore())
+                .isCloseTo(45.0, offset(0.0001));
         assertThat(result.bankRanked())
                 .allSatisfy(product -> assertThat(product.totalScore()).isCloseTo(100.0, offset(0.0001)));
 
@@ -323,10 +327,10 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
 
         ProductMatchDto militaryProduct = result.bankRanked().get(0);
         ProductMatchDto generalProduct = result.bankRanked().get(1);
-        assertThat(militaryProduct.identityScore()).isCloseTo(25.0, offset(0.0001));
+        assertThat(militaryProduct.identityScore()).isCloseTo(12.5, offset(0.0001));
         assertThat(militaryProduct.totalScore()).isCloseTo(100.0, offset(0.0001));
         assertThat(generalProduct.identityScore()).isZero();
-        assertThat(generalProduct.totalScore()).isCloseTo(75.0, offset(0.0001));
+        assertThat(generalProduct.totalScore()).isCloseTo(87.5, offset(0.0001));
     }
 
     @Test
@@ -375,7 +379,7 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 키워드를_하나도_선택하지_않으면_예외를_던진다() {
+    void 저축기간을_선택하지_않으면_추천요청을_거절한다() {
         SearchRequestDto request = new SearchRequestDto(
                 List.of(),
                 new DetailedOptionsDto(
@@ -396,7 +400,64 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
         assertThatThrownBy(() -> searchService.search(request))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(exception -> assertThat(((BusinessException) exception).getErrorCode())
-                        .isEqualTo(SearchErrorCode.KEYWORD_REQUIRED));
+                        .isEqualTo(SearchErrorCode.SAVING_PERIOD_REQUIRED));
+    }
+
+    @Test
+    void 월납입희망액을_입력하지_않으면_추천요청을_거절한다() {
+        SearchRequestDto request = new SearchRequestDto(
+                requiredStep1Options(List.of()),
+                new DetailedOptionsDto(
+                        LocalDate.now().minusYears(27),
+                        30_000_000L, 3, 100, 12, null, true, null,
+                        null, List.of(), List.of(), List.of(), List.of()
+                )
+        );
+
+        assertThatThrownBy(() -> searchService.search(request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> assertThat(((BusinessException) exception).getErrorCode())
+                        .isEqualTo(SearchErrorCode.MONTHLY_SAVINGS_GOAL_REQUIRED));
+    }
+
+    @Test
+    void 은행거래조건을_선택하지_않으면_추천요청을_거절한다() {
+        SearchRequestDto request = new SearchRequestDto(
+                List.of(new OptionRequestDto(
+                        CategoryIdEnum.PERIOD.getId(), AROUND_1_YEAR_PERIOD_OPTION_ID)),
+                new DetailedOptionsDto(
+                        LocalDate.now().minusYears(27),
+                        30_000_000L, 3, 100, 12, null, true, null,
+                        50L, List.of(), List.of(), List.of(), List.of()
+                )
+        );
+
+        assertThatThrownBy(() -> searchService.search(request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> assertThat(((BusinessException) exception).getErrorCode())
+                        .isEqualTo(SearchErrorCode.BANK_CONDITION_REQUIRED));
+    }
+
+    @Test
+    void 옵션의_실제카테고리와_요청카테고리가_다르면_추천요청을_거절한다() {
+        SearchRequestDto request = new SearchRequestDto(
+                List.of(
+                        new OptionRequestDto(
+                                CategoryIdEnum.PERIOD.getId(), FIRST_TRANSACTION_OPTION_ID),
+                        new OptionRequestDto(
+                                CategoryIdEnum.BANK_COND.getId(), AROUND_1_YEAR_PERIOD_OPTION_ID)
+                ),
+                new DetailedOptionsDto(
+                        LocalDate.now().minusYears(27),
+                        30_000_000L, 3, 100, 12, null, true, null,
+                        50L, List.of(), List.of(), List.of(), List.of()
+                )
+        );
+
+        assertThatThrownBy(() -> searchService.search(request))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(exception -> assertThat(((BusinessException) exception).getErrorCode())
+                        .isEqualTo(SearchErrorCode.OPTION_CATEGORY_NOT_FOUND));
     }
 
     @Test
@@ -416,7 +477,7 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
     @Test
     void 로그인해도_2단계_필수정보가_미완료면_탭B를_비활성화한다() {
         SearchRequestDto request = new SearchRequestDto(
-                List.of(new OptionRequestDto(CategoryIdEnum.REGION.getId(), 2L)),
+                requiredStep1Options(List.of(new OptionRequestDto(CategoryIdEnum.REGION.getId(), 2L))),
                 new DetailedOptionsDto(
                         null,
                         30_000_000L,
@@ -475,7 +536,7 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                 : options;
 
         return new SearchRequestDto(
-                selectedOptions,
+                requiredStep1Options(selectedOptions),
                 new DetailedOptionsDto(
                         LocalDate.now().minusYears(27),
                         30_000_000L,
@@ -486,12 +547,23 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                         true,
                         null,
                         monthlySavingsGoal,
-                        null,
+                        List.of(),
                         List.of(),
                         List.of(),
                         List.of()
                 )
         );
+    }
+
+    private List<OptionRequestDto> requiredStep1Options(List<OptionRequestDto> options) {
+        List<OptionRequestDto> completed = new ArrayList<>(options);
+        if (completed.stream().noneMatch(option -> CategoryIdEnum.PERIOD.getId().equals(option.categoryId()))) {
+            completed.add(new OptionRequestDto(CategoryIdEnum.PERIOD.getId(), AROUND_1_YEAR_PERIOD_OPTION_ID));
+        }
+        if (completed.stream().noneMatch(option -> CategoryIdEnum.BANK_COND.getId().equals(option.categoryId()))) {
+            completed.add(new OptionRequestDto(CategoryIdEnum.BANK_COND.getId(), FIRST_TRANSACTION_OPTION_ID));
+        }
+        return List.copyOf(completed);
     }
 
     private ProductMatchDto findMatch(List<ProductMatchDto> products, String productName) {

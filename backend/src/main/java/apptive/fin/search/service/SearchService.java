@@ -1,14 +1,12 @@
 package apptive.fin.search.service;
 
 import apptive.fin.auth.security.AuthUserDetails;
-import apptive.fin.global.error.BusinessException;
 import apptive.fin.search.enums.KeywordValueEnum;
 
 import apptive.fin.search.dto.*;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.repository.ProductRepository;
 
-import apptive.fin.search.SearchErrorCode;
 import apptive.fin.search.entity.ProductKeyword;
 
 import lombok.RequiredArgsConstructor;
@@ -36,7 +34,7 @@ public class SearchService {
     private final ResolveKeywordService resolveKeywordService;
     private final ProductRepository productRepository;
     private final ProductCardSummaryService productCardSummaryService;
-    private final PersonalizationAccessPolicy personalizationAccessPolicy;
+    private final SearchRequestPolicy searchRequestPolicy;
 
     public ProductSearchResultDto search(SearchRequestDto request) {
         return search(request, null);
@@ -46,11 +44,13 @@ public class SearchService {
     public ProductSearchResultDto search(SearchRequestDto request, AuthUserDetails userDetails) {
         // 프론트에서 전송된 List<OptionRequestDto>를 ResolvedKeywords로 변환
         ResolvedKeywords resolvedKeywords = resolveKeywordService.resolveKeywords(request.options());
-        // 선택된 키워드들이 유효한지 검사 
-        validateKeywordSelected(resolvedKeywords);
+        searchRequestPolicy.validateForRecommendation(request, resolvedKeywords);
 
         // 사용자가 가입 가능한 상품 필터링
-        List<EligibleProductOption> eligible = eligibilityFilterService.filterEligibleOptions(request);
+        List<EligibleProductOption> eligible = eligibilityFilterService.filterEligibleOptions(
+                request,
+                resolvedKeywords
+        );
         
         // 선택된 지역 키워드가 빈칸이 아니라면
         if (!resolvedKeywords.regions().isEmpty()) {
@@ -71,7 +71,11 @@ public class SearchService {
                 .toList();
 
         // tabB 활성화 여부 판별
-        boolean tabBEnabled = personalizationAccessPolicy.canUsePersonalization(request, userDetails);
+        boolean tabBEnabled = searchRequestPolicy.canUsePersonalization(
+                request,
+                resolvedKeywords,
+                userDetails
+        );
 
         // 은행 #최고이율_중심 상위 30% 판정용 임계 금리(결과셋 maxRate 기준). null이면 정적 태그 방식으로 폴백.
         Double bankMaxInterestThreshold = topRateThreshold(bankList);
@@ -221,20 +225,6 @@ public class SearchService {
                             .build();
                 })
                 .toList();
-    }
-
-    // 키워드 선택 유효성 판별
-    private void validateKeywordSelected(ResolvedKeywords keywords) {
-		    
-        boolean hasSelectedKeyword = !keywords.regions().isEmpty()
-                || !keywords.identities().isEmpty()
-                || keywords.savingPeriod() != null
-                || !keywords.coreBenefits().isEmpty()
-                || !keywords.bankConditions().isEmpty();
-				// 선택한 키워드 없으면 유효하지 않음
-        if (!hasSelectedKeyword) {
-            throw new BusinessException(SearchErrorCode.KEYWORD_REQUIRED);
-        }
     }
 
     // 결과셋(은행 상품)의 maxRate 상위 30% 컷 금리를 계산한다. 이 값 이상이면 #최고이율 매칭(동점 포함).
