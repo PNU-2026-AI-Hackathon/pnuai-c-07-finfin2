@@ -41,6 +41,7 @@ public class ProductDetailService {
     private final RateCalculatorService rateCalculatorService;
     private final MatchScoreService matchScoreService;
     private final ProductDisplayKeywordService productDisplayKeywordService;
+    private final PersonalizationAccessPolicy personalizationAccessPolicy;
 
     public ProductDetailResponseDto getProductDetail(
             Long productId,
@@ -62,7 +63,7 @@ public class ProductDetailService {
 
         boolean subscription = product.getType() == ProductType.SUBSCRIPTION;
         boolean government = ONTONG.equals(product.getSource().getCode()) && !subscription;
-        boolean metricsLocked = userDetails == null; // 비로그인 시 수익 지표 잠금(로그인 게이트)
+        boolean metricsLocked = !personalizationAccessPolicy.canUsePersonalization(calcRequest, userDetails);
         List<ProductProperty> joinableProperties = product.getProperties().stream()
                 .filter(ProductProperty::isJoinable)
                 .toList();
@@ -112,14 +113,14 @@ public class ProductDetailService {
             boolean subscription,
             Double bankMaxInterestThreshold
     ) {
-        boolean metricsLocked = userDetails == null;
+        boolean metricsLocked = !personalizationAccessPolicy.canUsePersonalization(calcRequest, userDetails);
         boolean showMetrics = !metricsLocked && !subscription && selected != null;
 
         // 적합도(리스트 탭A totalScore)는 잠금과 무관 — property/옵션이 있으면 계산.
         // includeTx는 리스트(SearchService.isTabBEnabled)와 동일하게 맞춰 값 일관성 보장.
         Double matchScore = null;
         if (selected != null && !calcRequest.options().isEmpty()) {
-            boolean includeTx = userDetails != null && calcRequest.hasTransactionHistory();
+            boolean includeTx = !metricsLocked;
             // 임계 금리도 리스트와 같은 값을 넘긴다 — 빠뜨리면 #최고이율 판정이 정적 태그 폴백으로
             // 떨어져서 같은 응답 안에서 카드 totalScore와 상세 matchScore가 갈린다.
             matchScore = matchScoreService

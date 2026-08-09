@@ -414,6 +414,44 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 로그인해도_2단계_필수정보가_미완료면_탭B를_비활성화한다() {
+        SearchRequestDto request = new SearchRequestDto(
+                List.of(new OptionRequestDto(CategoryIdEnum.REGION.getId(), 2L)),
+                new DetailedOptionsDto(
+                        null,
+                        30_000_000L,
+                        3,
+                        100,
+                        12,
+                        null,
+                        true,
+                        null,
+                        50L,
+                        null,
+                        List.of(),
+                        List.of(),
+                        List.of()
+                )
+        );
+
+        ProductSearchResultDto result = searchService.search(request, authenticatedUser());
+
+        assertThat(result.tabs().tabBEnabled()).isFalse();
+        assertThat(result.governmentRanked()).isNotEmpty();
+        assertThat(result.bankRanked()).isNotEmpty();
+        assertThat(result.governmentRateRanked()).isEmpty();
+        assertThat(result.bankRateRanked()).isEmpty();
+        assertThat(result.subscriptionProducts()).isEmpty();
+        assertThat(result.productCardSummaries())
+                .isNotEmpty()
+                .allSatisfy(summary -> {
+                    assertThat(summary.achievableRate()).isNull();
+                    assertThat(summary.expectedTotalContribution()).isNull();
+                    assertThat(summary.effectiveMonthlyDeposit()).isNull();
+                });
+    }
+
+    @Test
     void 모든_속성이_비활성인_상품은_추천과_상품명검색에_노출되지_않는다() {
         jdbcTemplate.update("""
                 UPDATE product_properties

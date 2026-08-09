@@ -81,6 +81,20 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 로그인해도_2단계_필수정보가_미완료면_수익지표를_잠근다() {
+        Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, incompleteRequest(null, 100L), authenticatedUser());
+
+        assertThat(detail.metricsLocked()).isTrue();
+        assertThat(detail.lockMessage()).isNotBlank();
+        assertThat(detail.government()).isNull();
+        assertThat(detail.bank()).isNull();
+        assertThat(detail.rateTable()).isNull();
+    }
+
+    @Test
     void 청약상품_상세는_로그인해도_간소화되어_수익지표가_없다() {
         Long productId = productId("SEARCH_SUBSCRIPTION");
         Long propertyId = propertyId("SEARCH_SUBSCRIPTION");
@@ -614,13 +628,28 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
                 productPropertyId,
                 List.of(),
                 new DetailedOptionsDto(
+                        LocalDate.now().minusYears(27),
+                        30_000_000L, 3, 100, 12, null, true, null,
+                        monthlySavingsGoal, null,
+                        List.of(),
+                        List.of(),
+                        List.of()
+                )
+        );
+    }
+
+    private ProductDetailRequestDto incompleteRequest(Long productPropertyId, Long monthlySavingsGoal) {
+        return new ProductDetailRequestDto(
+                productPropertyId,
+                List.of(),
+                new DetailedOptionsDto(
                         null, null, null, null, null, null, null, null,
                         monthlySavingsGoal, null, List.of()
                 )
         );
     }
 
-    // neverUsedBanks/maturedSavingBanks 비어있지 않게 채워 리스트 탭B(=includeTx)와 조건을 맞춘다.
+    // neverUsedBanks/maturedSavingBanks를 null이 아닌 값으로 채워 개인화 접근 조건과 맞춘다.
     private DetailedOptionsDto detailedOptions(long monthlySavingsGoal) {
         return new DetailedOptionsDto(
                 LocalDate.now().minusYears(27),

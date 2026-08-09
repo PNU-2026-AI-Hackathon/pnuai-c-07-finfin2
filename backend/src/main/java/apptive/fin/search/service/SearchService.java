@@ -36,6 +36,7 @@ public class SearchService {
     private final ResolveKeywordService resolveKeywordService;
     private final ProductRepository productRepository;
     private final ProductCardSummaryService productCardSummaryService;
+    private final PersonalizationAccessPolicy personalizationAccessPolicy;
 
     public ProductSearchResultDto search(SearchRequestDto request) {
         return search(request, null);
@@ -70,7 +71,7 @@ public class SearchService {
                 .toList();
 
         // tabB 활성화 여부 판별
-        boolean tabBEnabled = isTabBEnabled(request, userDetails);
+        boolean tabBEnabled = personalizationAccessPolicy.canUsePersonalization(request, userDetails);
 
         // 은행 #최고이율_중심 상위 30% 판정용 임계 금리(결과셋 maxRate 기준). null이면 정적 태그 방식으로 폴백.
         Double bankMaxInterestThreshold = topRateThreshold(bankList);
@@ -222,11 +223,6 @@ public class SearchService {
                 .toList();
     }
 
-    // TabB 활성화여부 판별
-    private boolean isTabBEnabled(SearchRequestDto request, AuthUserDetails userDetails) {
-        return userDetails != null && request.hasTransactionHistory();
-    }
-		
     // 키워드 선택 유효성 판별
     private void validateKeywordSelected(ResolvedKeywords keywords) {
 		    
