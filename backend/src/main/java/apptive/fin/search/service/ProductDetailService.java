@@ -4,19 +4,16 @@ import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.global.error.BusinessException;
 import apptive.fin.search.SearchErrorCode;
 import apptive.fin.search.dto.BankDetailDto;
-import apptive.fin.search.dto.EligibleProductOption;
 import apptive.fin.search.dto.GovernmentDetailDto;
 import apptive.fin.search.dto.PreferentialConditionDto;
 import apptive.fin.search.dto.ProductDetailRequestDto;
 import apptive.fin.search.dto.ProductDetailResponseDto;
 import apptive.fin.search.dto.RateTableRowDto;
-import apptive.fin.search.dto.RecommendationDetailTarget;
 import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.entity.ProductSource;
-import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.repository.ProductRepository;
 import apptive.fin.search.util.ProductAvailability;
@@ -26,13 +23,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -47,6 +40,7 @@ public class ProductDetailService {
     private final ResolveKeywordService resolveKeywordService;
     private final RateCalculatorService rateCalculatorService;
     private final MatchScoreService matchScoreService;
+    private final ProductDisplayKeywordService productDisplayKeywordService;
 
     public ProductDetailResponseDto getProductDetail(
             Long productId,
@@ -107,55 +101,6 @@ public class ProductDetailService {
         );
     }
 
-    /**
-     * 추천 목록에 실린 (상품, 옵션) 쌍마다 상세 정보를 만든다.
-     * 대상 옵션은 리스트가 고른 것을 그대로 받고(재선정 없음), 점수 계산에 쓰는 임계 금리도
-     * 리스트와 같은 값을 넘겨받는다 — 한 응답 안에서 카드와 상세가 다른 숫자를 말하지 않도록.
-     * 상세에 노출하는 property 집합(금리표·가입기간·키워드)은 검색에서 확보한 eligible 옵션 기준이다.
-     */
-    public List<ProductDetailResponseDto> getRecommendationDetails(
-            List<EligibleProductOption> eligibleOptions,
-            List<RecommendationDetailTarget> detailTargets,
-            SearchRequestDto request,
-            ResolvedKeywords keywords,
-            AuthUserDetails userDetails,
-            Double bankMaxInterestThreshold
-    ) {
-        if (detailTargets.isEmpty()) {
-            return List.of();
-        }
-
-        // { 상품id : ProductProperty[] }
-        Map<Long, List<ProductProperty>> propertiesByProduct = new LinkedHashMap<>();
-        for (EligibleProductOption option : eligibleOptions) {
-                propertiesByProduct
-                        .computeIfAbsent(option.product().getId(), id->new ArrayList<>())
-                        .add(option.property());
-        }
-
-
-        return detailTargets.stream()
-                .map(target -> {
-                    Product product = target.product();
-                    List<ProductProperty> detailProperties =
-                            propertiesByProduct.getOrDefault(product.getId(), List.of());
-                    boolean subscription = product.getType() == ProductType.SUBSCRIPTION;
-                    boolean government = ONTONG.equals(product.getSource().getCode()) && !subscription;
-                    return buildProductDetail(
-                            product,
-                            request,
-                            keywords,
-                            userDetails,
-                            target.selectedProperty(),
-                            detailProperties,
-                            government,
-                            subscription,
-                            bankMaxInterestThreshold
-                    );
-                })
-                .toList();
-    }
-
     private ProductDetailResponseDto buildProductDetail(
             Product product,
             SearchRequestDto calcRequest,
@@ -201,7 +146,11 @@ public class ProductDetailService {
                 .sourceCode(product.getSource().getCode())
                 .productName(product.getProductName())
                 .providerName(providerName(selected))
-                .keywords(distinctKeywords(product, detailProperties, bankMaxInterestThreshold))
+                .keywords(productDisplayKeywordService.resolve(
+                        product,
+                        detailProperties,
+                        bankMaxInterestThreshold
+                ))
                 .content(product.getContent())
                 .contentSummary(product.getContentSummary())
                 .saveTrms(saveTrms(detailProperties))
@@ -278,49 +227,6 @@ public class ProductDetailService {
                                         rate.getDescription()))
                                 .toList()))
                 .toList();
-    }
-
-    private List<KeywordValueEnum> distinctKeywords(
-            Product product,
-            List<ProductProperty> properties,
-            Double bankMaxInterestThreshold
-    ) {
-        // 최고이율은 정적 태그가 아니라 검색과 동일 철학으로 동적 판정한다(PRD A-2).
-        // 영속된 레거시 BENEFIT_MAX_INTEREST(재정규화 전 데이터·구 정부상품 태그 등)는 먼저 걸러내고,
-        // 동적 기준(전체 은행상품 상위 30%)을 충족할 때만 다시 붙여 배지가 오로지 동적 결과만 반영하게 한다.
-        List<KeywordValueEnum> keywords = properties.stream()
-                .flatMap(property -> property.keywordCodes().stream())
-                .filter(Objects::nonNull)
-                .filter(code -> code != KeywordValueEnum.BENEFIT_MAX_INTEREST)
-                .distinct()
-                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-
-        if (properties.stream().anyMatch(ProductProperty::isJoinable)
-                && isTopRateBank(product, properties, bankMaxInterestThreshold)) {
-            keywords.add(KeywordValueEnum.BENEFIT_MAX_INTEREST);
-        }
-        return keywords;
-    }
-
-    // 은행 상품이면서 그 상품의 (가입가능 속성 중) 최고 maxRate가 상위 30% 컷 이상이면 true.
-    // 컷 계산은 검색과 동일한 SearchService.computeTopRateThreshold를 재사용(읽기 전용, DB 미기록).
-    //
-    // 분자(상품 자체 금리)는 반드시 컷 모집단과 같은 property 집합에서 뽑아야 한다.
-    // product.getProperties()를 쓰면 안 되는데, 검색 경로에서 그 컬렉션은
-    // ProductRepository.findEligibleProducts의 WHERE 절 때문에 부분 초기화된 상태라
-    // 컷 모집단과 어긋난 값이 나온다. 그래서 호출부가 쓰는 property 목록을 그대로 받는다.
-    private boolean isTopRateBank(Product product, List<ProductProperty> properties, Double threshold) {
-        if (!product.isBank() || threshold == null) {
-            return false;
-        }
-        Double productMaxRate = properties.stream()
-                .filter(ProductProperty::isJoinable)
-                .map(ProductProperty::getMaxRate)
-                .filter(Objects::nonNull)
-                .map(BigDecimal::doubleValue)
-                .max(Double::compareTo)
-                .orElse(null);
-        return productMaxRate != null && productMaxRate >= threshold;
     }
 
     private Double bankMaxInterestThreshold() {

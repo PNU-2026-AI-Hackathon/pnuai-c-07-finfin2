@@ -12,7 +12,7 @@ public record ProductSearchResultDto(
         List<ProductRateDto> governmentRateRanked,
         List<ProductRateDto> bankRateRanked,
         List<ProductRateDto> subscriptionProducts,
-        List<ProductDetailResponseDto> productDetails,
+        List<ProductCardSummaryDto> productCardSummaries,
         Long eligibleProductCount
 ) {
 }

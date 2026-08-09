@@ -5,11 +5,12 @@ import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.search.dto.DetailedOptionsDto;
 import apptive.fin.search.dto.OptionRequestDto;
+import apptive.fin.search.dto.ProductCardSummaryDto;
 import apptive.fin.search.dto.ProductMatchDto;
-import apptive.fin.search.dto.ProductDetailResponseDto;
 import apptive.fin.search.dto.ProductRateDto;
 import apptive.fin.search.dto.ProductSearchResultDto;
 import apptive.fin.search.dto.SearchRequestDto;
+import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.repository.ProductRepository;
 import apptive.fin.global.error.BusinessException;
 import apptive.fin.search.service.SearchService;
@@ -23,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.jdbc.Sql;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.util.HashSet;
@@ -66,62 +68,97 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
     @Autowired
     private EntityManagerFactory entityManagerFactory;
 
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Test
-    void 추천응답은_모든_추천카드의_상세정보를_옵션단위로_포함한다() {
+    void 추천응답은_모든_랭킹옵션의_카드요약을_옵션단위로_포함한다() {
         ProductSearchResultDto result = searchService.search(createRequest(50, List.of()), authenticatedUser());
 
-        // 상세는 상품이 아니라 (상품, 옵션) 단위다 — 카드가 고른 옵션과 상세가 본 옵션이 같아야 값이 일치한다.
-        assertThat(result.productDetails())
-                .extracting(ProductDetailResponseDto::productPropertyId)
-                .containsExactlyInAnyOrderElementsOf(rankedPropertyIds(result));
-    }
-
-    @Test
-    void 추천상품상세는_로그인시_화면용_정보와_수익지표를_포함한다() {
-        ProductSearchResultDto result = searchService.search(createRequest(50, List.of()), authenticatedUser());
-
-        ProductDetailResponseDto bankDetail = result.productDetails().stream()
-                .filter(detail -> detail.productName().equals("청년우대적금"))
-                .findFirst()
-                .orElseThrow();
-
-        assertThat(bankDetail.providerName()).isEqualTo("국민은행");
-        assertThat(bankDetail.content()).isEqualTo("만 19~29세 전용 우대 적금");
-        assertThat(bankDetail.metricsLocked()).isFalse();
-        assertThat(bankDetail.bank()).isNotNull();
-        assertThat(bankDetail.government()).isNull();
-        assertThat(bankDetail.rateTable()).isNotEmpty();
-    }
-
-    @Test
-    void 비로그인_추천상품상세는_수익지표를_잠근다() {
-        ProductSearchResultDto result = searchService.search(createRequest(50, List.of()));
-
-        assertThat(result.productDetails())
-                .isNotEmpty() // allSatisfy는 빈 리스트에 무조건 통과하므로 먼저 비어있지 않음을 확인
-                .allSatisfy(detail -> {
-                    assertThat(detail.metricsLocked()).isTrue();
-                    assertThat(detail.government()).isNull();
-                    assertThat(detail.bank()).isNull();
-                    assertThat(detail.rateTable()).isNull();
-                });
-    }
-
-    @Test
-    void 추천상품상세에는_청약상품도_포함되고_같은_옵션이_중복되지_않는다() {
-        ProductSearchResultDto result = searchService.search(createRequest(50, List.of()), authenticatedUser());
-
-        // 청약상품은 ProductRateDto의 productPropertyId가 null이지만 govRanked를 통해 커버돼야 한다.
-        assertThat(result.productDetails())
-                .extracting(ProductDetailResponseDto::productName)
-                .contains("청년우대형 청약통장");
-        assertThat(result.productDetails())
-                .extracting(ProductDetailResponseDto::productPropertyId)
+        assertThat(result.productCardSummaries())
+                .extracting(summary -> summary.productPropertyId())
+                .containsExactlyInAnyOrderElementsOf(rankedPropertyIds(result))
                 .doesNotHaveDuplicates();
     }
 
     @Test
-    void 추천상품상세는_상품별_저장소_재조회_없이_검색에서_확보한_엔티티를_사용한다() {
+    void 은행카드요약은_선택옵션의_목록표시정보만_포함한다() {
+        ProductSearchResultDto result = searchService.search(createRequest(50, List.of()), authenticatedUser());
+        ProductMatchDto card = findMatch(result.bankRanked(), "청년우대적금");
+
+        ProductCardSummaryDto summary = findSummary(result, card.productPropertyId());
+
+        assertThat(summary)
+                .satisfies(value -> {
+                    assertThat(value.badgeKeywords()).doesNotContain(KeywordValueEnum.REGION_BUSAN);
+                    assertThat(value.saveTrms()).containsExactly(12);
+                    assertThat(value.minMonthlyLimit()).isEqualTo(10L);
+                    assertThat(value.maxMonthlyLimit()).isEqualTo(50L);
+                    assertThat(value.matchScore()).isCloseTo(card.totalScore(), offset(0.0001));
+                    assertThat(value.baseRate()).isEqualTo(3.8);
+                    assertThat(value.maxRate()).isEqualTo(4.5);
+                    assertThat(value.achievableRate()).isEqualTo(3.8);
+                    assertThat(value.expectedTotalContribution()).isNull();
+                });
+    }
+
+    @Test
+    void 정부카드요약은_선택옵션의_기여금지표를_포함한다() {
+        ProductSearchResultDto result = searchService.search(createRequest(50, List.of()), authenticatedUser());
+        ProductRateDto card = findRate(result.governmentRateRanked(), "청년내일채움공제");
+
+        ProductCardSummaryDto summary = findSummary(result, card.productPropertyId());
+
+        assertThat(summary.achievableRate()).isEqualTo(card.achievableRate());
+        assertThat(summary.expectedTotalContribution()).isEqualTo(1_200L);
+        assertThat(summary.effectiveMonthlyDeposit()).isEqualTo(50L);
+        assertThat(summary.contributionPeriodMonths()).isEqualTo(24);
+    }
+
+    @Test
+    void 추천응답Json은_전체상품상세를_포함하지않는다() {
+        ProductSearchResultDto result = searchService.search(createRequest(50, List.of()), authenticatedUser());
+
+        String json = objectMapper.writeValueAsString(result);
+
+        assertThat(json)
+                .contains("\"productCardSummaries\"")
+                .doesNotContain(
+                        "\"productDetails\"",
+                        "\"rateTable\"",
+                        "\"eligibilityText\"",
+                        "\"cautionText\"",
+                        "\"applyUrl\""
+                );
+    }
+
+    @Test
+    void 비로그인_카드요약은_개인화수익지표를_노출하지않는다() {
+        ProductSearchResultDto result = searchService.search(createRequest(50, List.of()));
+
+        assertThat(result.productCardSummaries())
+                .isNotEmpty()
+                .allSatisfy(summary -> {
+                    assertThat(summary.achievableRate()).isNull();
+                    assertThat(summary.expectedTotalContribution()).isNull();
+                    assertThat(summary.effectiveMonthlyDeposit()).isNull();
+                });
+    }
+
+    @Test
+    void 청약상품_카드요약은_적합도대표옵션으로_제공한다() {
+        ProductSearchResultDto result = searchService.search(createRequest(50, List.of()), authenticatedUser());
+        ProductMatchDto subscriptionCard = findMatch(result.governmentRanked(), "청년우대형 청약통장");
+
+        ProductCardSummaryDto summary = findSummary(result, subscriptionCard.productPropertyId());
+
+        assertThat(summary.productType()).isEqualTo(ProductType.SUBSCRIPTION);
+        assertThat(summary.achievableRate()).isNull();
+        assertThat(summary.expectedTotalContribution()).isNull();
+    }
+
+    @Test
+    void 카드요약은_상품별_저장소_재조회없이_검색엔티티를_사용한다() {
         searchService.search(createRequest(50, List.of()), authenticatedUser());
 
         verify(productRepository, times(1)).findEligibleProducts(
@@ -131,7 +168,7 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 추천상세는_상품수가_늘어도_쿼리수가_비례해_늘지_않는다() {
+    void 카드요약은_상품수가_늘어도_쿼리수가_비례해_늘지_않는다() {
         SearchRequestDto request = createRequest(50, List.of());
         long baseline = queryCountOf(() -> searchService.search(request, authenticatedUser()));
         // statistics가 꺼져 있으면 0이 나와 무조건 통과하므로 계측이 살아있는지 먼저 확인
@@ -141,14 +178,14 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
         long scaled = queryCountOf(() -> searchService.search(request, authenticatedUser()));
 
         // @BatchSize(100) 배치 로딩이면 상품이 10개 늘어도 쿼리 수는 사실상 그대로다.
-        // 상세를 만들면서 상품별 lazy 왕복이 생기면 수십 개가 붙어 바로 걸린다.
+        // 요약을 만들면서 상품별 lazy 왕복이 생기면 수십 개가 붙어 바로 걸린다.
         assertThat(scaled).isLessThanOrEqualTo(baseline + 2);
     }
 
     @Test
-    void 최고이율_중심을_선택하면_상세_적합도가_리스트_카드_점수와_일치한다() {
+    void 최고이율_중심을_선택하면_카드요약의_적합도와_배지가_랭킹과_일치한다() {
         // #최고이율_중심은 정적 태그가 아니라 결과셋 상위 30% 컷으로 동적 판정한다.
-        // 상세가 그 임계값을 못 받으면 정적 태그 폴백으로 떨어지는데, 픽스처에 정적
+        // 요약이 그 임계값을 못 받으면 정적 태그 폴백으로 떨어지는데, 픽스처에 정적
         // BENEFIT_MAX_INTEREST 행이 없어서 상위권 은행상품의 점수가 카드보다 낮게 나온다.
         ProductSearchResultDto result = searchService.search(
                 createRequest(50, List.of(
@@ -158,25 +195,25 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                 authenticatedUser());
 
         ProductMatchDto topRateCard = findMatch(result.bankRanked(), "청년우대적금");
-        ProductDetailResponseDto topRateDetail = findDetail(result, topRateCard.productPropertyId());
+        ProductCardSummaryDto topRateSummary = findSummary(result, topRateCard.productPropertyId());
 
         assertThat(topRateCard.benefitScore()).isPositive(); // 컷(4.5) 충족 → 동적 판정으로 혜택 점수를 받는다
-        assertThat(topRateDetail.matchScore()).isCloseTo(topRateCard.totalScore(), offset(0.0001));
-        assertThat(topRateDetail.keywords()).contains(KeywordValueEnum.BENEFIT_MAX_INTEREST);
+        assertThat(topRateSummary.matchScore()).isCloseTo(topRateCard.totalScore(), offset(0.0001));
+        assertThat(topRateSummary.badgeKeywords()).contains(KeywordValueEnum.BENEFIT_MAX_INTEREST);
 
         // 컷 미달 상품도 같은 기준으로 판정돼야 한다(양쪽 다 0점으로 일치).
         ProductMatchDto belowCutCard = findMatch(result.bankRanked(), "e-쎄이프 정기예금");
-        ProductDetailResponseDto belowCutDetail = findDetail(result, belowCutCard.productPropertyId());
+        ProductCardSummaryDto belowCutSummary = findSummary(result, belowCutCard.productPropertyId());
 
         assertThat(belowCutCard.benefitScore()).isZero();
-        assertThat(belowCutDetail.matchScore()).isCloseTo(belowCutCard.totalScore(), offset(0.0001));
-        assertThat(belowCutDetail.keywords()).doesNotContain(KeywordValueEnum.BENEFIT_MAX_INTEREST);
+        assertThat(belowCutSummary.matchScore()).isCloseTo(belowCutCard.totalScore(), offset(0.0001));
+        assertThat(belowCutSummary.badgeKeywords()).doesNotContain(KeywordValueEnum.BENEFIT_MAX_INTEREST);
     }
 
     @Test
-    void 적합도_대표옵션과_금리_대표옵션이_다르면_카드마다_자기_옵션_상세를_받는다() {
+    void 적합도_대표옵션과_금리_대표옵션이_다르면_각각_자기옵션의_카드요약을_받는다() {
         // 청년우대적금에 36개월·고금리 옵션을 붙이면 탭A(적합도)는 12개월, 탭B(금리)는 36개월을 고른다.
-        // 상세를 상품당 1건만 만들면 금리순 카드의 금리와 상세의 금리가 갈린다.
+        // 요약을 상품당 1건만 만들면 금리순 카드의 금리와 요약의 금리가 갈린다.
         insertLongTermHighRateOption();
 
         ProductSearchResultDto result = searchService.search(
@@ -189,12 +226,22 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
         ProductRateDto rateCard = findRate(result.bankRateRanked(), "청년우대적금");
         assertThat(matchCard.productPropertyId()).isNotEqualTo(rateCard.productPropertyId());
 
-        ProductDetailResponseDto matchDetail = findDetail(result, matchCard.productPropertyId());
-        ProductDetailResponseDto rateDetail = findDetail(result, rateCard.productPropertyId());
+        ProductCardSummaryDto matchSummary = findSummary(result, matchCard.productPropertyId());
+        ProductCardSummaryDto rateSummary = findSummary(result, rateCard.productPropertyId());
 
-        assertThat(matchDetail.matchScore()).isCloseTo(matchCard.totalScore(), offset(0.0001));
-        assertThat(rateDetail.bank().achievableRate()).isEqualTo(rateCard.achievableRate());
-        assertThat(matchDetail.bank().achievableRate()).isNotEqualTo(rateDetail.bank().achievableRate());
+        assertThat(matchSummary.matchScore()).isCloseTo(matchCard.totalScore(), offset(0.0001));
+        assertThat(rateSummary.achievableRate()).isEqualTo(rateCard.achievableRate());
+        assertThat(matchSummary.achievableRate()).isNotEqualTo(rateSummary.achievableRate());
+        assertThat(matchSummary.badgeKeywords()).doesNotContain(
+                KeywordValueEnum.BENEFIT_EASY_CONDITION,
+                KeywordValueEnum.BENEFIT_MAX_INTEREST
+        );
+        assertThat(rateSummary.badgeKeywords()).contains(
+                KeywordValueEnum.BENEFIT_EASY_CONDITION,
+                KeywordValueEnum.BENEFIT_MAX_INTEREST
+        );
+        assertThat(matchSummary.saveTrms()).containsExactly(12, 36);
+        assertThat(rateSummary.saveTrms()).containsExactly(12, 36);
     }
 
     @Test
@@ -434,9 +481,9 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
         return propertyIds;
     }
 
-    private ProductDetailResponseDto findDetail(ProductSearchResultDto result, Long productPropertyId) {
-        return result.productDetails().stream()
-                .filter(detail -> productPropertyId.equals(detail.productPropertyId()))
+    private ProductCardSummaryDto findSummary(ProductSearchResultDto result, Long productPropertyId) {
+        return result.productCardSummaries().stream()
+                .filter(summary -> productPropertyId.equals(summary.productPropertyId()))
                 .findFirst()
                 .orElseThrow();
     }
@@ -481,6 +528,14 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                     19, 29, false, false,
                     true, 'SINGLE_INTEREST', 36
                 )
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO product_property_keyword (product_property_id, keyword_code)
+                SELECT pp.id, 'BENEFIT_EASY_CONDITION'
+                FROM product_properties pp
+                JOIN product p ON p.id = pp.product_id
+                WHERE p.product_code = 'SEARCH_YOUTH_SAVING'
+                  AND pp.save_trm = 36
                 """);
     }
 
