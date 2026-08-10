@@ -1,6 +1,8 @@
 package apptive.fin.apicollector.bankurl;
 
 import com.microsoft.playwright.Browser;
+import apptive.fin.apicollector.bankurl.scraper.BankProductScraper;
+import apptive.fin.apicollector.bankurl.scraper.ScrapedProduct;
 import apptive.fin.apicollector.product.ProductType;
 import org.junit.jupiter.api.Test;
 

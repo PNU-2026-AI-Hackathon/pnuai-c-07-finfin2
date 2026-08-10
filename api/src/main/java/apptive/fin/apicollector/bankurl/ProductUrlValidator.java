@@ -1,5 +1,7 @@
 package apptive.fin.apicollector.bankurl;
 
+import apptive.fin.apicollector.bankurl.scraper.ProductNameSimilarity;
+
 import java.net.URI;
 import java.util.Locale;
 import java.util.Set;

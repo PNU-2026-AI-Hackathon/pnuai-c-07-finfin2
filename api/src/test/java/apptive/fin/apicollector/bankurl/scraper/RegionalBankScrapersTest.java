@@ -1,4 +1,4 @@
-package apptive.fin.apicollector.bankurl;
+package apptive.fin.apicollector.bankurl.scraper;
 
 import org.jsoup.Jsoup;
 import org.junit.jupiter.api.Test;

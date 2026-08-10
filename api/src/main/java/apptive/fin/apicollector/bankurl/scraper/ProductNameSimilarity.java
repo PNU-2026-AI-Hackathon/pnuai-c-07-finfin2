@@ -1,4 +1,4 @@
-package apptive.fin.apicollector.bankurl;
+package apptive.fin.apicollector.bankurl.scraper;
 
 import me.xdrop.fuzzywuzzy.FuzzySearch;
 
@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-final class ProductNameSimilarity {
+public final class ProductNameSimilarity {
 
     private static final List<String> BANK_WORDS = List.of(
             "KB", "국민은행", "신한은행", "우리은행", "하나은행",
@@ -15,7 +15,7 @@ final class ProductNameSimilarity {
             "토스뱅크", "케이뱅크"
     );
 
-    double score(String left, String right) {
+    public double score(String left, String right) {
         String normalizedLeft = normalize(left);
         String normalizedRight = normalize(right);
         if (normalizedLeft.isEmpty() || normalizedRight.isEmpty()) {

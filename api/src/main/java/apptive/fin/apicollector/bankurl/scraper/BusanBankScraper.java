@@ -1,4 +1,4 @@
-package apptive.fin.apicollector.bankurl;
+package apptive.fin.apicollector.bankurl.scraper;
 
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Locator;

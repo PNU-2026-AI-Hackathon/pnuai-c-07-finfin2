@@ -1,5 +1,7 @@
 package apptive.fin.apicollector.bankurl;
 
+import apptive.fin.apicollector.bankurl.scraper.BankProductScraper;
+import apptive.fin.apicollector.bankurl.scraper.ScrapedProduct;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;

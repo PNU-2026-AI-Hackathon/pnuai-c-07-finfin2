@@ -1,5 +1,7 @@
 package apptive.fin.apicollector.bankurl;
 
+import apptive.fin.apicollector.bankurl.scraper.BankProductScraper;
+import apptive.fin.apicollector.bankurl.scraper.ScrapedProduct;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
