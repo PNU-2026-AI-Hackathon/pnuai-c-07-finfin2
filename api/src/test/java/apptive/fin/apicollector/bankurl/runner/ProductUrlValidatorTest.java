@@ -1,4 +1,4 @@
-package apptive.fin.apicollector.bankurl.scrape;
+package apptive.fin.apicollector.bankurl.runner;
 
 import apptive.fin.apicollector.bankurl.ScrapeStatus;
 import org.junit.jupiter.api.Test;

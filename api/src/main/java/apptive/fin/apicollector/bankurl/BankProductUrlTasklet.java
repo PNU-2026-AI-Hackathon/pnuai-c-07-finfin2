@@ -1,6 +1,6 @@
 package apptive.fin.apicollector.bankurl;
 
-import apptive.fin.apicollector.bankurl.scrape.BankProductUrlScrapeService;
+import apptive.fin.apicollector.bankurl.runner.BankProductUrlScrapeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.scope.context.ChunkContext;
