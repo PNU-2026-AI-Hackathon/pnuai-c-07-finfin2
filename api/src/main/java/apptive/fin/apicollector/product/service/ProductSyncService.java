@@ -62,7 +62,11 @@ public class ProductSyncService {
                 )));
 
         product.updateFrom(draft);
-        product.replaceProperties(draft.properties(), propertyDraft -> resolveProvider(source, propertyDraft));
+        product.replaceProperties(
+                draft.properties(),
+                propertyDraft -> resolveProvider(source, propertyDraft),
+                Source.FSS.name().equals(draft.sourceCode())
+        );
 
         markNormalized(draft);
     }

@@ -119,6 +119,14 @@ public class Product extends BaseTimeEntity {
             List<ProductPropertyDraft> propertyDrafts,
             Function<ProductPropertyDraft, Provider> providerResolver
     ) {
+        replaceProperties(propertyDrafts, providerResolver, false);
+    }
+
+    public void replaceProperties(
+            List<ProductPropertyDraft> propertyDrafts,
+            Function<ProductPropertyDraft, Provider> providerResolver,
+            boolean preserveExistingApplyUrl
+    ) {
         Map<PropertyKey, ProductProperty> existingByKey = new HashMap<>();
         for (ProductProperty property : this.properties) {
             existingByKey.putIfAbsent(keyOf(property), property);
@@ -135,7 +143,7 @@ public class Product extends BaseTimeEntity {
             ProductProperty existing = existingByKey.get(key);
 
             if (existing != null && firstOccurrence) {
-                existing.updateFrom(provider, propertyDraft);
+                existing.updateFrom(provider, propertyDraft, preserveExistingApplyUrl);
             } else {
                 this.properties.add(ProductProperty.create(this, provider, propertyDraft));
             }

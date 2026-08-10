@@ -10,5 +10,5 @@ public interface BankProductScraper {
 
     Set<String> allowedDomains();
 
-    ScrapedProduct scrape(Browser browser, String productName);
+    ScrapedProduct scrape(Browser browser, String productName, int timeoutMillis);
 }

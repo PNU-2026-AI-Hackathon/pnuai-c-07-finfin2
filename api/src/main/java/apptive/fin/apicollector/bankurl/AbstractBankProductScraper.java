@@ -35,8 +35,10 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
     protected final ProductNameSimilarity similarity = new ProductNameSimilarity();
 
     @Override
-    public ScrapedProduct scrape(Browser browser, String productName) {
+    public ScrapedProduct scrape(Browser browser, String productName, int timeoutMillis) {
         try (BrowserContext context = browser.newContext()) {
+            context.setDefaultTimeout(timeoutMillis);
+            context.setDefaultNavigationTimeout(timeoutMillis);
             List<ProductCandidate> candidates = search(context, productName);
             ProductCandidate selected = select(candidates, productName);
             return collect(context, selected, productName);

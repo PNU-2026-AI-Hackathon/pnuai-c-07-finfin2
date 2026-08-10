@@ -169,6 +169,26 @@ class ProductTest {
     }
 
     @Test
+    void replacePropertiesCanPreserveExistingApplyUrlWhenDraftOmitsIt() {
+        Product product = newProduct();
+        Provider provider = newProvider(product.getSource());
+        ProductPropertyDraft initial = draft(12, "F", new BigDecimal("3.00"))
+                .toBuilder()
+                .applyUrl("https://bank.example/product")
+                .build();
+        product.replaceProperties(List.of(initial), ignored -> provider);
+
+        product.replaceProperties(
+                List.of(draft(12, "F", new BigDecimal("3.50"))),
+                ignored -> provider,
+                true
+        );
+
+        assertThat(product.getProperties().getFirst().getApplyUrl())
+                .isEqualTo("https://bank.example/product");
+    }
+
+    @Test
     void replaceKeywordsReusesExistingKeywordsAndAddsOnlyMissingOnes() {
         ProductSource source = ProductSource.create("ONTONG_YOUTH", "ONTONG_YOUTH");
         Provider provider = Provider.create(source, "ORG001", "테스트기관", null);
