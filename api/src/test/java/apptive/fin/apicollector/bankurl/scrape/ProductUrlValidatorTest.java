@@ -1,5 +1,6 @@
-package apptive.fin.apicollector.bankurl;
+package apptive.fin.apicollector.bankurl.scrape;
 
+import apptive.fin.apicollector.bankurl.ScrapeStatus;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;

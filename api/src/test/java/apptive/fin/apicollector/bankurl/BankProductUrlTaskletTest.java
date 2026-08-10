@@ -1,5 +1,6 @@
 package apptive.fin.apicollector.bankurl;
 
+import apptive.fin.apicollector.bankurl.scrape.BankProductUrlScrapeService;
 import apptive.fin.apicollector.product.ProductType;
 import org.junit.jupiter.api.Test;
 import org.springframework.batch.infrastructure.repeat.RepeatStatus;

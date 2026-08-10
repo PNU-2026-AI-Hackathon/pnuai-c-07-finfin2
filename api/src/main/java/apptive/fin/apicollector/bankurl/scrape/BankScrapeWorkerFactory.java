@@ -1,4 +1,4 @@
-package apptive.fin.apicollector.bankurl;
+package apptive.fin.apicollector.bankurl.scrape;
 
 interface BankScrapeWorkerFactory {
 

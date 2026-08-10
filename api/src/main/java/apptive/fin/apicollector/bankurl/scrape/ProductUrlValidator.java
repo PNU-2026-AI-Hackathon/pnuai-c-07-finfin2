@@ -1,5 +1,6 @@
-package apptive.fin.apicollector.bankurl;
+package apptive.fin.apicollector.bankurl.scrape;
 
+import apptive.fin.apicollector.bankurl.ScrapeStatus;
 import apptive.fin.apicollector.bankurl.scraper.ProductNameSimilarity;
 
 import java.net.URI;

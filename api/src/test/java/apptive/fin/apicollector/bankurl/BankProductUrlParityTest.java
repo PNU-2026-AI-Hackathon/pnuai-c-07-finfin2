@@ -1,5 +1,6 @@
 package apptive.fin.apicollector.bankurl;
 
+import apptive.fin.apicollector.bankurl.scrape.BankProductUrlScrapeService;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
