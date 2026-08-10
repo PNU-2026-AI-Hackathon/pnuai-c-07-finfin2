@@ -57,6 +57,44 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
         return dedupe(candidates);
     }
 
+    protected List<ProductCandidate> extractProductsWithSelectors(
+            Document document,
+            String currentUrl,
+            List<String> blockSelectors,
+            List<String> nameSelectors,
+            boolean includeAnchors
+    ) {
+        List<ProductCandidate> candidates = new ArrayList<>();
+        if (includeAnchors) {
+            candidates.addAll(extractProducts(document, currentUrl));
+        }
+        for (Element block : document.select(String.join(",", blockSelectors))) {
+            String name = bestName(block, nameSelectors);
+            if (!looksLikeProductName(name)) {
+                continue;
+            }
+            for (Element anchor : block.select("a")) {
+                String url = urlFromAnchor(anchor, currentUrl);
+                if (!url.isBlank()) {
+                    candidates.add(new ProductCandidate(name, url));
+                    break;
+                }
+            }
+        }
+        return dedupe(candidates);
+    }
+
+    protected String bestName(Element block, List<String> selectors) {
+        for (String selector : selectors) {
+            Element target = block.selectFirst(selector);
+            String text = cleanText(target == null ? "" : target.text());
+            if (looksLikeProductName(text)) {
+                return text;
+            }
+        }
+        return cleanText(block.text());
+    }
+
     protected ProductCandidate select(List<ProductCandidate> candidates, String productName) {
         return candidates.stream()
                 .max((left, right) -> Double.compare(
