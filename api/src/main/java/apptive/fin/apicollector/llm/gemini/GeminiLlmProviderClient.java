@@ -5,6 +5,7 @@ import apptive.fin.apicollector.llm.LlmProductEnrichment;
 import apptive.fin.apicollector.llm.LlmProductEnrichmentRequest;
 import apptive.fin.apicollector.llm.LlmProviderClient;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import tools.jackson.databind.JsonNode;
@@ -44,10 +45,13 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
 
     @Override
     public LlmProductEnrichment enrich(LlmProductEnrichmentRequest request) {
+        byte[] requestBytes = objectMapper.writeValueAsBytes(requestBody(request));
         JsonNode response = restClient.post()
                 .uri("/v1beta/interactions")
                 .header("x-goog-api-key", properties.llm().apiKey())
-                .body(requestBody(request))
+                .contentType(MediaType.APPLICATION_JSON)
+                .contentLength(requestBytes.length)
+                .body(requestBytes)
                 .retrieve()
                 .body(JsonNode.class);
 

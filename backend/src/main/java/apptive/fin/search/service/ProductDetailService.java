@@ -4,6 +4,7 @@ import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.global.error.BusinessException;
 import apptive.fin.search.SearchErrorCode;
 import apptive.fin.search.dto.BankDetailDto;
+import apptive.fin.search.dto.EligibleProductOption;
 import apptive.fin.search.dto.GovernmentDetailDto;
 import apptive.fin.search.dto.PreferentialConditionDto;
 import apptive.fin.search.dto.ProductDetailRequestDto;
@@ -14,16 +15,15 @@ import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.entity.ProductSource;
-import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.repository.ProductRepository;
 import apptive.fin.search.util.ProductAvailability;
+import apptive.fin.search.dto.OptionRequestDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -35,12 +35,15 @@ public class ProductDetailService {
 
     private static final String ONTONG = "ONTONG";
     private static final String METRICS_LOCK_MESSAGE =
-            "내가 받을 수 있는 금리·기여금 환산 수익률·예상 만기 기여금 총액은 로그인 후 단계2 정보를 입력하면 확인할 수 있어요.";
+            "내가 받을 수 있는 금리·기여금 환산 수익률·예상 만기 기여금 총액은 로그인 후 1·2단계 필수 정보를 입력하면 확인할 수 있어요.";
 
     private final ProductRepository productRepository;
     private final ResolveKeywordService resolveKeywordService;
     private final RateCalculatorService rateCalculatorService;
     private final MatchScoreService matchScoreService;
+    private final ProductDisplayKeywordService productDisplayKeywordService;
+    private final SearchRequestPolicy searchRequestPolicy;
+    private final EligibilityFilterService eligibilityFilterService;
 
     public ProductDetailResponseDto getProductDetail(
             Long productId,
@@ -55,14 +58,16 @@ public class ProductDetailService {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new BusinessException(SearchErrorCode.PRODUCT_NOT_FOUND));
 
-        List<apptive.fin.search.dto.OptionRequestDto> options =
+        List<OptionRequestDto> options =
                 req.options() != null ? req.options() : List.of();
         ResolvedKeywords keywords = resolveKeywordService.resolveKeywords(options);
         SearchRequestDto calcRequest = new SearchRequestDto(options, req.detailedOptions());
 
         boolean subscription = product.getType() == ProductType.SUBSCRIPTION;
         boolean government = ONTONG.equals(product.getSource().getCode()) && !subscription;
-        boolean metricsLocked = userDetails == null; // 비로그인 시 수익 지표 잠금(로그인 게이트)
+        boolean requestedProperty = req.productPropertyId() != null;
+        boolean metricsLocked = !requestedProperty
+                || !searchRequestPolicy.canUsePersonalization(calcRequest, keywords, userDetails);
         List<ProductProperty> joinableProperties = product.getProperties().stream()
                 .filter(ProductProperty::isJoinable)
                 .toList();
@@ -73,26 +78,59 @@ public class ProductDetailService {
         ProductProperty selected = selectProperty(
                 product,
                 detailCandidates,
-                archivedProduct,
-                req.productPropertyId(),
-                calcRequest,
-                keywords,
-                metricsLocked
+                req.productPropertyId()
         );
         List<ProductProperty> detailProperties = req.productPropertyId() != null
                 && selected != null
                 && !selected.isJoinable()
                 ? List.of(selected)
                 : detailCandidates;
+
+        Double bankMaxInterestThreshold = product.isBank()
+                ? bankMaxInterestThreshold(
+                        calcRequest,
+                        keywords,
+                        requestedProperty && !options.isEmpty()
+                )
+                : null;
+
+        return buildProductDetail(
+                product,
+                calcRequest,
+                keywords,
+                selected,
+                detailProperties,
+                government,
+                subscription,
+                requestedProperty,
+                metricsLocked,
+                bankMaxInterestThreshold
+        );
+    }
+
+    private ProductDetailResponseDto buildProductDetail(
+            Product product,
+            SearchRequestDto calcRequest,
+            ResolvedKeywords keywords,
+            ProductProperty selected,
+            List<ProductProperty> detailProperties,
+            boolean government,
+            boolean subscription,
+            boolean requestedProperty,
+            boolean metricsLocked,
+            Double bankMaxInterestThreshold
+    ) {
         boolean showMetrics = !metricsLocked && !subscription && selected != null;
 
         // 적합도(리스트 탭A totalScore)는 잠금과 무관 — property/옵션이 있으면 계산.
-        // includeTx는 리스트(SearchService.isTabBEnabled)와 동일하게 맞춰 값 일관성 보장.
+        // includeTx는 리스트의 SearchRequestPolicy 판정과 동일하게 맞춰 값 일관성 보장.
         Double matchScore = null;
-        if (selected != null && !options.isEmpty()) {
-            boolean includeTx = userDetails != null && calcRequest.hasTransactionHistory();
+        if (requestedProperty && selected != null && !calcRequest.options().isEmpty()) {
+            boolean includeTx = !metricsLocked;
+            // 임계 금리도 리스트와 같은 값을 넘긴다 — 빠뜨리면 #최고이율 판정이 정적 태그 폴백으로
+            // 떨어져서 같은 응답 안에서 카드 totalScore와 상세 matchScore가 갈린다.
             matchScore = matchScoreService
-                    .score(product, selected, calcRequest, keywords, includeTx)
+                    .score(product, selected, calcRequest, keywords, includeTx, bankMaxInterestThreshold)
                     .totalScore();
         }
 
@@ -110,11 +148,16 @@ public class ProductDetailService {
 
         return ProductDetailResponseDto.builder()
                 .productId(product.getId())
+                .productPropertyId(selected != null ? selected.getId() : null)
                 .productType(product.getType())
                 .sourceCode(product.getSource().getCode())
                 .productName(product.getProductName())
                 .providerName(providerName(selected))
-                .keywords(distinctKeywords(product, detailProperties))
+                .keywords(productDisplayKeywordService.resolve(
+                        product,
+                        detailProperties,
+                        bankMaxInterestThreshold
+                ))
                 .content(product.getContent())
                 .contentSummary(product.getContentSummary())
                 .saveTrms(saveTrms(detailProperties))
@@ -145,11 +188,7 @@ public class ProductDetailService {
     private ProductProperty selectProperty(
             Product product,
             List<ProductProperty> detailCandidates,
-            boolean archivedProduct,
-            Long productPropertyId,
-            SearchRequestDto request,
-            ResolvedKeywords keywords,
-            boolean metricsLocked
+            Long productPropertyId
     ) {
         if (productPropertyId != null) {
             return product.getProperties().stream()
@@ -157,14 +196,10 @@ public class ProductDetailService {
                     .findFirst()
                     .orElseThrow(() -> new BusinessException(SearchErrorCode.PRODUCT_NOT_FOUND));
         }
-        if (metricsLocked || archivedProduct) {
-            return detailCandidates.stream()
-                    .sorted(publishedRateOrder())
-                    .findFirst()
-                    .orElse(null);
-        }
-        // 직접 진입 등으로 productPropertyId가 없으면 대표 property 폴백 (리스트 eligibility를 안 거쳐 값이 다를 수 있음)
-        return rateCalculatorService.selectRepresentativeProperty(product, detailCandidates, request, keywords);
+        return detailCandidates.stream()
+                .sorted(publishedRateOrder())
+                .findFirst()
+                .orElse(null);
     }
 
     private Comparator<ProductProperty> publishedRateOrder() {
@@ -193,45 +228,23 @@ public class ProductDetailService {
                 .toList();
     }
 
-    private List<KeywordValueEnum> distinctKeywords(Product product, List<ProductProperty> properties) {
-        // 최고이율은 정적 태그가 아니라 검색과 동일 철학으로 동적 판정한다(PRD A-2).
-        // 영속된 레거시 BENEFIT_MAX_INTEREST(재정규화 전 데이터·구 정부상품 태그 등)는 먼저 걸러내고,
-        // 동적 기준(전체 은행상품 상위 30%)을 충족할 때만 다시 붙여 배지가 오로지 동적 결과만 반영하게 한다.
-        List<KeywordValueEnum> keywords = properties.stream()
-                .flatMap(property -> property.keywordCodes().stream())
-                .filter(Objects::nonNull)
-                .filter(code -> code != KeywordValueEnum.BENEFIT_MAX_INTEREST)
-                .distinct()
-                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
-
-        if (properties.stream().anyMatch(ProductProperty::isJoinable) && isTopRateBank(product)) {
-            keywords.add(KeywordValueEnum.BENEFIT_MAX_INTEREST);
-        }
-        return keywords;
-    }
-
-    // 은행 상품이면서 그 상품의 (가입가능 속성 중) 최고 maxRate가 전체 은행상품 상위 30% 컷 이상이면 true.
-    // 컷 계산은 검색과 동일한 SearchService.computeTopRateThreshold를 재사용(읽기 전용, DB 미기록).
-    // 컷 모집단·상품 자체 금리 모두 joinable 속성만 사용해 검색(eligible 기준)과 일관성을 맞춘다.
-    private boolean isTopRateBank(Product product) {
-        if (!product.isBank()) {
-            return false;
-        }
-        Double productMaxRate = product.getProperties().stream()
-                .filter(ProductProperty::isJoinable)
-                .map(ProductProperty::getMaxRate)
-                .filter(Objects::nonNull)
-                .map(BigDecimal::doubleValue)
-                .max(Double::compareTo)
-                .orElse(null);
-        if (productMaxRate == null) {
-            return false;
-        }
-        Double threshold = SearchService.computeTopRateThreshold(
-                productRepository.findJoinableMaxRatesBySourceCode(ProductSource.BANK_CODE).stream()
+    private Double bankMaxInterestThreshold(
+            SearchRequestDto request,
+            ResolvedKeywords keywords,
+            boolean useRecommendationCandidates
+    ) {
+        List<Double> rates = useRecommendationCandidates
+                ? eligibilityFilterService.filterEligibleOptions(request, keywords).stream()
+                        .filter(option -> option.product().isBank())
+                        .map(EligibleProductOption::property)
+                        .map(ProductProperty::getMaxRate)
+                        .filter(Objects::nonNull)
                         .map(BigDecimal::doubleValue)
-                        .toList());
-        return threshold != null && productMaxRate >= threshold;
+                        .toList()
+                : productRepository.findJoinableMaxRatesBySourceCode(ProductSource.BANK_CODE).stream()
+                        .map(BigDecimal::doubleValue)
+                        .toList();
+        return BankMaxInterestPolicy.calculateThreshold(rates);
     }
 
     private List<Integer> saveTrms(List<ProductProperty> properties) {

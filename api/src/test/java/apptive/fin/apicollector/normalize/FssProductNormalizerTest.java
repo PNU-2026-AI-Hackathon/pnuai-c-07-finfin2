@@ -126,7 +126,45 @@ class FssProductNormalizerTest {
 
         ProductDraft draft = normalizer.normalize(raw);
 
-        assertThat(draft.productName()).isEqualTo("스마일드림 정기예금 (개인)");
+        // 내부 개행은 공백으로 축약되고(스마일드림 \n정기예금 -> 스마일드림 정기예금),
+        // 이름 끝 괄호 "(개인)"은 후행 괄호 규칙(stripTrailingParen)으로 제거된다.
+        assertThat(draft.productName()).isEqualTo("스마일드림 정기예금");
+    }
+
+    @Test
+    void stripsTrailingParenFromProductName() {
+        // 개행 있는 방식/지급 접미사
+        assertThat(normalizedName("Sh해양플라스틱Zero!적금\\n(정액적립식)")).isEqualTo("Sh해양플라스틱Zero!적금");
+        assertThat(normalizedName("Sh해양플라스틱Zero!예금\\n(만기일시지급식)")).isEqualTo("Sh해양플라스틱Zero!예금");
+        assertThat(normalizedName("제주Dream\\n정기예금\\n(개인/만기\\n지급식)")).isEqualTo("제주Dream 정기예금");
+        // 개행 없는 방식/유형/시즌 접미사
+        assertThat(normalizedName("JB 다이렉트적금(자유적립식)")).isEqualTo("JB 다이렉트적금");
+        assertThat(normalizedName("KB국민프리미엄적금(정액)")).isEqualTo("KB국민프리미엄적금");
+        assertThat(normalizedName("The든든예금(시즌2)")).isEqualTo("The든든예금");
+        assertThat(normalizedName("IBK평생한가족통장(실세금리정기예금)")).isEqualTo("IBK평생한가족통장");
+        // 중간 브랜드 괄호는 보존하고 후행 괄호만 제거
+        assertThat(normalizedName("헤이(Hey)적금\\n(자유적립식)")).isEqualTo("헤이(Hey)적금");
+        // 후행 괄호가 아니면(이름 중간 브랜드) 변화 없음
+        assertThat(normalizedName("더(The) 특판 정기예금")).isEqualTo("더(The) 특판 정기예금");
+        assertThat(normalizedName("헤이(Hey)정기예금")).isEqualTo("헤이(Hey)정기예금");
+    }
+
+    // fin_prdt_nm(JSON 리터럴; 개행은 \\n으로 전달)만 다른 최소 raw를 만들어 정규화된 상품명을 돌려준다.
+    private String normalizedName(String finPrdtNmJsonLiteral) {
+        ProductRaw raw = new ProductRaw(Source.FSS, "FSS:SAVING:001:ABC", "hash", """
+                {
+                  "source": "FSS",
+                  "productType": "SAVING",
+                  "financialGroupName": "은행",
+                  "base": {
+                    "fin_co_no": "001",
+                    "kor_co_nm": "테스트은행",
+                    "fin_prdt_nm": "%s"
+                  },
+                  "options": []
+                }
+                """.formatted(finPrdtNmJsonLiteral), ProductType.SAVING);
+        return normalizer.normalize(raw).productName();
     }
 
     @Test

@@ -37,4 +37,24 @@ public class CategoryOptionService {
         return map;
     }
 
+    @Cacheable(cacheNames = "keywordOptionMappings")
+    public Map<Long, OptionMapping> getOptionMappings() {
+        List<CategoryOption> allOptions = categoryOptionRepository.findAll();
+        Map<Long, OptionMapping> map = new HashMap<>();
+
+        for (CategoryOption option : allOptions) {
+            if (option.getCategory() == null || option.getCode() == null || option.getCode().isBlank()) {
+                continue;
+            }
+            KeywordValueEnum keyword = KeywordValueEnum.from(option.getCode());
+            if (keyword != null) {
+                map.put(option.getId(), new OptionMapping(option.getCategory().getId(), keyword));
+            }
+        }
+        return map;
+    }
+
+    public record OptionMapping(Long categoryId, KeywordValueEnum keyword) {
+    }
+
 }

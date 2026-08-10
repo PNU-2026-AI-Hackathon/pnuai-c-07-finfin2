@@ -166,8 +166,7 @@ public class MatchScoreService {
         // 은행 #최고이율_중심: 정적 태그가 아니라 결과셋 최고금리(maxRate) 상위 30% 임계값 이상인지로 동적 판정 (PRD A-2).
         // 정부 상품/임계값 미제공 시에는 기존 태그 방식 유지 (정부는 금리 대부분 미공시).
         if (keyword == BENEFIT_MAX_INTEREST && !isGov && bankMaxInterestThreshold != null) {
-            return property.getMaxRate() != null
-                    && property.getMaxRate().doubleValue() >= bankMaxInterestThreshold;
+            return BankMaxInterestPolicy.qualifies(property, bankMaxInterestThreshold);
         }
         return propertyKeywords.contains(keyword);
     }

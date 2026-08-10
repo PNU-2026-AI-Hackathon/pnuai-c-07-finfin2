@@ -1,32 +1,24 @@
 package apptive.fin.search.service;
 
 import apptive.fin.auth.security.AuthUserDetails;
-import apptive.fin.global.error.BusinessException;
 import apptive.fin.search.enums.KeywordValueEnum;
 
 import apptive.fin.search.dto.*;
-import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.repository.ProductRepository;
 
-import apptive.fin.search.SearchErrorCode;
-import apptive.fin.search.dto.EligibleProductOption;
-import apptive.fin.search.dto.ProductMatchDto;
-import apptive.fin.search.dto.ProductRateDto;
-import apptive.fin.search.dto.ProductSearchResultDto;
-import apptive.fin.search.dto.ResolvedKeywords;
-import apptive.fin.search.dto.SearchRequestDto;
-import apptive.fin.search.dto.TabAvailabilityDto;
-import apptive.fin.search.entity.Product;
 import apptive.fin.search.entity.ProductKeyword;
 
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.security.core.parameters.P;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -41,6 +33,8 @@ public class SearchService {
     private final RateCalculatorService rateCalculatorService;
     private final ResolveKeywordService resolveKeywordService;
     private final ProductRepository productRepository;
+    private final ProductCardSummaryService productCardSummaryService;
+    private final SearchRequestPolicy searchRequestPolicy;
 
     public ProductSearchResultDto search(SearchRequestDto request) {
         return search(request, null);
@@ -50,11 +44,13 @@ public class SearchService {
     public ProductSearchResultDto search(SearchRequestDto request, AuthUserDetails userDetails) {
         // 프론트에서 전송된 List<OptionRequestDto>를 ResolvedKeywords로 변환
         ResolvedKeywords resolvedKeywords = resolveKeywordService.resolveKeywords(request.options());
-        // 선택된 키워드들이 유효한지 검사 
-        validateKeywordSelected(resolvedKeywords);
+        searchRequestPolicy.validateForRecommendation(request, resolvedKeywords);
 
         // 사용자가 가입 가능한 상품 필터링
-        List<EligibleProductOption> eligible = eligibilityFilterService.filterEligibleOptions(request);
+        List<EligibleProductOption> eligible = eligibilityFilterService.filterEligibleOptions(
+                request,
+                resolvedKeywords
+        );
         
         // 선택된 지역 키워드가 빈칸이 아니라면
         if (!resolvedKeywords.regions().isEmpty()) {
@@ -75,10 +71,19 @@ public class SearchService {
                 .toList();
 
         // tabB 활성화 여부 판별
-        boolean tabBEnabled = isTabBEnabled(request, userDetails);
+        boolean tabBEnabled = searchRequestPolicy.canUsePersonalization(
+                request,
+                resolvedKeywords,
+                userDetails
+        );
 
         // 은행 #최고이율_중심 상위 30% 판정용 임계 금리(결과셋 maxRate 기준). null이면 정적 태그 방식으로 폴백.
-        Double bankMaxInterestThreshold = topRateThreshold(bankList);
+        List<Double> bankMaxInterestRates = bankList.stream()
+                .map(option -> option.property().getMaxRate())
+                .filter(Objects::nonNull)
+                .map(java.math.BigDecimal::doubleValue)
+                .toList();
+        Double bankMaxInterestThreshold = BankMaxInterestPolicy.calculateThreshold(bankMaxInterestRates);
 
         // 정부상품 점수 계산 후 각 상품별로 총점이 가장 높은 (Product, ProductProperty) 쌍만 남긴 뒤 점수순 내림차순 정렬
         List<ProductMatchDto> govRanked = collapseToBestPerProduct(
@@ -174,6 +179,18 @@ public class SearchService {
                         ))
                 : List.of();
 
+        List<ProductCardSummaryDto> productCardSummaries = productCardSummaryService.build(
+                eligible,
+                govRanked,
+                bankRanked,
+                governmentRateRanked,
+                bankRateRanked,
+                request,
+                resolvedKeywords,
+                tabBEnabled,
+                bankMaxInterestThreshold
+        );
+
         return ProductSearchResultDto.builder()
                 .tabs(tabs)
                 .governmentRanked(govRanked)
@@ -181,6 +198,13 @@ public class SearchService {
                 .governmentRateRanked(governmentRateRanked)
                 .bankRateRanked(bankRateRanked)
                 .subscriptionProducts(subscriptions)
+                .productCardSummaries(productCardSummaries)
+                .eligibleProductCount(
+                        eligible.stream()
+                                .map(o->o.product().getId())
+                                .distinct()
+                                .count()
+                )
                 .build();
     }
 
@@ -206,53 +230,6 @@ public class SearchService {
                             .build();
                 })
                 .toList();
-    }
-
-    // TabB 활성화여부 판별
-    private boolean isTabBEnabled(SearchRequestDto request, AuthUserDetails userDetails) {
-        return userDetails != null && request.hasTransactionHistory();
-    }
-		
-    // 키워드 선택 유효성 판별
-    private void validateKeywordSelected(ResolvedKeywords keywords) {
-		    
-        boolean hasSelectedKeyword = !keywords.regions().isEmpty()
-                || !keywords.identities().isEmpty()
-                || keywords.savingPeriod() != null
-                || !keywords.coreBenefits().isEmpty()
-                || !keywords.bankConditions().isEmpty();
-				// 선택한 키워드 없으면 유효하지 않음
-        if (!hasSelectedKeyword) {
-            throw new BusinessException(SearchErrorCode.KEYWORD_REQUIRED);
-        }
-    }
-
-    // 결과셋(은행 상품)의 maxRate 상위 30% 컷 금리를 계산한다. 이 값 이상이면 #최고이율 매칭(동점 포함).
-    // 금리 정보가 하나도 없으면 null → 호출부에서 정적 태그 방식으로 폴백.
-    private Double topRateThreshold(List<EligibleProductOption> bankList) {
-        List<Double> rates = bankList.stream()
-                .map(option -> option.property().getMaxRate())
-                .filter(java.util.Objects::nonNull)
-                .map(java.math.BigDecimal::doubleValue)
-                .toList();
-        return computeTopRateThreshold(rates);
-    }
-
-    // 상위 30% 컷 금리 계산(순수 함수, 테스트 용이하도록 분리). 빈 리스트면 null.
-    static Double computeTopRateThreshold(List<Double> rates) {
-        if (rates == null || rates.isEmpty()) {
-            return null;
-        }
-
-        List<Double> sortedDesc = rates.stream()
-                .sorted(Comparator.reverseOrder())
-                .toList();
-
-        int cutoffIndex = (int) Math.ceil(sortedDesc.size() * 0.3) - 1;
-        if (cutoffIndex < 0) {
-            cutoffIndex = 0;
-        }
-        return sortedDesc.get(cutoffIndex);
     }
 
     // 상품별로 총점이 가장 높은 (Product, ProductProperty) 쌍만 남기고 총점 내림차순 정렬(순수 함수, 테스트 용이하도록 분리).

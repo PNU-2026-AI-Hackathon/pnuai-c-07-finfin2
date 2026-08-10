@@ -12,6 +12,8 @@ import java.util.List;
 public record ProductDetailResponseDto(
         // 헤더/요약
         Long productId,
+        // 이 상세가 어느 옵션(property) 기준인지. 추천 응답의 리스트 카드와 상세를 짝지을 때 쓴다.
+        Long productPropertyId,
         ProductType productType,
         String sourceCode,
         String productName,
@@ -42,7 +44,7 @@ public record ProductDetailResponseDto(
         ProductApplyStatus applyStatus,
         String applyUrl,
 
-        // 수익 지표 잠금 (비로그인 시 true → 아래 지표/금리표 전부 null)
+        // 수익 지표 잠금 (property 미지정 또는 로그인/1·2단계 필수정보 미완료 시 true)
         boolean metricsLocked,
         String lockMessage,
 
