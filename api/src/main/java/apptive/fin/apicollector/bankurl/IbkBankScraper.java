@@ -87,7 +87,7 @@ public class IbkBankScraper extends AbstractBankProductScraper {
                 + "&tmcd=" + processCode.substring(4, 7)
                 + "&pdcd=" + processCode.substring(7, 11)
                 + "&wvcd=" + wvcd
-                + "&i_trns_biz_kncd=" + URLEncoder.encode(productName, StandardCharsets.UTF_8);
+                + "&i_trns_biz_kncd=" + URLEncoder.encode(productName, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     private List<String> ibkQueryVariants(String productName) {

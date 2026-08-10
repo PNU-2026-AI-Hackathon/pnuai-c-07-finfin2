@@ -29,6 +29,28 @@ class AbstractBankProductScraperTest {
         );
     }
 
+    @Test
+    void extractsProductNameAndJavascriptUrlFromProductBlock() {
+        TestScraper scraper = new TestScraper();
+
+        List<ProductCandidate> candidates = scraper.extractProducts(
+                Jsoup.parse("""
+                        <ul class="product_list"><li>
+                          <p class="product_tit"><strong>iM함께예금</strong></p>
+                          <a href="javascript:goProductDetailByPdCd('10511008001166004', '', '', 'D','V');">
+                            <span>상세보기</span>
+                          </a>
+                        </li></ul>
+                        """, "https://www.imbank.co.kr/search"),
+                "https://www.imbank.co.kr/search"
+        );
+
+        assertThat(candidates).containsExactly(new ProductCandidate(
+                "iM함께예금",
+                "https://www.imbank.co.kr/com_ebz_fpm_main.act?pd_cd=10511008001166004"
+        ));
+    }
+
     private static class TestScraper extends AbstractBankProductScraper {
 
         @Override

@@ -26,6 +26,11 @@ public class HanaBankScraper extends AbstractBankProductScraper {
     }
 
     @Override
+    protected List<String> titleSelectors() {
+        return List.of(".product-title", ".productView h3", ".prd-title", "h1", "h2.tit", "h2");
+    }
+
+    @Override
     protected List<ProductCandidate> search(BrowserContext context, String productName) {
         List<ProductCandidate> candidates = new ArrayList<>();
         for (String query : hanaQueryVariants(productName)) {

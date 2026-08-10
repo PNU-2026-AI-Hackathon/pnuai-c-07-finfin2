@@ -20,9 +20,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.function.BiFunction;
 
 public abstract class AbstractBankProductScraper implements BankProductScraper {
 
@@ -48,15 +48,66 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
     protected abstract List<ProductCandidate> search(BrowserContext context, String productName);
 
     protected List<ProductCandidate> extractProducts(Document document, String currentUrl) {
-        List<ProductCandidate> candidates = document.select("a").stream()
+        List<ProductCandidate> candidates = new ArrayList<>(document.select("a").stream()
                 .map(anchor -> new ProductCandidate(
                         cleanText(anchor.text()),
                         urlFromAnchor(anchor, currentUrl)
                 ))
                 .filter(candidate -> looksLikeProductName(candidate.name()))
                 .filter(candidate -> !candidate.url().isBlank())
-                .toList();
+                .toList());
+        candidates.addAll(extractProductBlocks(document, currentUrl));
         return dedupe(candidates);
+    }
+
+    private List<ProductCandidate> extractProductBlocks(Document document, String currentUrl) {
+        List<ProductCandidate> candidates = new ArrayList<>();
+        String selectors = String.join(",", List.of(
+                ".product_list li", ".product-list > li", ".product", ".prd-info",
+                ".list-con-area", ".listTyProducts > li", ".goods-list li", "tr"
+        ));
+        int index = 0;
+        for (Element block : document.select(selectors)) {
+            index++;
+            String name = bestProductBlockName(block);
+            if (!looksLikeProductName(name)) {
+                continue;
+            }
+            String url = "";
+            for (Element anchor : block.select("a")) {
+                url = urlFromAnchor(anchor, currentUrl);
+                if (!url.isBlank()) {
+                    break;
+                }
+            }
+            if (url.isBlank()) {
+                String blockId = cleanText(block.id());
+                url = currentUrl.split("#", 2)[0] + "#"
+                        + (blockId.isBlank() ? "product-" + index : blockId);
+            }
+            candidates.add(new ProductCandidate(name, url));
+        }
+        return candidates;
+    }
+
+    private String bestProductBlockName(Element block) {
+        for (String selector : List.of(
+                ".prdtName a", ".prdtName", ".name a", ".name", ".product_tit",
+                ".tit a", ".tit", "dt.name a", "strong a", "h1", "h2", "h3", "h4"
+        )) {
+            Element target = block.selectFirst(selector);
+            String text = cleanText(target == null ? "" : target.text());
+            if (looksLikeProductName(text)) {
+                return text;
+            }
+        }
+        String text = cleanText(block.text()).replaceFirst(
+                "(상세보기|인터넷가입|상담하기|금리보기|미리보기).*$", ""
+        );
+        Matcher matcher = Pattern.compile(
+                "([A-Za-z0-9가-힣·★!+\\-() /]+(?:예금|적금|통장)[A-Za-z0-9가-힣·★!+\\-() /]*)"
+        ).matcher(text);
+        return cleanText(matcher.find() ? matcher.group(1) : text.substring(0, Math.min(text.length(), 80)));
     }
 
     protected List<ProductCandidate> extractProductsWithSelectors(
@@ -162,12 +213,34 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
                     continue;
                 }
                 input.fill(productName, new Locator.FillOptions().setTimeout(2_000));
-                input.press("Enter", new Locator.PressOptions().setTimeout(2_000));
+                submitSearch(input);
                 return;
             } catch (PlaywrightException ignored) {
                 // Try the next known search input.
             }
         }
+    }
+
+    private void submitSearch(Locator input) {
+        for (String selector : List.of(
+                "xpath=following-sibling::a[contains(@class, 'btnTyBlue01')]",
+                "xpath=following-sibling::button[contains(@class, 'btnTyBlue01')]",
+                "xpath=ancestor::div[1]//a[contains(normalize-space(.), '검색')]",
+                "xpath=ancestor::div[1]//button[contains(normalize-space(.), '검색')]",
+                "xpath=ancestor::form[1]//button[@type='submit']",
+                "xpath=ancestor::form[1]//input[@type='submit']"
+        )) {
+            try {
+                Locator button = input.locator(selector).first();
+                if (button.count() > 0) {
+                    button.click(new Locator.ClickOptions().setTimeout(2_000));
+                    return;
+                }
+            } catch (PlaywrightException ignored) {
+                // Try the next known search button.
+            }
+        }
+        input.press("Enter", new Locator.PressOptions().setTimeout(2_000));
     }
 
     protected void navigate(Page page, String url) {
@@ -193,11 +266,7 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
     }
 
     protected String pageTitle(Page page) {
-        for (String selector : List.of(
-                "input[name=PRD_NM]", "input[name=prdNm]", "input[name=prd_nm]",
-                "input[name=productName]", "input[name=product_name]", "[data-product-name]",
-                "h1", "h2", ".product-title", ".prd-title", ".tit", ".name"
-        )) {
+        for (String selector : titleSelectors()) {
             try {
                 Locator locator = page.locator(selector).first();
                 if (locator.count() == 0) {
@@ -217,7 +286,25 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
                 // Try the next title selector.
             }
         }
+        try {
+            String openGraphTitle = cleanText(
+                    page.locator("meta[property='og:title']").first().getAttribute("content")
+            );
+            if (!openGraphTitle.isBlank()) {
+                return openGraphTitle;
+            }
+        } catch (PlaywrightException ignored) {
+            // Fall back to the document title.
+        }
         return cleanText(page.title()).split("\\s*[|>_<-]\\s*")[0];
+    }
+
+    protected List<String> titleSelectors() {
+        return List.of(
+                "input[name=PRD_NM]", "input[name=prdNm]", "input[name=prd_nm]",
+                "input[name=productName]", "input[name=product_name]", "[data-product-name]",
+                "h1", "h2", ".product-title", ".prd-title", ".tit", ".name"
+        );
     }
 
     protected List<PageContent> pageContents(Page page) {
@@ -318,6 +405,20 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
             if (matcher.find()) {
                 return absoluteUrl(matcher.group(1), currentUrl);
             }
+        }
+        Matcher imProduct = Pattern.compile("goProductDetailByPdCd\\(['\"]([^'\"]+)").matcher(script);
+        if (imProduct.find()) {
+            return absoluteUrl("/com_ebz_fpm_main.act?pd_cd=" + imProduct.group(1), currentUrl);
+        }
+        Matcher nhProduct = Pattern.compile("lfGetDt\\(['\"]([^'\"]+)['\"]").matcher(script);
+        if (nhProduct.find()) {
+            String code = nhProduct.group(1);
+            return absoluteUrl(
+                    "/servlet/BFDCW1021R.view?detailPsnFncWrsC=" + code
+                            + "&psnFncWrsC=" + code
+                            + "&listServiceId=BFDCW1011R",
+                    currentUrl
+            );
         }
         return "";
     }

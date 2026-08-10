@@ -45,13 +45,32 @@ class MajorBankScrapersTest {
     }
 
     @Test
+    void nhBuildsDetailUrlFromLfGetDtCall() {
+        var result = new NhBankScraper().extractSearchResults(
+                Jsoup.parse("""
+                        <ul class="subject_product_li"><li>
+                          <dt><a href="javascript:lfGetDt('10001196');">NH고향사랑기부예금</a></dt>
+                        </li></ul>
+                        """),
+                "https://smartmarket.nonghyup.com/servlet/BFDCW1021R.view"
+        );
+
+        assertThat(result).containsExactly(new ProductCandidate(
+                "NH고향사랑기부예금",
+                "https://smartmarket.nonghyup.com/servlet/BFDCW1021R.view"
+                        + "?detailPsnFncWrsC=10001196&psnFncWrsC=10001196&listServiceId=BFDCW1011R"
+        ));
+    }
+
+    @Test
     void ibkBuildsDetailUrlFromGoBankingArguments() {
         String url = new IbkBankScraper().urlFromGoBanking(
                 "gobanking_url('/uib/detail.jsp','21011310089','page','*****','IBK회전정기 예금');"
         );
 
         assertThat(url)
-                .contains("lncd=21", "grcd=01", "tmcd=131", "pdcd=0089", "wvcd=*****");
+                .contains("lncd=21", "grcd=01", "tmcd=131", "pdcd=0089", "wvcd=*****")
+                .endsWith("i_trns_biz_kncd=IBK%ED%9A%8C%EC%A0%84%EC%A0%95%EA%B8%B0%20%EC%98%88%EA%B8%88");
     }
 
     @Test
