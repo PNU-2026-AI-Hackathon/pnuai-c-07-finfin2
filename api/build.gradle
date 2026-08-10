@@ -47,7 +47,9 @@ dependencies {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags 'bank-url-parity'
+    }
 }
 
 tasks.register('playwrightInstall', JavaExec) {
@@ -56,4 +58,23 @@ tasks.register('playwrightInstall', JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'com.microsoft.playwright.CLI'
     args 'install', 'chromium'
+}
+
+tasks.register('bankUrlParityTest', Test) {
+    group = 'verification'
+    description = 'Compare Python and Java bank product URL scraper results'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'bank-url-parity'
+    }
+    systemProperty 'pythonScraperDir', providers.gradleProperty('pythonScraperDir').getOrElse('')
+    systemProperty 'parityReportDir', layout.buildDirectory.dir('reports/bank-url-parity').get().asFile.absolutePath
+    outputs.upToDateWhen { false }
+
+    doFirst {
+        if (!project.hasProperty('pythonScraperDir')) {
+            throw new GradleException('bankUrlParityTest requires -PpythonScraperDir=<path>')
+        }
+    }
 }
