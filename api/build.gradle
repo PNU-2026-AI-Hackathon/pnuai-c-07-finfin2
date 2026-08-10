@@ -24,6 +24,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-restclient'
     implementation 'org.springframework.boot:spring-boot-starter-jackson'
+    implementation 'com.microsoft.playwright:playwright:1.61.0'
+    implementation 'org.jsoup:jsoup:1.21.2'
+    implementation 'me.xdrop:fuzzywuzzy:1.4.0'
 
     runtimeOnly 'org.postgresql:postgresql'
 
@@ -45,4 +48,12 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+tasks.register('playwrightInstall', JavaExec) {
+    group = 'application'
+    description = 'Install the Chromium browser used by the bank product URL collector'
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'com.microsoft.playwright.CLI'
+    args 'install', 'chromium'
 }

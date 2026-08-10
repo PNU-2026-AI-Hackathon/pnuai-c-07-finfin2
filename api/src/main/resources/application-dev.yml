@@ -45,6 +45,12 @@ collector:
     api-key: ${FSS_API_KEY:}
     page-size : 100
 
+  bank-product-url:
+    enabled: ${BANK_PRODUCT_URL_ENABLED:true}
+    concurrency: ${BANK_URL_CONCURRENCY:4}
+    timeout-seconds: ${BANK_URL_TIMEOUT_SECONDS:90}
+    retries: ${BANK_URL_RETRIES:1}
+
   llm:
     enabled: ${LLM_ENABLED:false}
     provider: GEMINI
