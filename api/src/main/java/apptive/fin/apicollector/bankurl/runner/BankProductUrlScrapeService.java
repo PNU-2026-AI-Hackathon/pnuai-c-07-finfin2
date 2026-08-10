@@ -9,10 +9,13 @@ import apptive.fin.apicollector.bankurl.scraper.ScrapedProduct;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,21 +48,22 @@ public class BankProductUrlScrapeService {
         if (targets.isEmpty()) {
             return List.of();
         }
-        List<List<BankProductUrlTarget>> partitions = partitionByProvider(targets);
-        ExecutorService executor = Executors.newFixedThreadPool(partitions.size());
+        // 워커가 공유 큐에서 직접 꺼내 간다. 은행을 미리 나눠주면 상품 수가 많은 은행을 맡은 워커만
+        // 오래 돌고 나머지는 놀기 때문에, 먼저 끝난 워커가 다음 타깃을 집어가도록 한다.
+        Queue<BankProductUrlTarget> pending = new ConcurrentLinkedQueue<>(interleaveByProvider(targets));
+        Collection<ScrapeResult> results = new ConcurrentLinkedQueue<>();
+        Queue<RuntimeException> workerFailures = new ConcurrentLinkedQueue<>();
+
+        int workerCount = Math.min(properties.effectiveConcurrency(), targets.size());
+        ExecutorService executor = Executors.newFixedThreadPool(workerCount);
         try {
-            List<Future<List<ScrapeResult>>> futures = partitions.stream()
-                    .map(partition -> executor.submit(() -> scrapePartition(partition)))
-                    .toList();
-            List<ScrapeResult> results = new ArrayList<>();
-            for (Future<List<ScrapeResult>> future : futures) {
-                results.addAll(future.get());
+            List<Future<?>> futures = new ArrayList<>(workerCount);
+            for (int worker = 0; worker < workerCount; worker++) {
+                futures.add(executor.submit(() -> drain(pending, results, workerFailures)));
             }
-            return results.stream().sorted(Comparator
-                    .comparing((ScrapeResult result) -> result.target().providerName())
-                    .thenComparing(result -> result.target().productName())
-                    .thenComparing(result -> result.target().productId()))
-                    .toList();
+            for (Future<?> future : futures) {
+                future.get();
+            }
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("Bank product URL scraping was interrupted", exception);
@@ -68,31 +72,59 @@ public class BankProductUrlScrapeService {
         } finally {
             executor.shutdownNow();
         }
+
+        // 모든 워커가 브라우저를 띄우지 못하면 큐가 남는다. 조용히 사라지지 않도록 실패로 남긴다.
+        RuntimeException workerFailure = workerFailures.peek();
+        BankProductUrlTarget unprocessed;
+        while ((unprocessed = pending.poll()) != null) {
+            results.add(failedResult(unprocessed, workerFailure == null
+                    ? new IllegalStateException("no scrape worker was available")
+                    : workerFailure, 0, 0));
+        }
+
+        return results.stream().sorted(Comparator
+                .comparing((ScrapeResult result) -> result.target().providerName())
+                .thenComparing(result -> result.target().productName())
+                .thenComparing(result -> result.target().productId()))
+                .toList();
     }
 
-    private List<List<BankProductUrlTarget>> partitionByProvider(List<BankProductUrlTarget> targets) {
+    /**
+     * 같은 은행이 큐에 연달아 놓이지 않도록 은행별로 하나씩 번갈아 배치한다.
+     * 은행 수가 워커 수보다 많은 동안에는 워커들이 서로 다른 은행을 집게 되어 한 사이트에 요청이 몰리지 않는다.
+     */
+    static List<BankProductUrlTarget> interleaveByProvider(List<BankProductUrlTarget> targets) {
         Map<String, List<BankProductUrlTarget>> byProvider = targets.stream().collect(Collectors.groupingBy(
                 BankProductUrlTarget::providerCode,
                 LinkedHashMap::new,
                 Collectors.toList()
         ));
-        int count = Math.min(properties.effectiveConcurrency(), byProvider.size());
-        List<List<BankProductUrlTarget>> partitions = new ArrayList<>();
-        for (int i = 0; i < count; i++) {
-            partitions.add(new ArrayList<>());
+        int rounds = byProvider.values().stream().mapToInt(List::size).max().orElse(0);
+        List<BankProductUrlTarget> interleaved = new ArrayList<>(targets.size());
+        for (int round = 0; round < rounds; round++) {
+            for (List<BankProductUrlTarget> providerTargets : byProvider.values()) {
+                if (round < providerTargets.size()) {
+                    interleaved.add(providerTargets.get(round));
+                }
+            }
         }
-        int index = 0;
-        for (List<BankProductUrlTarget> providerTargets : byProvider.values()) {
-            partitions.get(index++ % count).addAll(providerTargets);
-        }
-        return partitions;
+        return interleaved;
     }
 
-    private List<ScrapeResult> scrapePartition(List<BankProductUrlTarget> targets) {
+    private void drain(
+            Queue<BankProductUrlTarget> pending,
+            Collection<ScrapeResult> results,
+            Queue<RuntimeException> workerFailures
+    ) {
         try (BankScrapeWorker worker = workerFactory.create()) {
-            return targets.stream().map(target -> scrapeOne(worker, target)).toList();
+            BankProductUrlTarget target;
+            while ((target = pending.poll()) != null) {
+                // 결과를 즉시 공유 컬렉션에 넣어, 이 워커가 뒤에서 죽어도 처리분이 유실되지 않게 한다.
+                results.add(scrapeOne(worker, target));
+            }
         } catch (RuntimeException exception) {
-            return targets.stream().map(target -> failedResult(target, exception, 0, 0)).toList();
+            // 이 워커만 빠진다. 남은 타깃은 살아 있는 다른 워커가 계속 가져간다.
+            workerFailures.add(exception);
         }
     }
 

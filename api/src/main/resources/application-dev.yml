@@ -47,7 +47,8 @@ collector:
 
   bank-product-url:
     enabled: ${BANK_PRODUCT_URL_ENABLED:true}
-    concurrency: ${BANK_URL_CONCURRENCY:4}
+    # 워커 하나가 Chromium 하나를 소유한다(Playwright Java 는 스레드 안전하지 않음). 올리면 그만큼 메모리를 쓴다.
+    concurrency: ${BANK_URL_CONCURRENCY:8}
     timeout-seconds: ${BANK_URL_TIMEOUT_SECONDS:90}
     retries: ${BANK_URL_RETRIES:1}
 
