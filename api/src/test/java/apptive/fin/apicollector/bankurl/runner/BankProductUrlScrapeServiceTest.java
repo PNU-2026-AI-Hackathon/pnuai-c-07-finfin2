@@ -216,9 +216,52 @@ class BankProductUrlScrapeServiceTest {
     }
 
     @Test
-    void deadBrowserWorkerStopsInsteadOfBurningThroughTheQueue() {
-        // 브라우저가 죽은 워커는 타깃마다 즉시 실패하므로, 멈추지 않으면 정상 워커보다 먼저 큐를 비운다.
-        // 워커 1은 첫 타깃 뒤 죽고, 워커 2가 나머지를 전부 정상 처리해야 한다.
+    void workerThatKeepsFailingStopsEvenWhenBrowserReportsAlive() {
+        // Playwright 의 Browser.isConnected() 는 드라이버가 보낸 close 이벤트에서만 false 가 된다.
+        // 드라이버 프로세스가 죽으면 이벤트가 안 와 true 로 남으므로, 연속 실패로도 워커를 빼야 한다.
+        Queue<Long> scrapedByHealthyWorker = new ConcurrentLinkedQueue<>();
+        AtomicInteger created = new AtomicInteger();
+        AtomicInteger deadWorkerAttempts = new AtomicInteger();
+        BankScrapeWorkerFactory workerFactory = () -> {
+            if (created.incrementAndGet() == 1) {
+                return new BankScrapeWorker() {
+                    @Override
+                    public ScrapedProduct scrape(BankProductScraper ignored, BankProductUrlTarget target) {
+                        deadWorkerAttempts.incrementAndGet();
+                        throw new IllegalStateException("Playwright connection closed");
+                    }
+
+                    @Override
+                    public boolean isAlive() {
+                        return true;   // 드라이버가 죽어도 브라우저는 살아있다고 보고한다
+                    }
+
+                    @Override
+                    public void close() {
+                    }
+                };
+            }
+            return passingWorker(scrapedByHealthyWorker);
+        };
+        BankProductUrlScrapeService service = new BankProductUrlScrapeService(
+                List.of(new FakeScraper()),
+                new BankProductUrlProperties(true, 2, 90, 0),
+                workerFactory
+        );
+
+        List<ScrapeResult> results = service.scrape(LongStream.rangeClosed(1, 30)
+                .mapToObj(productId -> target(productId, "TEST"))
+                .toList());
+
+        assertThat(results).hasSize(30);
+        // 30건 전부를 죽은 워커가 삼키지 않고, 연속 실패 임계에서 빠져야 한다.
+        assertThat(deadWorkerAttempts.get()).isLessThan(10);
+        assertThat(scrapedByHealthyWorker.size()).isGreaterThan(20);
+    }
+
+    @Test
+    void targetHeldByDyingWorkerIsRetriedByAHealthyWorker() {
+        // 죽은 브라우저로 헛시도한 결과를 그대로 FAIL 로 확정하면 그 상품은 갱신 기회를 잃는다.
         Queue<Long> scrapedByHealthyWorker = new ConcurrentLinkedQueue<>();
         AtomicInteger created = new AtomicInteger();
         BankScrapeWorkerFactory workerFactory = () -> {
@@ -254,10 +297,44 @@ class BankProductUrlScrapeServiceTest {
                 .mapToObj(productId -> target(productId, "TEST"))
                 .toList());
 
-        assertThat(results).hasSize(10);
-        // 죽은 워커가 삼킨 것은 자기가 집은 1건뿐이고 나머지 9건은 살아 있는 워커가 처리한다.
-        assertThat(results).filteredOn(result -> result.status() == ScrapeStatus.FAIL).hasSize(1);
-        assertThat(scrapedByHealthyWorker).hasSize(9);
+        assertThat(results).hasSize(10)
+                .allSatisfy(result -> assertThat(result.status()).isEqualTo(ScrapeStatus.PASS));
+        assertThat(scrapedByHealthyWorker).hasSize(10);
+    }
+
+    @Test
+    void requeueBudgetStopsInsteadOfLoopingWhenEveryWorkerDies() {
+        // 모든 워커가 죽으면 되돌리기가 무한히 반복될 수 있다. 예산으로 끊고 FAIL 로 끝나야 한다.
+        BankScrapeWorkerFactory workerFactory = () -> new BankScrapeWorker() {
+            private boolean alive = true;
+
+            @Override
+            public ScrapedProduct scrape(BankProductScraper ignored, BankProductUrlTarget target) {
+                alive = false;
+                throw new IllegalStateException("Browser has been closed");
+            }
+
+            @Override
+            public boolean isAlive() {
+                return alive;
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        BankProductUrlScrapeService service = new BankProductUrlScrapeService(
+                List.of(new FakeScraper()),
+                new BankProductUrlProperties(true, 3, 90, 0),
+                workerFactory
+        );
+
+        List<ScrapeResult> results = service.scrape(LongStream.rangeClosed(1, 5)
+                .mapToObj(productId -> target(productId, "TEST"))
+                .toList());
+
+        assertThat(results).hasSize(5)
+                .allSatisfy(result -> assertThat(result.status()).isEqualTo(ScrapeStatus.FAIL));
     }
 
     private BankScrapeWorker passingWorker(Queue<Long> scrapedProductIds) {

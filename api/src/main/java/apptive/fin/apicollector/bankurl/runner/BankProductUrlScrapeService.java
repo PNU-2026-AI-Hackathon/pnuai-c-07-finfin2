@@ -20,11 +20,18 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
 public class BankProductUrlScrapeService {
+
+    // 연속으로 이만큼 실패하면 워커 쪽 문제로 본다. 정상 실행에서는 FAIL 이 0건이고
+    // 큐가 은행별로 인터리브돼 있어 연속 3건은 서로 다른 은행이다.
+    private static final int UNHEALTHY_CONSECUTIVE_FAILURES = 3;
+    // 죽은 워커가 되돌린 타깃을 처리할 기회를 한 번 더 준다.
+    private static final int MAX_ROUNDS = 2;
 
     private final Map<String, BankProductScraper> scrapersByProviderCode;
     private final BankProductUrlProperties properties;
@@ -53,24 +60,11 @@ public class BankProductUrlScrapeService {
         Queue<BankProductUrlTarget> pending = new ConcurrentLinkedQueue<>(interleaveByProvider(targets));
         Collection<ScrapeResult> results = new ConcurrentLinkedQueue<>();
         Queue<RuntimeException> workerFailures = new ConcurrentLinkedQueue<>();
+        AtomicInteger requeueBudget = new AtomicInteger(properties.effectiveConcurrency());
 
-        int workerCount = Math.min(properties.effectiveConcurrency(), targets.size());
-        ExecutorService executor = Executors.newFixedThreadPool(workerCount);
-        try {
-            List<Future<?>> futures = new ArrayList<>(workerCount);
-            for (int worker = 0; worker < workerCount; worker++) {
-                futures.add(executor.submit(() -> drain(pending, results, workerFailures)));
-            }
-            for (Future<?> future : futures) {
-                future.get();
-            }
-        } catch (InterruptedException exception) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Bank product URL scraping was interrupted", exception);
-        } catch (ExecutionException exception) {
-            throw new IllegalStateException("Bank product URL worker failed", exception.getCause());
-        } finally {
-            executor.shutdownNow();
+        // 워커가 죽어 되돌려진 타깃이 남으면 한 번 더 돌린다. 되돌리기 예산이 있어 무한 반복되지 않는다.
+        for (int round = 0; round < MAX_ROUNDS && !pending.isEmpty(); round++) {
+            runWorkers(pending, results, workerFailures, requeueBudget);
         }
 
         // 모든 워커가 브라우저를 띄우지 못하면 큐가 남는다. 조용히 사라지지 않도록 실패로 남긴다.
@@ -111,21 +105,59 @@ public class BankProductUrlScrapeService {
         return interleaved;
     }
 
+    private void runWorkers(
+            Queue<BankProductUrlTarget> pending,
+            Collection<ScrapeResult> results,
+            Queue<RuntimeException> workerFailures,
+            AtomicInteger requeueBudget
+    ) {
+        int workerCount = Math.min(properties.effectiveConcurrency(), pending.size());
+        ExecutorService executor = Executors.newFixedThreadPool(workerCount);
+        try {
+            List<Future<?>> futures = new ArrayList<>(workerCount);
+            for (int worker = 0; worker < workerCount; worker++) {
+                futures.add(executor.submit(() -> drain(pending, results, workerFailures, requeueBudget)));
+            }
+            for (Future<?> future : futures) {
+                future.get();
+            }
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Bank product URL scraping was interrupted", exception);
+        } catch (ExecutionException exception) {
+            throw new IllegalStateException("Bank product URL worker failed", exception.getCause());
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
     private void drain(
             Queue<BankProductUrlTarget> pending,
             Collection<ScrapeResult> results,
-            Queue<RuntimeException> workerFailures
+            Queue<RuntimeException> workerFailures,
+            AtomicInteger requeueBudget
     ) {
         try (BankScrapeWorker worker = workerFactory.create()) {
+            int consecutiveFailures = 0;
             BankProductUrlTarget target;
             while ((target = pending.poll()) != null) {
-                // 결과를 즉시 공유 컬렉션에 넣어, 이 워커가 뒤에서 죽어도 처리분이 유실되지 않게 한다.
-                results.add(scrapeOne(worker, target));
-                if (!worker.isAlive()) {
-                    // 브라우저가 끊겼다. 계속 돌면 남은 타깃을 즉시 실패로 소진해버리므로 여기서 빠진다.
-                    workerFailures.add(new IllegalStateException("scrape worker browser disconnected"));
+                ScrapeResult result = scrapeOne(worker, target);
+                consecutiveFailures = result.status() == ScrapeStatus.FAIL ? consecutiveFailures + 1 : 0;
+                // Playwright 의 Browser.isConnected() 는 드라이버가 보낸 close 이벤트에서만 false 가 되므로
+                // 드라이버 프로세스 사망은 잡지 못한다. 연속 실패를 보조 신호로 함께 본다.
+                // 큐가 은행별로 인터리브돼 있어 연속 3건은 서로 다른 은행이다 — 워커 쪽 문제로 보는 게 맞다.
+                if (!worker.isAlive() || consecutiveFailures >= UNHEALTHY_CONSECUTIVE_FAILURES) {
+                    if (requeueBudget.getAndDecrement() > 0) {
+                        // 못 쓰는 브라우저로 헛시도한 결과다. 확정하지 않고 살아 있는 워커에 다시 준다.
+                        pending.offer(target);
+                    } else {
+                        results.add(result);
+                    }
+                    workerFailures.add(new IllegalStateException("scrape worker became unusable"));
                     return;
                 }
+                // 결과를 즉시 공유 컬렉션에 넣어, 이 워커가 뒤에서 죽어도 처리분이 유실되지 않게 한다.
+                results.add(result);
             }
         } catch (RuntimeException exception) {
             // 이 워커만 빠진다. 남은 타깃은 살아 있는 다른 워커가 계속 가져간다.
