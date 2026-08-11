@@ -1,8 +1,8 @@
 package apptive.fin.search.service;
 
-import apptive.fin.search.ContributionType;
-import apptive.fin.search.KeywordValueEnum;
-import apptive.fin.search.ProductType;
+import apptive.fin.search.enums.ContributionType;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.dto.BankDetailDto;
 import apptive.fin.search.dto.GovernmentDetailDto;
 import apptive.fin.search.dto.PreferentialConditionDto;
@@ -110,7 +110,7 @@ public class RateCalculatorService {
         List<PreferentialConditionDto> met = new ArrayList<>();
         List<PreferentialConditionDto> unmet = new ArrayList<>();
         for (ProductPreferentialRate rate : property.getPreferentialRates()) {
-            boolean satisfied = applicable.contains(rate.getKeywordCode()) && isAgeConditionSatisfied(rate, request);
+            boolean satisfied = applicable.contains(rate.getKeywordCode()) && passesAgeRangeFilter(rate);
             (satisfied ? met : unmet).add(toConditionDto(rate));
         }
 
@@ -134,16 +134,25 @@ public class RateCalculatorService {
 
     // productPropertyId 미전달 시 대표 property 선정(정부=max 수익률, 은행=max 실질금리). 리스트가 고르는 것과 동일 로직.
     public ProductProperty selectRepresentativeProperty(Product product, SearchRequestDto request, ResolvedKeywords keywords) {
+        return selectRepresentativeProperty(product, product.getProperties(), request, keywords);
+    }
+
+    public ProductProperty selectRepresentativeProperty(
+            Product product,
+            List<ProductProperty> properties,
+            SearchRequestDto request,
+            ResolvedKeywords keywords
+    ) {
         ResolvedKeywords resolvedKeywords = keywords != null ? keywords : ResolvedKeywords.emptyKeywords();
 
         if (product.isGovernment()) {
-            return product.getProperties().stream()
+            return properties.stream()
                     .filter(property -> calculateGovernmentYield(property, request) != null)
                     .max(Comparator.comparingDouble(property -> calculateGovernmentYield(property, request)))
-                    .orElseGet(() -> product.getProperties().stream().findFirst().orElse(null));
+                    .orElseGet(() -> properties.stream().findFirst().orElse(null));
         }
 
-        return product.getProperties().stream()
+        return properties.stream()
                 .max(Comparator.comparingDouble(property -> achievableBankRate(property, request, resolvedKeywords)))
                 .orElse(null);
     }
@@ -300,12 +309,7 @@ public class RateCalculatorService {
             return 0.0;
         }
 
-        double calculatedRate = baseRate(property) + preferentialRateSum(property, request, keywords);
-        if (property.getMaxRate() == null) {
-            return calculatedRate;
-        }
-
-        return Math.min(calculatedRate, property.getMaxRate().doubleValue());
+        return baseRate(property) + preferentialRateSum(property, request, keywords);
     }
 
     // 우대금리의 총합
@@ -313,7 +317,7 @@ public class RateCalculatorService {
         Set<KeywordValueEnum> applicableConditions = applicableBankConditions(property, request, keywords);
         return property.getPreferentialRates().stream()
                 .filter(rate -> applicableConditions.contains(rate.getKeywordCode()))
-                .filter(rate -> isAgeConditionSatisfied(rate, request))
+                .filter(this::passesAgeRangeFilter)
                 .map(ProductPreferentialRate::getRate)
                 .filter(rate -> rate != null)
                 .mapToDouble(BigDecimal::doubleValue)
@@ -326,8 +330,17 @@ public class RateCalculatorService {
             SearchRequestDto request,
             ResolvedKeywords keywords
     ) {
-        Set<KeywordValueEnum> conditions = new HashSet<>(keywords.bankConditions());
+        Set<KeywordValueEnum> conditions = new HashSet<>();
+        keywords.bankConditions().stream()
+                .filter(keyword -> !keyword.isTransactionHistoryCondition())
+                .filter(keyword -> keyword != KeywordValueEnum.BANK_ETC)
+                .forEach(conditions::add);
         conditions.add(KeywordValueEnum.BANK_ONLINE_JOIN);
+        conditions.add(KeywordValueEnum.BANK_AGE);
+
+        if (request == null || !request.hasTransactionHistory()) {
+            return conditions;
+        }
 
         if (property.matchesAnyProvider(request.neverUsedBanks())) {
             conditions.add(KeywordValueEnum.BANK_FIRST_TRANSACTION);
@@ -337,26 +350,16 @@ public class RateCalculatorService {
             conditions.add(KeywordValueEnum.BANK_REDEPOSIT);
         }
 
-        if (request.age() != null) {
-            conditions.add(KeywordValueEnum.BANK_AGE);
-        }
-
         return conditions;
     }
 
-    // 나이 조건 만족여부
-    private boolean isAgeConditionSatisfied(ProductPreferentialRate rate, SearchRequestDto request) {
+    // BANK_AGE 우대금리는 상품의 우대구간이 청년 구간과 겹칠 때만 인정한다(사용자 나이와 무관, MatchScoreService와 동일 규칙).
+    // 그 외 키워드는 applicableBankConditions에서 이미 판정되므로 여기서는 통과시킨다.
+    private boolean passesAgeRangeFilter(ProductPreferentialRate rate) {
         if (rate.getKeywordCode() != KeywordValueEnum.BANK_AGE) {
             return true;
         }
 
-        Integer age = request.age();
-        if (age == null) {
-            return false;
-        }
-
-        boolean minSatisfied = rate.getMinAge() == null || rate.getMinAge() <= age;
-        boolean maxSatisfied = rate.getMaxAge() == null || rate.getMaxAge() >= age;
-        return minSatisfied && maxSatisfied;
+        return BankConditionMatcher.matchesYouthRange(rate);
     }
 }

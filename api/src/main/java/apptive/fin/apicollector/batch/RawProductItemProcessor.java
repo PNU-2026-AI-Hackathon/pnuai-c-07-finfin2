@@ -1,6 +1,7 @@
 package apptive.fin.apicollector.batch;
 
 import apptive.fin.apicollector.Source;
+import apptive.fin.apicollector.normalize.ProductDraftFinalizer;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.enrich.ProductDraftEnricher;
 import apptive.fin.apicollector.normalize.normalizer.ProductNormalizer;
@@ -19,6 +20,7 @@ public class RawProductItemProcessor implements ItemProcessor<ProductRaw, Produc
 
     private final List<ProductNormalizer> normalizers;
     private final List<ProductDraftEnricher> enrichers;
+    private final ProductDraftFinalizer finalizer;
     private volatile Map<Source, ProductNormalizer> normalizerBySource;
 
     @Override
@@ -35,7 +37,7 @@ public class RawProductItemProcessor implements ItemProcessor<ProductRaw, Produc
                 draft = enricher.enrich(item, draft);
             }
         }
-        return draft;
+        return finalizer.apply(draft);
     }
 
     private Map<Source, ProductNormalizer> normalizerBySource() {

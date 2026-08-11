@@ -1,4 +1,4 @@
-package apptive.fin.search;
+package apptive.fin.search.enums;
 
 public enum RequiredKeywordEffect {
     REQUIRE,

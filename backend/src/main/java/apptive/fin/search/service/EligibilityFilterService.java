@@ -1,8 +1,8 @@
 package apptive.fin.search.service;
 
-import apptive.fin.search.ExtractionConfidence;
-import apptive.fin.search.KeywordValueEnum;
-import apptive.fin.search.RequiredKeywordEffect;
+import apptive.fin.search.enums.ExtractionConfidence;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.RequiredKeywordEffect;
 import apptive.fin.search.dto.DetailedOptionsDto;
 import apptive.fin.search.dto.EligibleProductOption;
 import apptive.fin.search.dto.ResolvedKeywords;
@@ -28,7 +28,7 @@ public class EligibilityFilterService {
     // 사용자가 가입가능한 상품만 필터링하는 메서드
     @Transactional(readOnly = true)
     public List<Product> filterEligible(SearchRequestDto request){
-        var detail = request.detailedOptions();
+        DetailedOptionsDto detail = request.detailedOptions();
         if (detail == null) return List.of(); // 상세옵션 선택안하면 빈 리스트 
 				
         // 키워드 Resolve
@@ -41,7 +41,6 @@ public class EligibilityFilterService {
                 criteria.annualIncome(),
                 criteria.householdIncomePercent(),
                 criteria.incomeProofUnavailable(),
-                criteria.militaryAgeExtensionRequested(),
                 criteria.isHomeless(),
                 criteria.isHouseholder(),
                 criteria.tenureMonths(),
@@ -54,12 +53,12 @@ public class EligibilityFilterService {
 
     // 사용자가 가입가능한 상품 옵션만 필터링하는 메서드
     @Transactional(readOnly = true)
-    public List<EligibleProductOption> filterEligibleOptions(SearchRequestDto request) {
-        var detail = request.detailedOptions();
+    public List<EligibleProductOption> filterEligibleOptions(
+            SearchRequestDto request,
+            ResolvedKeywords keywords
+    ) {
+        DetailedOptionsDto detail = request.detailedOptions();
         if (detail == null) return List.of(); // 상세옵션 선택안하면 빈 리스트
-
-        // 키워드 Resolve
-        ResolvedKeywords keywords = resolveKeywordService.resolveKeywords(request.options());
         EligibilityCriteria criteria = eligibilityCriteria(detail, keywords);  // 사용자의 가입 기준 정리
         
         // 가입가능한 상품 옵션(product, productProperty) 반환
@@ -68,15 +67,16 @@ public class EligibilityFilterService {
                         criteria.annualIncome(),
                         criteria.householdIncomePercent(),
                         criteria.incomeProofUnavailable(),
-                        criteria.militaryAgeExtensionRequested(),
                         criteria.isHomeless(),
                         criteria.isHouseholder(),
                         criteria.tenureMonths(),
                         criteria.monthlyDeposit()
                 ).stream()
-                .flatMap(product -> product.getProperties().stream()
-                        .filter(property -> isPropertyEligible(property, criteria, keywords.identities()))
-                        .map(property -> new EligibleProductOption(product, property)))
+                .flatMap(product
+                        -> product.getProperties().stream()
+                                .filter(property -> isPropertyEligible(property, criteria, keywords.identities()))
+                                .map(property -> new EligibleProductOption(product, property))
+                )
                 .toList();
     }
 
@@ -97,7 +97,6 @@ public class EligibilityFilterService {
                 annualIncome,
                 detail.householdIncomePercent(),
                 annualIncome != null && annualIncome == 0L,
-                keywords.identities().contains(KeywordValueEnum.STATUS_MILITARY),
                 detail.isHomeless(),
                 detail.isHouseholder(),
                 tenureMonths,
@@ -111,7 +110,7 @@ public class EligibilityFilterService {
             List<KeywordValueEnum> identities
     ) {
         return Boolean.TRUE.equals(property.getIsJoinable())
-                && isAgeEligible(property, criteria.age(), criteria.militaryAgeExtensionRequested())
+                && isAgeEligible(property, criteria.age())
                 && isIncomeEligible(property, criteria.annualIncome(), criteria.householdIncomePercent(), criteria.incomeProofUnavailable())
                 && isResidenceEligible(property, criteria.isHomeless(), criteria.isHouseholder())
                 && isTenureEligible(property, criteria.tenureMonths())
@@ -120,23 +119,14 @@ public class EligibilityFilterService {
     }
 
     // 나이 조건 확인
-    private boolean isAgeEligible(ProductProperty property, Integer age, Boolean militaryAgeExtensionRequested) {
+    private boolean isAgeEligible(ProductProperty property, Integer age) {
         if (age == null) {
             return true;
         }
         if (property.getMinAge() != null && property.getMinAge() > age) {
             return false;
         }
-        if (property.getMaxAge() == null || property.getMaxAge() >= age) {
-            return true;
-        }
-
-        int militaryMaxAge = property.getMilitaryMaxAge() != null ? property.getMilitaryMaxAge() : 39;
-        return Boolean.TRUE.equals(militaryAgeExtensionRequested)
-                && age >= 35
-                && age <= 39
-                && Boolean.TRUE.equals(property.getAllowsMilitaryAgeExtension())
-                && militaryMaxAge >= age;
+        return property.getMaxAge() == null || property.getMaxAge() >= age;
     }
 
     // 소득 조건 확인 
@@ -230,7 +220,6 @@ public class EligibilityFilterService {
             Long annualIncome,
             Integer householdIncomePercent,
             Boolean incomeProofUnavailable,
-            Boolean militaryAgeExtensionRequested,
             Boolean isHomeless,
             Boolean isHouseholder,
             Integer tenureMonths,

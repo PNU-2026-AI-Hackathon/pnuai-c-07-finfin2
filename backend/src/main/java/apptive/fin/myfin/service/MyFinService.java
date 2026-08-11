@@ -11,11 +11,13 @@ import apptive.fin.search.dto.ProductMatchDto;
 import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
-import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ProductApplyStatus;
 import apptive.fin.search.repository.ProductPropertyRepository;
 import apptive.fin.search.service.MatchScoreService;
 import apptive.fin.search.service.RateCalculatorService;
+import apptive.fin.search.util.ProductAvailability;
 import apptive.fin.user.entity.User;
 import apptive.fin.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -78,7 +80,7 @@ public class MyFinService {
             throw new BusinessException(MyFinErrorCode.FAVORITE_ALREADY_EXISTS);
         }
 
-        ProductProperty productProperty = productPropertyRepository.findById(productPropertyId)
+        ProductProperty productProperty = productPropertyRepository.findByIdAndIsJoinableTrue(productPropertyId)
                 .orElseThrow(() -> new BusinessException(MyFinErrorCode.PRODUCT_NOT_FOUND));
 
         User user = userRepository.findById(userId)
@@ -118,8 +120,8 @@ public class MyFinService {
         String sourceCode = product.getSource().getCode();
 
         // 키워드 추출
-        List<String> keywordList = pp.getKeywords().stream()
-                .map(ProductKeyword::getKeywordCode)
+        List<String> keywordList = pp.keywordCodes().stream()
+                .filter(keyword -> keyword != KeywordValueEnum.BANK_ETC)
                 .map(Enum::name)
                 .toList();
 
@@ -136,10 +138,10 @@ public class MyFinService {
         String calcBasisCaption = buildCalcBasisCaption(pp, sourceCode, request);
 
         // 신청 상태 확인
-        String applyStatus = determineApplyStatus(pp, sourceCode);
+        ProductApplyStatus applyStatus = ProductAvailability.applyStatus(pp);
 
         // 신청 URL
-        String applyUrl = pp.resolvedApplyUrl();
+        String applyUrl = ProductAvailability.applyUrl(pp);
 
         return new MyfinResponseDto.Item(
                 myFin.getId(),
@@ -164,12 +166,22 @@ public class MyFinService {
             return null;
         }
 
-        ProductMatchDto matchDto = matchScoreService.score(product, pp, request, keywords, false);
+        ProductMatchDto matchDto = matchScoreService.score(
+                product,
+                pp,
+                request,
+                keywords,
+                request.hasTransactionHistory()
+        );
         // totalScore를 0~100 스케일로 변환
         return (int) Math.round(matchDto.totalScore() * 100);
     }
 
     private MyfinResponseDto.Metrics calculateMetrics(ProductProperty pp, String sourceCode, SearchRequestDto request, ResolvedKeywords keywords) {
+        if (request == null) {
+            return null;
+        }
+
         if ("ONTONG".equals(sourceCode)) {
             // 정부 상품: RateCalculatorService.governmentDetail() 활용
             GovernmentDetailDto govDetail = rateCalculatorService.governmentDetail(pp, request);
@@ -256,12 +268,4 @@ public class MyFinService {
         }
     }
 
-    private String determineApplyStatus(ProductProperty pp, String sourceCode) {
-        if ("ONTONG".equals(sourceCode)) {
-            if (!pp.getIsJoinable()) {
-                return "RECRUIT_CLOSED";
-            }
-        }
-        return "AVAILABLE";
-    }
 }

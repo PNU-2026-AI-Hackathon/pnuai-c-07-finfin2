@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -35,6 +36,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoResourceFoundException.class)
     protected ResponseEntity<ErrorResponseDto> handleNoResourceFoundException(NoResourceFoundException e) {
         return ErrorResponseDto.toResponseEntity(CommonErrorCode.NOT_FOUND);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    protected ResponseEntity<ErrorResponseDto> handleHttpMessageNotReadableException(
+            HttpMessageNotReadableException e
+    ) {
+        return ErrorResponseDto.toResponseEntity(CommonErrorCode.INVALID_INPUT_VALUE);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

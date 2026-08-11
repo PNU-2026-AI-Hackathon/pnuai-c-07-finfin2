@@ -31,7 +31,8 @@ collector:
   # FSS(은행 공시)까지 함께 돌리려면 ALL 로 변경.
   source: ALL
   mode: SYNC
-  normalizer-version: 25
+  # REQ-001 상품명 후행 괄호 제거 재정규화를 위해 27 -> 28. (PR #20이 27로 올린 것 위에 얹음)
+  normalizer-version: 28
   reader-page-size : 500
   unseen-disable-period : 1
 
@@ -50,7 +51,7 @@ collector:
     provider: GEMINI
     model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
     prompt-version: 7
-    schema-version: 13
+    schema-version: 15
     chunk-size: ${LLM_CHUNK_SIZE:10}
     max-concurrency: ${LLM_MAX_CONCURRENCY:3}
     temperature: ${LLM_TEMPERATURE:0}

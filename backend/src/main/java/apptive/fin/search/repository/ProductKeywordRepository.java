@@ -1,6 +1,6 @@
 package apptive.fin.search.repository;
 
-import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.entity.ProductKeyword;
 import org.springframework.data.jpa.repository.JpaRepository;
 

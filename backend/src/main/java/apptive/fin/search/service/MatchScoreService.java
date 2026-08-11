@@ -1,22 +1,22 @@
 package apptive.fin.search.service;
 
-import apptive.fin.search.KeywordValueEnum;
-import apptive.fin.search.ScoreWeightEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ScoreWeightEnum;
 import apptive.fin.search.dto.ProductMatchDto;
 import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.entity.Product;
-import apptive.fin.search.entity.ProductKeyword;
 import apptive.fin.search.entity.ProductProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static apptive.fin.search.KeywordValueEnum.*;
+import static apptive.fin.search.enums.KeywordValueEnum.*;
 
 @Service
 public class MatchScoreService {
@@ -84,15 +84,15 @@ public class MatchScoreService {
             Double bankMaxInterestThreshold
     ) {
         // 상품 속성의 키워드
-        List<KeywordValueEnum> propertyKeywords = property.getKeywords().stream()
-                .map(ProductKeyword::getKeywordCode)
-                .toList();
+        Set<KeywordValueEnum> propertyKeywords = property.keywordCodes();
 
         // 활성화된 은행 관련 조건
         List<KeywordValueEnum> activeBankConditions = activeBankConditions(
                 bankConditions,
+                property,
                 request,
-                includeTransactionHistory
+                includeTransactionHistory,
+                isGov
         );
 
         // 가중치 분배
@@ -115,7 +115,7 @@ public class MatchScoreService {
                 * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_IDENTITY, ScoreWeightEnum.BANK_IDENTITY));
         double depositScore = calcDepositScore(monthlyDeposit, property)
                 * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_DEPOSIT, ScoreWeightEnum.BANK_DEPOSIT));
-        double bankCondScore = (isGovBankConditionExcluded(isGov, property)
+        double bankCondScore = (isGovBankConditionExcluded(isGov)
                 ? 0.0
                 : calcBankCondScore(activeBankConditions, propertyKeywords, property, request))
                 * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_BANK_COND, ScoreWeightEnum.BANK_BANK_COND));
@@ -142,7 +142,7 @@ public class MatchScoreService {
     private double calcBenefitScore(
             List<KeywordValueEnum> selected,
             ProductProperty property,
-            List<KeywordValueEnum> propertyKeywords,
+            Set<KeywordValueEnum> propertyKeywords,
             boolean isGov,
             Double bankMaxInterestThreshold
     ) {
@@ -159,15 +159,14 @@ public class MatchScoreService {
     private boolean isBenefitMatched(
             KeywordValueEnum keyword,
             ProductProperty property,
-            List<KeywordValueEnum> propertyKeywords,
+            Set<KeywordValueEnum> propertyKeywords,
             boolean isGov,
             Double bankMaxInterestThreshold
     ) {
         // 은행 #최고이율_중심: 정적 태그가 아니라 결과셋 최고금리(maxRate) 상위 30% 임계값 이상인지로 동적 판정 (PRD A-2).
         // 정부 상품/임계값 미제공 시에는 기존 태그 방식 유지 (정부는 금리 대부분 미공시).
         if (keyword == BENEFIT_MAX_INTEREST && !isGov && bankMaxInterestThreshold != null) {
-            return property.getMaxRate() != null
-                    && property.getMaxRate().doubleValue() >= bankMaxInterestThreshold;
+            return BankMaxInterestPolicy.qualifies(property, bankMaxInterestThreshold);
         }
         return propertyKeywords.contains(keyword);
     }
@@ -185,7 +184,7 @@ public class MatchScoreService {
     }
 
     // 신분 특화도 계산
-    private double calcIdentityScore(List<KeywordValueEnum> selected, List<KeywordValueEnum> propertyKeywords, boolean isGov) {
+    private double calcIdentityScore(List<KeywordValueEnum> selected, Set<KeywordValueEnum> propertyKeywords, boolean isGov) {
         if (selected.isEmpty()) return 0;
 
         // 정부상품이면
@@ -219,7 +218,7 @@ public class MatchScoreService {
     // 은행 거래 조건 점수 계산
     private double calcBankCondScore(
             List<KeywordValueEnum> selected,
-            List<KeywordValueEnum> propertyKeywords,
+            Set<KeywordValueEnum> propertyKeywords,
             ProductProperty property,
             SearchRequestDto request
     ) {
@@ -230,13 +229,17 @@ public class MatchScoreService {
         return (double) matched / selected.size();
     }
 
-    // 은행 거래 조건이 매칭되는지 검사
+    // 은행 상품의 우대금리 매칭되는지 검사
     private boolean matchesBankCondition(
             KeywordValueEnum keyword,
-            List<KeywordValueEnum> propertyKeywords,
+            Set<KeywordValueEnum> propertyKeywords,
             ProductProperty property,
             SearchRequestDto request
     ) {
+        if (keyword == BANK_AGE) {
+            return BankConditionMatcher.hasYouthAgeCondition(property);
+        }
+
         // 상품 속성이 해당 키워드를 포함하고 있지 않으면 false
         if (!propertyKeywords.contains(keyword)) {
             return false;
@@ -261,27 +264,41 @@ public class MatchScoreService {
     // 활성화된 은행 키워드 계산
     private List<KeywordValueEnum> activeBankConditions(
             List<KeywordValueEnum> selected,
+            ProductProperty property,
             SearchRequestDto request,
-            boolean includeTransactionHistory
+            boolean includeTransactionHistory,
+            boolean isGov
     ) {
-        // 선택된 은행 키워드
-        List<KeywordValueEnum> active = new ArrayList<>(selected);
+        LinkedHashSet<KeywordValueEnum> active = new LinkedHashSet<>();
+        selected.stream()
+                .filter(keyword -> !keyword.isTransactionHistoryCondition())
+                .filter(keyword -> keyword != BANK_ETC)
+                .forEach(active::add);
+        if (!isGov) {
+            if (property.keywordCodes().contains(BANK_ONLINE_JOIN)) {
+                active.add(BANK_ONLINE_JOIN);
+            }
+            if (BankConditionMatcher.hasYouthAgeCondition(property)) {
+                active.add(BANK_AGE);
+            }
+        }
+
         // 거래 내역 미포함시 계산하지 않음
-        if (!includeTransactionHistory) {
-            return active;
+        if (!includeTransactionHistory || !request.hasTransactionHistory()) {
+            return new ArrayList<>(active);
         }
         
         // neverUsedBanks가 하나 이상 선택되었고 BANK_FIRST_TRANSACTION이 포함되어 있지 않다면
-        if (hasAny(request.neverUsedBanks()) && !active.contains(BANK_FIRST_TRANSACTION)) {
+        if (hasAny(request.neverUsedBanks())) {
             active.add(BANK_FIRST_TRANSACTION);
         }
 
         // maturedSavingBanks가 하나 이상 선택되었고 BANK_REDEPOSITE이 포함되어 있지 않다면
-        if (hasAny(request.maturedSavingBanks()) && !active.contains(BANK_REDEPOSIT)) {
+        if (hasAny(request.maturedSavingBanks())) {
             active.add(BANK_REDEPOSIT);
         }
 
-        return active;
+        return new ArrayList<>(active);
     }
 
     // 리스트가 값을 가지고 있는지 검사
@@ -324,7 +341,7 @@ public class MatchScoreService {
         }
 
         // 은행 거래 조건이 비었거나, 유형 1(은행취급상품)이 아닌 경우
-        if (bankConditions.isEmpty() || isGovBankConditionExcluded(isGov, property)) {
+        if (bankConditions.isEmpty() || isGovBankConditionExcluded(isGov)) {
             inactive.add(weightKey(isGov, ScoreWeightEnum.GOV_BANK_COND, ScoreWeightEnum.BANK_BANK_COND));
         }
 
@@ -361,7 +378,7 @@ public class MatchScoreService {
                 .toList();
     }
 
-    private boolean isGovBankConditionExcluded(boolean isGov, ProductProperty property) {
+    private boolean isGovBankConditionExcluded(boolean isGov) {
         return isGov;
     }
 

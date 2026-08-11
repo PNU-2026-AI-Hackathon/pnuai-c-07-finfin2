@@ -2,8 +2,8 @@ package apptive.fin.calculator.service;
 
 import apptive.fin.calculator.dto.CalculatorRequestDto;
 import apptive.fin.calculator.dto.CalculatorResponseDto;
-import apptive.fin.search.InterestRateType;
-import apptive.fin.search.ProductType;
+import apptive.fin.search.enums.InterestRateType;
+import apptive.fin.search.enums.ProductType;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;

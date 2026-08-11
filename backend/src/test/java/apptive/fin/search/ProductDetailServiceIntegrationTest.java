@@ -1,5 +1,10 @@
 package apptive.fin.search;
 
+import apptive.fin.search.enums.CategoryIdEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ProductApplyStatus;
+import apptive.fin.search.enums.ProductType;
+import apptive.fin.search.enums.ReserveType;
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.global.error.BusinessException;
 import apptive.fin.search.dto.DetailedOptionsDto;
@@ -19,6 +24,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,6 +34,11 @@ import static org.assertj.core.api.Assertions.offset;
 @Sql(scripts = "/sql/search-products.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
 @Sql(scripts = "/sql/cleanup-product-fixtures.sql", executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
+
+    // data.sql의 category_option 삽입 순서로 결정되는 옵션 id
+    private static final Long AROUND_1_YEAR_PERIOD_OPTION_ID = 24L; // TERM_AROUND_1_YEAR
+    private static final Long MAX_INTEREST_BENEFIT_OPTION_ID = 25L; // BENEFIT_MAX_INTEREST
+    private static final Long FIRST_TRANSACTION_OPTION_ID = 31L;    // BANK_FIRST_TRANSACTION
 
     @Autowired
     private ProductDetailService productDetailService;
@@ -73,14 +84,25 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 약관동의전_사용자는_로그인했어도_수익지표를_잠근다() {
+    void 로그인해도_2단계_필수정보가_미완료면_수익지표를_잠근다() {
         Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
 
         ProductDetailResponseDto detail = productDetailService.getProductDetail(
-                productId,
-                request(null, 100L),
-                user(UserRole.BEFORE_AGREED)
-        );
+                productId, incompleteRequest(null, 100L), authenticatedUser());
+
+        assertThat(detail.metricsLocked()).isTrue();
+        assertThat(detail.lockMessage()).isNotBlank();
+        assertThat(detail.government()).isNull();
+        assertThat(detail.bank()).isNull();
+        assertThat(detail.rateTable()).isNull();
+    }
+
+    @Test
+    void 로그인하고_단계입력을_완료해도_property가_없으면_수익지표를_잠근다() {
+        Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(null, 100L), authenticatedUser());
 
         assertThat(detail.metricsLocked()).isTrue();
         assertThat(detail.government()).isNull();
@@ -89,7 +111,25 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 관리자는_수익지표를_조회할수있다() {
+    void 약관동의전_사용자는_입력을_완료해도_수익지표를_잠근다() {
+        Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
+        Long propertyId = propertyId("SEARCH_YOUTH_EMPLOYMENT");
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId,
+                request(propertyId, 100L),
+                user(UserRole.BEFORE_AGREED)
+        );
+
+        assertThat(detail.metricsLocked()).isTrue();
+        assertThat(detail.lockMessage()).isNotBlank();
+        assertThat(detail.government()).isNull();
+        assertThat(detail.bank()).isNull();
+        assertThat(detail.rateTable()).isNull();
+    }
+
+    @Test
+    void 관리자는_입력을_완료하면_수익지표를_조회할수있다() {
         Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
         Long propertyId = propertyId("SEARCH_YOUTH_EMPLOYMENT");
 
@@ -100,6 +140,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         );
 
         assertThat(detail.metricsLocked()).isFalse();
+        assertThat(detail.lockMessage()).isNull();
         assertThat(detail.government()).isNotNull();
     }
 
@@ -121,11 +162,16 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     void 은행상품_상세는_금리와_provider_대표_아웃링크를_반환한다() {
         Long productId = productId("SEARCH_YOUTH_SAVING");
         Long propertyId = propertyId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("""
+                INSERT INTO product_property_required_keyword
+                    (product_property_id, keyword_code, effect, confidence)
+                VALUES (?, 'STATUS_MILITARY', 'REQUIRE', 'HIGH')
+                """, propertyId);
         jdbcTemplate.update("UPDATE provider SET apply_url = ? WHERE code = ?",
                 "https://bank.example/apply", "SEARCH_BANK_B");
 
         ProductDetailResponseDto detail = productDetailService.getProductDetail(
-                productId, request(propertyId, null), authenticatedUser());
+                productId, request(propertyId, 100L), authenticatedUser());
 
         assertThat(detail.government()).isNull();
         assertThat(detail.bank()).isNotNull();
@@ -140,6 +186,33 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void BANK_ETC는_자동충족되지_않지만_상세_키워드와_조건과_금리표에_노출된다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        Long propertyId = propertyId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("""
+                INSERT INTO product_preferential_rates
+                    (product_property_id, keyword_code, rate, description)
+                VALUES (?, 'BANK_ETC', 0.70, '기타 우대조건')
+                """, propertyId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId,
+                request(propertyId, 100L),
+                authenticatedUser()
+        );
+
+        assertThat(detail.keywords()).contains(KeywordValueEnum.BANK_ETC);
+        assertThat(detail.bank().achievableRate()).isEqualTo(3.8);
+        assertThat(detail.bank().unmetConditions())
+                .extracting(condition -> condition.keywordCode())
+                .contains(KeywordValueEnum.BANK_ETC);
+        assertThat(detail.rateTable())
+                .flatExtracting(row -> row.preferentialRates())
+                .extracting(condition -> condition.keywordCode())
+                .contains(KeywordValueEnum.BANK_ETC);
+    }
+
+    @Test
     void fssDetailPrefersPropertyApplyUrlOverProviderApplyUrl() {
         Long productId = productId("SEARCH_YOUTH_SAVING");
         Long propertyId = propertyId("SEARCH_YOUTH_SAVING");
@@ -149,7 +222,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
                 "https://product.example/apply", propertyId);
 
         ProductDetailResponseDto detail = productDetailService.getProductDetail(
-                productId, request(propertyId, null), authenticatedUser());
+                productId, request(propertyId, 100L), authenticatedUser());
 
         assertThat(detail.applyUrl()).isEqualTo("https://product.example/apply");
     }
@@ -170,7 +243,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
                 """, productId);
 
         ProductDetailResponseDto detail = productDetailService.getProductDetail(
-                productId, request(propertyId, null), authenticatedUser());
+                productId, request(propertyId, 100L), authenticatedUser());
 
         assertThat(detail.applyUrl()).isEqualTo("https://provider.example/apply");
     }
@@ -183,7 +256,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         Long propertyId = propertyId("SEARCH_YOUTH_SAVING");
 
         ProductDetailResponseDto detail = productDetailService.getProductDetail(
-                productId, request(propertyId, null), authenticatedUser());
+                productId, request(propertyId, 100L), authenticatedUser());
 
         assertThat(detail.keywords()).contains(KeywordValueEnum.BENEFIT_MAX_INTEREST);
     }
@@ -195,7 +268,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         Long propertyId = propertyId("SEARCH_SAFE_DEPOSIT");
 
         ProductDetailResponseDto detail = productDetailService.getProductDetail(
-                productId, request(propertyId, null), authenticatedUser());
+                productId, request(propertyId, 100L), authenticatedUser());
 
         assertThat(detail.keywords()).doesNotContain(KeywordValueEnum.BENEFIT_MAX_INTEREST);
     }
@@ -211,7 +284,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
                 propertyId);
 
         ProductDetailResponseDto detail = productDetailService.getProductDetail(
-                productId, request(propertyId, null), authenticatedUser());
+                productId, request(propertyId, 100L), authenticatedUser());
 
         assertThat(detail.keywords()).doesNotContain(KeywordValueEnum.BENEFIT_MAX_INTEREST);
     }
@@ -266,7 +339,9 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
 
     @Test
     void 상세_적합도는_리스트의_totalScore와_일치한다() {
-        List<OptionRequestDto> options = List.of(new OptionRequestDto(CategoryIdEnum.REGION.getId(), 2L));
+        List<OptionRequestDto> options = requiredStep1Options(
+                List.of(new OptionRequestDto(CategoryIdEnum.REGION.getId(), 2L))
+        );
         DetailedOptionsDto detailedOptions = detailedOptions(50L);
 
         // 리스트(탭A)에서 해당 카드의 totalScore와 productPropertyId 확보
@@ -288,21 +363,363 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 최고이율_중심을_선택해도_상세_적합도는_리스트의_totalScore와_일치한다() {
+        // #최고이율_중심은 정적 태그가 아니라 상위 30% 컷으로 동적 판정한다(PRD A-2).
+        // 상세가 그 임계값 없이 채점하면 정적 태그 폴백으로 떨어져 카드보다 낮은 점수가 나온다.
+        //
+        // 상세도 동일 요청의 가입 가능 은행 모집단으로 컷을 계산해야 카드와 점수가 일치한다.
+        List<OptionRequestDto> options = requiredStep1Options(List.of(
+                new OptionRequestDto(CategoryIdEnum.REGION.getId(), 2L),
+                new OptionRequestDto(CategoryIdEnum.BENEFIT.getId(), MAX_INTEREST_BENEFIT_OPTION_ID)
+        ));
+        DetailedOptionsDto detailedOptions = detailedOptions(50L);
+
+        ProductSearchResultDto list = searchService.search(
+                new SearchRequestDto(options, detailedOptions), authenticatedUser());
+        ProductMatchDto card = list.bankRanked().stream()
+                .filter(match -> match.productName().equals("청년우대적금"))
+                .findFirst()
+                .orElseThrow();
+        assertThat(card.benefitScore()).isPositive(); // 컷(4.5) 충족 → 동적 판정으로 혜택 점수를 받는다
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                card.productId(),
+                new ProductDetailRequestDto(card.productPropertyId(), options, detailedOptions),
+                authenticatedUser());
+
+        assertThat(detail.matchScore()).isCloseTo(card.totalScore(), offset(0.0001));
+    }
+
+    @Test
+    void 상세_최고이율_컷은_추천결과의_가입가능_은행_모집단과_일치한다() {
+        jdbcTemplate.update("""
+                INSERT INTO product (source_id, type, product_code, product_name, content)
+                VALUES
+                    ((SELECT id FROM product_source WHERE code = 'FSS'), 'SAVING',
+                     'SEARCH_INELIGIBLE_HIGH_1', '가입불가 고금리1', ''),
+                    ((SELECT id FROM product_source WHERE code = 'FSS'), 'SAVING',
+                     'SEARCH_INELIGIBLE_HIGH_2', '가입불가 고금리2', '')
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO product_properties
+                    (product_id, provider_id, base_rate, max_rate,
+                     min_monthly_limit, max_monthly_limit, is_joinable, save_trm)
+                VALUES
+                    ((SELECT id FROM product WHERE product_code = 'SEARCH_INELIGIBLE_HIGH_1'),
+                     (SELECT id FROM provider WHERE code = 'SEARCH_BANK_A'),
+                     9.0, 10.0, 1000, 2000, true, 12),
+                    ((SELECT id FROM product WHERE product_code = 'SEARCH_INELIGIBLE_HIGH_2'),
+                     (SELECT id FROM provider WHERE code = 'SEARCH_BANK_A'),
+                     8.0, 9.0, 1000, 2000, true, 12)
+                """);
+        List<OptionRequestDto> options = requiredStep1Options(List.of(
+                new OptionRequestDto(
+                        CategoryIdEnum.BENEFIT.getId(), MAX_INTEREST_BENEFIT_OPTION_ID)
+        ));
+        DetailedOptionsDto detailedOptions = detailedOptions(50L);
+
+        ProductSearchResultDto list = searchService.search(
+                new SearchRequestDto(options, detailedOptions), authenticatedUser());
+        ProductMatchDto card = list.bankRanked().stream()
+                .filter(match -> match.productName().equals("청년우대적금"))
+                .findFirst()
+                .orElseThrow();
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                card.productId(),
+                new ProductDetailRequestDto(card.productPropertyId(), options, detailedOptions),
+                authenticatedUser());
+
+        assertThat(detail.matchScore()).isCloseTo(card.totalScore(), offset(0.0001));
+    }
+
+    @Test
+    void 은행상품의_자동조건은_추천목록과_상세에_동일하게_반영된다() {
+        Long propertyId = propertyId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("""
+                INSERT INTO product_preferential_rates
+                    (product_property_id, keyword_code, rate, description, min_age, max_age)
+                VALUES
+                    (?, 'BANK_ONLINE_JOIN', 0.10, '온라인 가입', NULL, NULL),
+                    (?, 'BANK_AGE', 0.20, '청년 우대', 20, 30)
+                """, propertyId, propertyId);
+
+        List<OptionRequestDto> options = requiredStep1Options(
+                List.of(new OptionRequestDto(CategoryIdEnum.REGION.getId(), 2L))
+        );
+        DetailedOptionsDto detailedOptions = detailedOptions(50L);
+
+        ProductSearchResultDto list = searchService.search(
+                new SearchRequestDto(options, detailedOptions),
+                authenticatedUser()
+        );
+        ProductMatchDto card = list.bankRanked().stream()
+                .filter(match -> match.productName().equals("청년우대적금"))
+                .findFirst()
+                .orElseThrow();
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                card.productId(),
+                new ProductDetailRequestDto(card.productPropertyId(), options, detailedOptions),
+                authenticatedUser()
+        );
+
+        assertThat(detail.matchScore()).isCloseTo(card.totalScore(), offset(0.0001));
+        assertThat(detail.bank().achievableRate()).isEqualTo(4.1);
+        assertThat(detail.bank().metConditions())
+                .extracting(condition -> condition.keywordCode())
+                .containsExactlyInAnyOrder(
+                        KeywordValueEnum.BANK_ONLINE_JOIN,
+                        KeywordValueEnum.BANK_AGE
+                );
+        assertThat(detail.bank().unmetConditions()).isEmpty();
+    }
+
+    @Test
     void 옵션없이_직접진입하면_적합도는_null이다() {
         Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
         Long propertyId = propertyId("SEARCH_YOUTH_EMPLOYMENT");
 
-        // request(...) 헬퍼는 options를 비워 보냄 → 채점 근거 없음
         ProductDetailResponseDto detail = productDetailService.getProductDetail(
-                productId, request(propertyId, 100L), authenticatedUser());
+                productId,
+                new ProductDetailRequestDto(propertyId, List.of(), detailedOptions(100L)),
+                authenticatedUser());
 
         assertThat(detail.matchScore()).isNull();
+    }
+
+    @Test
+    void 비로그인_대표_property는_거래이력과_무관하게_최고_공시금리로_선택한다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        Long originalPropertyId = propertyId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update(
+                "UPDATE product_properties SET base_rate = 2.00, max_rate = 4.50 WHERE id = ?",
+                originalPropertyId
+        );
+        jdbcTemplate.update("""
+                INSERT INTO product_preferential_rates
+                    (product_property_id, keyword_code, rate, description)
+                VALUES (?, 'BANK_FIRST_TRANSACTION', 3.00, '첫거래 우대')
+                """, originalPropertyId);
+        jdbcTemplate.update("""
+                INSERT INTO provider (source_id, code, name, apply_url)
+                VALUES (
+                    (SELECT id FROM product_source WHERE code = 'FSS'),
+                    'DETAIL_PUBLIC_BANK',
+                    '공개대표은행',
+                    'https://public.example/apply'
+                )
+                """);
+        jdbcTemplate.update("""
+                INSERT INTO product_properties
+                    (product_id, provider_id, base_rate, max_rate, save_trm)
+                VALUES (
+                    ?,
+                    (SELECT id FROM provider WHERE code = 'DETAIL_PUBLIC_BANK'),
+                    4.00,
+                    5.00,
+                    12
+                )
+                """, productId);
+
+        DetailedOptionsDto usedBank = new DetailedOptionsDto(
+                null, null, null, null, null, null, null, null,
+                null, null, List.of("SEARCH_BANK_B"), List.of(), List.of()
+        );
+        DetailedOptionsDto unusedBank = new DetailedOptionsDto(
+                null, null, null, null, null, null, null, null,
+                null, null, List.of(), List.of(), List.of()
+        );
+
+        ProductDetailResponseDto withHistory = productDetailService.getProductDetail(
+                productId,
+                new ProductDetailRequestDto(null, List.of(), usedBank),
+                null
+        );
+        ProductDetailResponseDto withoutHistory = productDetailService.getProductDetail(
+                productId,
+                new ProductDetailRequestDto(null, List.of(), unusedBank),
+                null
+        );
+
+        for (ProductDetailResponseDto detail : List.of(withHistory, withoutHistory)) {
+            assertThat(detail.providerName()).isEqualTo("공개대표은행");
+            assertThat(detail.applyUrl()).isEqualTo("https://public.example/apply");
+            assertThat(detail.metricsLocked()).isTrue();
+        }
+    }
+
+    @Test
+    void property를_지정하지_않은_로그인_기본상세는_공개정보만_반환한다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("""
+                INSERT INTO product_properties
+                    (product_id, provider_id, base_rate, max_rate, save_trm, is_joinable)
+                VALUES (
+                    ?,
+                    (SELECT id FROM provider WHERE code = 'SEARCH_BANK_B'),
+                    9.00,
+                    9.90,
+                    24,
+                    false
+                )
+                """, productId);
+        jdbcTemplate.update("""
+                INSERT INTO product_property_keyword (product_property_id, keyword_code)
+                SELECT pp.id, 'STATUS_MILITARY'
+                FROM product_properties pp
+                WHERE pp.product_id = ? AND pp.save_trm = 24
+                """, productId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(null, null), authenticatedUser());
+
+        assertThat(detail.metricsLocked()).isTrue();
+        assertThat(detail.bank()).isNull();
+        assertThat(detail.rateTable()).isNull();
+        assertThat(detail.saveTrms()).containsExactly(12);
+        assertThat(detail.keywords()).doesNotContain(KeywordValueEnum.STATUS_MILITARY);
+    }
+
+    @Test
+    void 비로그인_기본상세도_가입가능한_속성만_대표값과_집계에_사용한다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("""
+                INSERT INTO product_properties
+                    (product_id, provider_id, base_rate, max_rate, save_trm, is_joinable)
+                VALUES (
+                    ?,
+                    (SELECT id FROM provider WHERE code = 'SEARCH_BANK_B'),
+                    9.00,
+                    9.90,
+                    24,
+                    false
+                )
+                """, productId);
+        jdbcTemplate.update("""
+                INSERT INTO product_property_required_keyword
+                    (product_property_id, keyword_code, effect, confidence)
+                SELECT pp.id, 'STATUS_MILITARY', 'REQUIRE', 'HIGH'
+                FROM product_properties pp
+                WHERE pp.product_id = ? AND pp.save_trm = 24
+                """, productId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(null, null), null);
+
+        assertThat(detail.providerName()).isEqualTo("국민은행");
+        assertThat(detail.saveTrms()).containsExactly(12);
+        assertThat(detail.keywords()).doesNotContain(KeywordValueEnum.STATUS_MILITARY);
+        assertThat(detail.metricsLocked()).isTrue();
+    }
+
+    @Test
+    void 모든_속성이_비활성이면_종료된_과거상품_상세를_반환한다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update(
+                "UPDATE product_properties SET is_joinable = false WHERE product_id = ?",
+                productId
+        );
+        jdbcTemplate.update("UPDATE provider SET apply_url = ? WHERE code = ?",
+                "https://bank.example/apply", "SEARCH_BANK_B");
+        jdbcTemplate.update("""
+                INSERT INTO product_properties
+                    (product_id, provider_id, base_rate, max_rate, save_trm, is_joinable)
+                VALUES (
+                    ?,
+                    (SELECT id FROM provider WHERE code = 'SEARCH_BANK_B'),
+                    2.00,
+                    9.90,
+                    24,
+                    false
+                )
+                """, productId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(null, null), authenticatedUser());
+        ProductDetailResponseDto locked = productDetailService.getProductDetail(
+                productId, request(null, null), null);
+
+        assertThat(detail.applyStatus()).isEqualTo(ProductApplyStatus.RECRUIT_CLOSED);
+        assertThat(detail.applyUrl()).isNull();
+        assertThat(detail.metricsLocked()).isTrue();
+        assertThat(detail.bank()).isNull();
+        assertThat(detail.rateTable()).isNull();
+        assertThat(detail.saveTrms()).containsExactly(12, 24);
+        assertThat(locked.applyStatus()).isEqualTo(ProductApplyStatus.RECRUIT_CLOSED);
+        assertThat(locked.applyUrl()).isNull();
+        assertThat(locked.metricsLocked()).isTrue();
+        assertThat(locked.bank()).isNull();
+        assertThat(locked.rateTable()).isNull();
+    }
+
+    @Test
+    void 비활성_property를_직접_조회하면_선택한_과거옵션만_반환한다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("UPDATE provider SET apply_url = ? WHERE code = ?",
+                "https://bank.example/apply", "SEARCH_BANK_B");
+        jdbcTemplate.update("""
+                INSERT INTO product_properties
+                    (product_id, provider_id, base_rate, max_rate, save_trm, is_joinable)
+                VALUES (
+                    ?,
+                    (SELECT id FROM provider WHERE code = 'SEARCH_BANK_B'),
+                    9.00,
+                    9.90,
+                    24,
+                    false
+                )
+                """, productId);
+        Long inactivePropertyId = jdbcTemplate.queryForObject(
+                "SELECT id FROM product_properties WHERE product_id = ? AND save_trm = 24",
+                Long.class,
+                productId
+        );
+        jdbcTemplate.update("""
+                INSERT INTO product_property_required_keyword
+                    (product_property_id, keyword_code, effect, confidence)
+                VALUES (?, 'STATUS_MILITARY', 'REQUIRE', 'HIGH')
+                """, inactivePropertyId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(inactivePropertyId, 100L), authenticatedUser());
+
+        assertThat(detail.applyStatus()).isEqualTo(ProductApplyStatus.RECRUIT_CLOSED);
+        assertThat(detail.applyUrl()).isNull();
+        assertThat(detail.bank().maxRate()).isEqualTo(9.9);
+        assertThat(detail.saveTrms()).containsExactly(24);
+        assertThat(detail.rateTable())
+                .extracting(row -> row.saveTrm())
+                .containsExactly(24);
+        assertThat(detail.keywords()).containsExactly(KeywordValueEnum.STATUS_MILITARY);
     }
 
     @Test
     void 존재하지_않는_상품은_예외를_던진다() {
         assertThatThrownBy(() -> productDetailService.getProductDetail(
                 999_999L, request(null, null), authenticatedUser()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(SearchErrorCode.PRODUCT_NOT_FOUND));
+    }
+
+    @Test
+    void 다른_상품의_property를_요청하면_예외를_던진다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        Long otherProductPropertyId = propertyId("SEARCH_SAFE_DEPOSIT");
+
+        assertThatThrownBy(() -> productDetailService.getProductDetail(
+                productId, request(otherProductPropertyId, 100L), authenticatedUser()))
+                .isInstanceOf(BusinessException.class)
+                .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
+                        .isEqualTo(SearchErrorCode.PRODUCT_NOT_FOUND));
+    }
+
+    @Test
+    void 존재하지_않는_property를_요청하면_예외를_던진다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+
+        assertThatThrownBy(() -> productDetailService.getProductDetail(
+                productId, request(999_999L, 100L), authenticatedUser()))
                 .isInstanceOf(BusinessException.class)
                 .satisfies(e -> assertThat(((BusinessException) e).getErrorCode())
                         .isEqualTo(SearchErrorCode.PRODUCT_NOT_FOUND));
@@ -330,7 +747,22 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     private ProductDetailRequestDto request(Long productPropertyId, Long monthlySavingsGoal) {
         return new ProductDetailRequestDto(
                 productPropertyId,
-                List.of(),
+                requiredStep1Options(),
+                new DetailedOptionsDto(
+                        LocalDate.now().minusYears(27),
+                        30_000_000L, 3, 100, 12, null, true, null,
+                        monthlySavingsGoal, List.of(),
+                        List.of(),
+                        List.of(),
+                        List.of()
+                )
+        );
+    }
+
+    private ProductDetailRequestDto incompleteRequest(Long productPropertyId, Long monthlySavingsGoal) {
+        return new ProductDetailRequestDto(
+                productPropertyId,
+                requiredStep1Options(),
                 new DetailedOptionsDto(
                         null, null, null, null, null, null, null, null,
                         monthlySavingsGoal, null, List.of()
@@ -338,15 +770,40 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         );
     }
 
-    // neverUsedBanks/maturedSavingBanks 비어있지 않게 채워 리스트 탭B(=includeTx)와 조건을 맞춘다.
+    // 거래 이력 3종을 null이 아닌 값으로 채워 개인화 접근 조건과 맞춘다.
     private DetailedOptionsDto detailedOptions(long monthlySavingsGoal) {
         return new DetailedOptionsDto(
                 LocalDate.now().minusYears(27),
                 30_000_000L, 3, 100, 12, null, true, null,
-                monthlySavingsGoal, null,
+                monthlySavingsGoal, List.of(),
                 List.of(),
                 List.of(),
                 List.of()
         );
+    }
+
+    private List<OptionRequestDto> requiredStep1Options() {
+        return List.of(
+                new OptionRequestDto(CategoryIdEnum.PERIOD.getId(), AROUND_1_YEAR_PERIOD_OPTION_ID),
+                new OptionRequestDto(CategoryIdEnum.BANK_COND.getId(), FIRST_TRANSACTION_OPTION_ID)
+        );
+    }
+
+    private List<OptionRequestDto> requiredStep1Options(List<OptionRequestDto> options) {
+        List<OptionRequestDto> result = new ArrayList<>(options);
+        boolean hasPeriod = options.stream()
+                .anyMatch(option -> option.categoryId().equals(CategoryIdEnum.PERIOD.getId()));
+        boolean hasBankCondition = options.stream()
+                .anyMatch(option -> option.categoryId().equals(CategoryIdEnum.BANK_COND.getId()));
+
+        if (!hasPeriod) {
+            result.add(new OptionRequestDto(
+                    CategoryIdEnum.PERIOD.getId(), AROUND_1_YEAR_PERIOD_OPTION_ID));
+        }
+        if (!hasBankCondition) {
+            result.add(new OptionRequestDto(
+                    CategoryIdEnum.BANK_COND.getId(), FIRST_TRANSACTION_OPTION_ID));
+        }
+        return result;
     }
 }
