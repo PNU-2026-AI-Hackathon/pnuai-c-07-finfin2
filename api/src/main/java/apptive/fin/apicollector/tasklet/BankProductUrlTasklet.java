@@ -1,5 +1,11 @@
-package apptive.fin.apicollector.bankurl;
+package apptive.fin.apicollector.tasklet;
 
+import apptive.fin.apicollector.bankurl.BankProductUrlPersistenceService;
+import apptive.fin.apicollector.bankurl.BankProductUrlProperties;
+import apptive.fin.apicollector.bankurl.BankProductUrlRepository;
+import apptive.fin.apicollector.bankurl.BankProductUrlTarget;
+import apptive.fin.apicollector.bankurl.ScrapeResult;
+import apptive.fin.apicollector.bankurl.ScrapeStatus;
 import apptive.fin.apicollector.bankurl.runner.BankProductUrlScrapeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

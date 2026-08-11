@@ -1,7 +1,7 @@
 package apptive.fin.apicollector.config;
 
 import apptive.fin.apicollector.batch.RawProductItemReader;
-import apptive.fin.apicollector.bankurl.BankProductUrlTasklet;
+import apptive.fin.apicollector.tasklet.BankProductUrlTasklet;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.enrich.FssLlmProductDraftEnricher;
 import apptive.fin.apicollector.raw.ProductRaw;
