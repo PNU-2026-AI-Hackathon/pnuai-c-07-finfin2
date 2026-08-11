@@ -173,10 +173,11 @@ class MyFinServiceTest {
         when(product.getSource()).thenReturn(source);
         when(source.getCode()).thenReturn("ONTONG");
         when(product.getProductCode()).thenReturn("POLICY001");
-        when(product.getProductName()).thenReturn("청년정책상품");
+        when(product.getDisplayProductName()).thenReturn("청년정책상품");
 
         MyfinResponseDto.List_ result = myFinService.getFavorites(1L);
 
+        assertEquals("청년정책상품", result.items().getFirst().productName());
         assertEquals("https://product.example/apply", result.items().getFirst().applyUrl());
         verify(productProperty).resolvedApplyUrl();
     }
@@ -202,10 +203,11 @@ class MyFinServiceTest {
         when(product.getSource()).thenReturn(source);
         when(source.getCode()).thenReturn(sourceCode);
         when(product.getProductCode()).thenReturn("CLOSED_BANK");
-        when(product.getProductName()).thenReturn("판매종료 적금");
+        when(product.getDisplayProductName()).thenReturn("판매종료 적금");
 
         MyfinResponseDto.Item item = myFinService.getFavorites(1L).items().getFirst();
 
+        assertEquals("판매종료 적금", item.productName());
         assertEquals(ProductApplyStatus.RECRUIT_CLOSED, item.applyStatus());
         assertNull(item.applyUrl());
     }
@@ -233,10 +235,11 @@ class MyFinServiceTest {
         when(product.getSource()).thenReturn(source);
         when(source.getCode()).thenReturn("ONTONG");
         when(product.getProductCode()).thenReturn("POLICY001");
-        when(product.getProductName()).thenReturn("청년정책상품");
+        when(product.getDisplayProductName()).thenReturn("청년정책상품");
 
         MyfinResponseDto.List_ result = service.getFavorites(1L);
 
+        assertEquals("청년정책상품", result.items().getFirst().productName());
         assertNull(result.items().getFirst().fitScore());
         assertNull(result.items().getFirst().metrics());
     }
@@ -278,6 +281,7 @@ class MyFinServiceTest {
         MyfinResponseDto.Item completeItem = service.getFavorites(1L, complete).items().getFirst();
         MyfinResponseDto.Item incompleteItem = service.getFavorites(1L, incomplete).items().getFirst();
 
+        assertEquals("첫거래 상품", completeItem.productName());
         assertTrue(completeItem.fitScore() > incompleteItem.fitScore());
         assertEquals(4.0, completeItem.metrics().achievableRate());
         assertEquals(3.5, incompleteItem.metrics().achievableRate());
@@ -297,7 +301,8 @@ class MyFinServiceTest {
         ReflectionTestUtils.setField(product, "source", source);
         ReflectionTestUtils.setField(product, "type", ProductType.SAVING);
         ReflectionTestUtils.setField(product, "productCode", "FAVORITE_FIRST");
-        ReflectionTestUtils.setField(product, "productName", "첫거래 상품");
+        // 수집기는 원천 이름을 그대로 저장한다. 응답에서 후행 괄호가 떨어지는지 실제 경로로 확인한다.
+        ReflectionTestUtils.setField(product, "productName", "첫거래 상품(자유적립식)");
 
         ProductProperty property = new ProductProperty();
         ReflectionTestUtils.setField(property, "id", 100L);
