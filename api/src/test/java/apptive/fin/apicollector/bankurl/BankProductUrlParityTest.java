@@ -63,6 +63,11 @@ class BankProductUrlParityTest {
         writeResults(javaFullDir.resolve(RESULT_FILE), javaResults);
 
         Comparison firstRun = compare(pythonResults, javaResults);
+        // 재시도 전에 쓴다. 재시도가 예외로 끝나도 첫 실행 증거는 남아야 한다.
+        // 재시도로 통과하면 diff.json 에서는 불일치가 사라지므로, 스케줄링에 따른
+        // 비결정적 URL 선택을 추적하려면 이 파일이 유일한 근거다.
+        writeDiff(reportDir.resolve("first-run-diff.json"), firstRun);
+
         Comparison comparison = firstRun;
         if (!firstRun.mismatchedKeys().isEmpty()) {
             comparison = retryMismatches(
@@ -70,9 +75,6 @@ class BankProductUrlParityTest {
             );
         }
 
-        // 재시도로 통과하더라도 첫 실행 불일치는 남긴다. 그게 지워지면 스케줄링에 따른
-        // 비결정적 URL 선택이 diff 에서 사라져 증거가 없어진다.
-        writeDiff(reportDir.resolve("first-run-diff.json"), firstRun);
         writeDiff(reportDir.resolve("diff.json"), comparison);
         assertThat(comparison.targetSetMatches())
                 .as("Python and Java target sets; see %s", reportDir.resolve("diff.json"))
