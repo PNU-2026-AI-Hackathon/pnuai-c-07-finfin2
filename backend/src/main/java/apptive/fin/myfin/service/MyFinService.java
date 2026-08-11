@@ -148,7 +148,7 @@ public class MyFinService {
                 pp.getId(),
                 sourceCode,
                 product.getProductCode(),
-                product.getProductName(),
+                product.getDisplayProductName(),
                 pp.getSaveTrm() != null ? String.valueOf(pp.getSaveTrm()) : null,
                 fitScore,
                 keywordList,

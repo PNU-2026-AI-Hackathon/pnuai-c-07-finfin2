@@ -17,7 +17,6 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 
 @Component
 public class FssProductNormalizer implements ProductNormalizer {
@@ -61,7 +60,10 @@ public class FssProductNormalizer implements ProductNormalizer {
         String joinMethod = JsonNodes.text(base, "join_way");
         String eligibilityText = JsonNodes.text(base, "join_member");
         String cautionText = JsonNodes.text(base, "etc_note");
-        String productName = stripTrailingParen(collapseWhitespace(JsonNodes.firstText(base, "fin_prdt_nm")));
+        // 금감원이 준 이름을 그대로 보존한다. 이름 끝 괄호(적립·지급 방식, 시즌 표기)는 은행 URL 스크래퍼가
+        // 상품을 구분하는 유일한 근거라, 여기서 떼면 전북 자유/정액적립식 같은 상품을 갈라낼 수 없다.
+        // 표시용 이름은 backend 의 Product.getDisplayProductName() 이 응답을 만들 때 가공한다.
+        String productName = collapseWhitespace(JsonNodes.firstText(base, "fin_prdt_nm"));
         List<ProductPropertyDraft> propertyDrafts = properties(raw, base);
 
         var draft = ProductDraft.builder()
@@ -139,18 +141,4 @@ public class FssProductNormalizer implements ProductNormalizer {
         return collapsed.isEmpty() ? null : collapsed;
     }
 
-    // 금감원 fin_prdt_nm은 "○○적금\n(정액적립식)", "○○통장(정기예금)", "○○예금(시즌2)"처럼
-    // 적립·지급 방식이나 상품유형·시즌 표기를 이름 끝 괄호로 붙여 내려준다.
-    // PO 기준(00적금/00예금)에 따라 이름 끝 괄호는 통째로 뗀다.
-    // 더(The), 헤이(Hey)처럼 이름 중간에 박힌 브랜드 괄호는 끝이 아니라 그대로 남는다.
-    private static final Pattern TRAILING_PAREN = Pattern.compile("\\s*\\([^()]*\\)$");
-
-    private static String stripTrailingParen(String name) {
-        if (name == null) {
-            return null;
-        }
-        // $ 앵커라 매칭되는 괄호는 항상 맨 끝 하나뿐. "헤이(Hey)적금 (자유적립식)"은
-        // 마지막 "(자유적립식)"만 지워지고 중간 "(Hey)"는 남는다.
-        return TRAILING_PAREN.matcher(name).replaceFirst("").stripTrailing();
-    }
 }

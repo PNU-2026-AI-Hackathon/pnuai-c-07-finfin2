@@ -151,7 +151,7 @@ public class ProductDetailService {
                 .productPropertyId(selected != null ? selected.getId() : null)
                 .productType(product.getType())
                 .sourceCode(product.getSource().getCode())
-                .productName(product.getProductName())
+                .productName(product.getDisplayProductName())
                 .providerName(providerName(selected))
                 .keywords(productDisplayKeywordService.resolve(
                         product,
