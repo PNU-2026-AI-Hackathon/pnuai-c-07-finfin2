@@ -247,14 +247,16 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
     }
 
     protected void navigate(Page page, String url) {
+        // 타임아웃을 명시하지 않으면 컨텍스트 기본값(BANK_URL_TIMEOUT_SECONDS)이 적용된다.
+        // 예전에는 30초를 하드코딩해 설정값을 덮었다.
         page.navigate(url, new Page.NavigateOptions()
-                .setWaitUntil(WaitUntilState.DOMCONTENTLOADED)
-                .setTimeout(30_000));
+                .setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
         settle(page);
     }
 
     protected void settle(Page page) {
         try {
+            // networkidle 은 영영 오지 않는 사이트가 있어 전체 예산과 별개인 짧은 하위 예산으로 둔다.
             page.waitForLoadState(LoadState.NETWORKIDLE, new Page.WaitForLoadStateOptions().setTimeout(10_000));
         } catch (PlaywrightException ignored) {
             // Some bank pages keep long-lived network connections open.

@@ -51,9 +51,9 @@ public class JeonbukBankScraper extends AbstractBankProductScraper {
         try (Page page = context.newPage()) {
             page.onResponse(response -> collectProductResponse(response, products));
             for (String listUrl : LIST_URLS) {
+                // 타임아웃은 컨텍스트 기본값(BANK_URL_TIMEOUT_SECONDS)을 따른다.
                 page.navigate(listUrl, new Page.NavigateOptions()
-                        .setWaitUntil(WaitUntilState.NETWORKIDLE)
-                        .setTimeout(40_000));
+                        .setWaitUntil(WaitUntilState.NETWORKIDLE));
                 page.waitForTimeout(3_000);
             }
         }
