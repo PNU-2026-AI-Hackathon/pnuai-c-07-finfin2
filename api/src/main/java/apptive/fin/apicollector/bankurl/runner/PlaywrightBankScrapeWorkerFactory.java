@@ -33,10 +33,15 @@ class PlaywrightBankScrapeWorkerFactory implements BankScrapeWorkerFactory {
                             .setArgs(List.of("--disable-gpu", "--disable-dev-shm-usage"))
             );
             return new PlaywrightWorker(playwright, browser, properties.effectiveTimeoutSeconds() * 1_000);
-        } catch (RuntimeException exception) {
+        } catch (Throwable failure) {
             // 브라우저를 못 띄웠으면 드라이버 프로세스도 함께 정리한다. 안 그러면 워커 수만큼 샌다.
-            playwright.close();
-            throw exception;
+            // Error(AssertionError, OOM 등)에서도 정리해야 하므로 Throwable 을 잡는다.
+            try {
+                playwright.close();
+            } catch (Throwable cleanupFailure) {
+                failure.addSuppressed(cleanupFailure);
+            }
+            throw failure;
         }
     }
 
@@ -59,11 +64,19 @@ class PlaywrightBankScrapeWorkerFactory implements BankScrapeWorkerFactory {
         @Override
         public void close() {
             // browser.close() 가 실패해도(Chromium 비정상 종료 등) 드라이버는 반드시 닫는다.
+            // finally 로 감싸면 playwright.close() 가 던질 때 원래 원인이 소실되는데,
+            // drain() 이 이 예외를 workerFailures 에 담으므로 진단이 막힌다.
             try {
                 browser.close();
-            } finally {
-                playwright.close();
+            } catch (RuntimeException browserFailure) {
+                try {
+                    playwright.close();
+                } catch (RuntimeException driverFailure) {
+                    browserFailure.addSuppressed(driverFailure);
+                }
+                throw browserFailure;
             }
+            playwright.close();
         }
     }
 }
