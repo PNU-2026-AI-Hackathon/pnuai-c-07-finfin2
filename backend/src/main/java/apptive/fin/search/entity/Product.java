@@ -92,6 +92,8 @@ public class Product extends BaseTimeEntity {
         if (name == null) {
             return null;
         }
-        return TRAILING_PAREN.matcher(name).replaceFirst("").stripTrailing();
+        String stripped = TRAILING_PAREN.matcher(name).replaceFirst("").stripTrailing();
+        // 이름이 통째로 괄호뿐이면("(정액적립식)") 빈 문자열이 된다. 그럴 땐 원본을 보여준다.
+        return stripped.isBlank() ? name : stripped;
     }
 }

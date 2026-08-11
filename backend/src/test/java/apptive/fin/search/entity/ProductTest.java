@@ -41,6 +41,16 @@ class ProductTest {
         assertThat(Product.stripTrailingParen(null)).isNull();
     }
 
+    // 이름이 통째로 괄호뿐이면 다 지워져 빈 문자열이 된다. 그럴 땐 원본이 낫다.
+    @ParameterizedTest
+    @CsvSource({
+            "'(정액적립식)', '(정액적립식)'",
+            "'(개인)', '(개인)'"
+    })
+    void keepsOriginalWhenStrippingWouldLeaveNothing(String stored, String displayed) {
+        assertThat(Product.stripTrailingParen(stored)).isEqualTo(displayed);
+    }
+
     @Test
     void displayNameStripsTrailingParenFromStoredName() {
         Product product = new Product();
