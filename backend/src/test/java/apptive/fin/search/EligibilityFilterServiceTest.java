@@ -1,5 +1,7 @@
 package apptive.fin.search;
 
+import apptive.fin.search.enums.CategoryIdEnum;
+import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.dto.DetailedOptionsDto;
 import apptive.fin.search.dto.OptionRequestDto;
 import apptive.fin.search.dto.ResolvedKeywords;
@@ -52,7 +54,7 @@ class EligibilityFilterServiceTest {
         );
 
         when(productRepository.findEligibleProducts(
-                any(), any(), any(), any(), any(), any(), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), any(), any()
         )).thenReturn(List.of());
         when(resolveKeywordService.resolveKeywords(request.options()))
                 .thenReturn(ResolvedKeywords.emptyKeywords());
@@ -63,7 +65,6 @@ class EligibilityFilterServiceTest {
         ArgumentCaptor<Long> annualIncomeCaptor = ArgumentCaptor.forClass(Long.class);
         ArgumentCaptor<Integer> householdIncomePercentCaptor = ArgumentCaptor.forClass(Integer.class);
         ArgumentCaptor<Boolean> incomeProofUnavailableCaptor = ArgumentCaptor.forClass(Boolean.class);
-        ArgumentCaptor<Boolean> militaryAgeExtensionRequestedCaptor = ArgumentCaptor.forClass(Boolean.class);
         ArgumentCaptor<Boolean> homelessCaptor = ArgumentCaptor.forClass(Boolean.class);
         ArgumentCaptor<Boolean> householderCaptor = ArgumentCaptor.forClass(Boolean.class);
         ArgumentCaptor<Integer> tenureCaptor = ArgumentCaptor.forClass(Integer.class);
@@ -74,7 +75,6 @@ class EligibilityFilterServiceTest {
                 annualIncomeCaptor.capture(),
                 householdIncomePercentCaptor.capture(),
                 incomeProofUnavailableCaptor.capture(),
-                militaryAgeExtensionRequestedCaptor.capture(),
                 homelessCaptor.capture(),
                 householderCaptor.capture(),
                 tenureCaptor.capture(),
@@ -85,7 +85,6 @@ class EligibilityFilterServiceTest {
         assertThat(annualIncomeCaptor.getValue()).isNull();
         assertThat(householdIncomePercentCaptor.getValue()).isNull();
         assertThat(incomeProofUnavailableCaptor.getValue()).isFalse();
-        assertThat(militaryAgeExtensionRequestedCaptor.getValue()).isFalse();
         assertThat(homelessCaptor.getValue()).isNull();
         assertThat(householderCaptor.getValue()).isNull();
         assertThat(tenureCaptor.getValue()).isNull();
@@ -113,7 +112,7 @@ class EligibilityFilterServiceTest {
         );
 
         when(productRepository.findEligibleProducts(
-                any(), any(), any(), any(), any(), any(), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), any(), any()
         )).thenReturn(List.of());
         when(resolveKeywordService.resolveKeywords(request.options()))
                 .thenReturn(new ResolvedKeywords(
@@ -128,7 +127,7 @@ class EligibilityFilterServiceTest {
 
         ArgumentCaptor<Integer> tenureCaptor = ArgumentCaptor.forClass(Integer.class);
         verify(productRepository).findEligibleProducts(
-                any(), any(), any(), any(), any(), any(), any(), tenureCaptor.capture(), any()
+                any(), any(), any(), any(), any(), any(), tenureCaptor.capture(), any()
         );
 
         assertThat(tenureCaptor.getValue()).isZero();
@@ -155,7 +154,7 @@ class EligibilityFilterServiceTest {
         );
 
         when(productRepository.findEligibleProducts(
-                any(), any(), any(), any(), any(), any(), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), any(), any()
         )).thenReturn(List.of());
         when(resolveKeywordService.resolveKeywords(request.options()))
                 .thenReturn(new ResolvedKeywords(
@@ -170,14 +169,14 @@ class EligibilityFilterServiceTest {
 
         ArgumentCaptor<Integer> tenureCaptor = ArgumentCaptor.forClass(Integer.class);
         verify(productRepository).findEligibleProducts(
-                any(), any(), any(), any(), any(), any(), any(), tenureCaptor.capture(), any()
+                any(), any(), any(), any(), any(), any(), tenureCaptor.capture(), any()
         );
 
         assertThat(tenureCaptor.getValue()).isEqualTo(36);
     }
 
     @Test
-    void 군복무_신분이면_병역연령확장_요청여부를_true로_전달한다() {
+    void 군복무_신분이어도_연령확장_조건없이_나이를_전달한다() {
         EligibilityFilterService service = new EligibilityFilterService(productRepository, resolveKeywordService);
         SearchRequestDto request = new SearchRequestDto(
                 List.of(new OptionRequestDto(CategoryIdEnum.IDENTITY.getId(), 21L)),
@@ -197,7 +196,7 @@ class EligibilityFilterServiceTest {
         );
 
         when(productRepository.findEligibleProducts(
-                any(), any(), any(), any(), any(), any(), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), any(), any()
         )).thenReturn(List.of());
         when(resolveKeywordService.resolveKeywords(request.options()))
                 .thenReturn(new ResolvedKeywords(
@@ -210,20 +209,19 @@ class EligibilityFilterServiceTest {
 
         service.filterEligible(request);
 
-        ArgumentCaptor<Boolean> militaryAgeExtensionRequestedCaptor = ArgumentCaptor.forClass(Boolean.class);
+        ArgumentCaptor<Integer> ageCaptor = ArgumentCaptor.forClass(Integer.class);
         verify(productRepository).findEligibleProducts(
+                ageCaptor.capture(),
                 any(),
                 any(),
                 any(),
-                any(),
-                militaryAgeExtensionRequestedCaptor.capture(),
                 any(),
                 any(),
                 any(),
                 any()
         );
 
-        assertThat(militaryAgeExtensionRequestedCaptor.getValue()).isTrue();
+        assertThat(ageCaptor.getValue()).isEqualTo(36);
     }
 
     @Test
@@ -257,7 +255,7 @@ class EligibilityFilterServiceTest {
         );
 
         when(productRepository.findEligibleProducts(
-                any(), any(), any(), any(), any(), any(), any(), any(), any()
+                any(), any(), any(), any(), any(), any(), any(), any()
         )).thenReturn(List.of());
         when(resolveKeywordService.resolveKeywords(request.options()))
                 .thenReturn(ResolvedKeywords.emptyKeywords());
@@ -271,7 +269,6 @@ class EligibilityFilterServiceTest {
                 any(),
                 householdIncomePercentCaptor.capture(),
                 incomeProofUnavailableCaptor.capture(),
-                any(),
                 any(),
                 any(),
                 any(),

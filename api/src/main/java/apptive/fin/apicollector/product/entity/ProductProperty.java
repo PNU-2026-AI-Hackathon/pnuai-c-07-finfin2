@@ -229,6 +229,10 @@ public class ProductProperty {
 
     public void markUnjoinable() {
         this.isJoinable = false;
+        this.keywords.removeIf(keyword ->
+                keyword.getKeywordCode().isPreferentialRate()
+                        || keyword.getKeywordCode().isRequired()
+        );
     }
 
     public void markJoinable() {

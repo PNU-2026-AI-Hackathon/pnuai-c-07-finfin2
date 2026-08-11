@@ -1,7 +1,7 @@
 package apptive.fin.search.entity;
 
 import apptive.fin.global.entity.BaseTimeEntity;
-import apptive.fin.search.ProductType;
+import apptive.fin.search.enums.ProductType;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

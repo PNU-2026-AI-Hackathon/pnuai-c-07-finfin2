@@ -1,5 +1,6 @@
 package apptive.fin.search;
 
+import apptive.fin.search.enums.ContributionType;
 import apptive.fin.search.dto.DetailedOptionsDto;
 import apptive.fin.search.dto.ProductRateDto;
 import apptive.fin.search.dto.ResolvedKeywords;

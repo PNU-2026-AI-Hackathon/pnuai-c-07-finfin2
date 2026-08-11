@@ -3,10 +3,10 @@ package apptive.fin.calculator;
 import apptive.fin.calculator.dto.CalculatorRequestDto;
 import apptive.fin.calculator.dto.CalculatorResponseDto;
 import apptive.fin.calculator.service.SavingRateCalculator;
-import apptive.fin.search.InterestRateType;
-import apptive.fin.search.ProductType;
-import apptive.fin.search.ReserveType;
-import apptive.fin.search.TaxType;
+import apptive.fin.search.enums.InterestRateType;
+import apptive.fin.search.enums.ProductType;
+import apptive.fin.search.enums.ReserveType;
+import apptive.fin.search.enums.TaxType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

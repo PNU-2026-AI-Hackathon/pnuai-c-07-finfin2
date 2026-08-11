@@ -1,9 +1,11 @@
 package apptive.fin.category;
 
 import apptive.fin.category.entity.CategoryOption;
+import apptive.fin.category.entity.Category;
 import apptive.fin.category.repository.CategoryOptionRepository;
 import apptive.fin.category.service.CategoryOptionService;
-import apptive.fin.search.KeywordValueEnum;
+import apptive.fin.category.service.CategoryOptionService.OptionMapping;
+import apptive.fin.search.enums.KeywordValueEnum;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -60,6 +62,22 @@ class CategoryOptionServiceTest {
         assertThat(result).isEmpty();
 
         verify(categoryOptionRepository).findAll();
+    }
+
+    @Test
+    void 옵션키워드와_실제카테고리를_함께_반환한다() {
+        CategoryOption option = createOption(1L, "TERM_AROUND_1_YEAR");
+        Category category = new Category();
+        ReflectionTestUtils.setField(category, "id", 3L);
+        ReflectionTestUtils.setField(option, "category", category);
+        when(categoryOptionRepository.findAll()).thenReturn(List.of(option));
+
+        Map<Long, OptionMapping> result = categoryOptionService.getOptionMappings();
+
+        assertThat(result).containsEntry(
+                1L,
+                new OptionMapping(3L, KeywordValueEnum.TERM_AROUND_1_YEAR)
+        );
     }
 
     private CategoryOption createOption(Long id, String code) {

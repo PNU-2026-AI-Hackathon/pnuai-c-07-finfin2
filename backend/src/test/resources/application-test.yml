@@ -5,3 +5,6 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate    # schema.sql이 테이블 생성 → Hibernate는 검증만 (dev와 동일)
+    properties:
+      hibernate:
+        generate_statistics: true   # 쿼리 수 기반 N+1 회귀 테스트용 (테스트 프로파일 전용)

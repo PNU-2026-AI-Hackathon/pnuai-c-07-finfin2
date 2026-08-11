@@ -1,6 +1,6 @@
 package apptive.fin.search.dto;
 
-import apptive.fin.search.ContributionType;
+import apptive.fin.search.enums.ContributionType;
 
 // 정부(ONTONG) 상세 수익 지표. 잠금 시 응답에서 null.
 public record GovernmentDetailDto(

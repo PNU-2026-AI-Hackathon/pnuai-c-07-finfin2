@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 @Component
@@ -16,11 +17,14 @@ public class KeywordExtractor {
     private final List<KeywordRecognizer> keywordRecognizers;
 
     public List<KeywordValueEnum> extract(ProductDraft productDraft, ProductPropertyDraft propertyDraft) {
-        List<KeywordValueEnum> keywords = new ArrayList<>();
+        LinkedHashSet<KeywordValueEnum> keywords = new LinkedHashSet<>();
         for (KeywordRecognizer keywordRecognizer : keywordRecognizers) {
-            keywords.addAll(keywordRecognizer.recognize(productDraft, propertyDraft));
+            keywordRecognizer.recognize(productDraft, propertyDraft).stream()
+                    .filter(keyword -> !keyword.isPreferentialRate())
+                    .filter(keyword -> !keyword.isRequired())
+                    .forEach(keywords::add);
         }
-        return keywords;
+        return List.copyOf(keywords);
     }
 
     /** draft의 모든 property에 키워드를 추출·부착한 새 draft를 반환한다. */

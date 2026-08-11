@@ -1,4 +1,4 @@
-package apptive.fin.search;
+package apptive.fin.search.enums;
 
 import lombok.RequiredArgsConstructor;
 
@@ -66,5 +66,19 @@ public enum KeywordValueEnum {
         catch (IllegalArgumentException e) {
             return null;
         }
+    }
+
+    /** 우대금리 조건 키워드(BANK_*)인지. */
+    public boolean isPreferentialRate() {
+        return name().startsWith("BANK_");
+    }
+
+    /** 가입 자격 제한 키워드(STATUS_*)인지. */
+    public boolean isRequired() {
+        return name().startsWith("STATUS_");
+    }
+
+    public boolean isTransactionHistoryCondition() {
+        return this == BANK_FIRST_TRANSACTION || this == BANK_REDEPOSIT;
     }
 }
