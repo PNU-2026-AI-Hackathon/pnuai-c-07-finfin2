@@ -31,6 +31,11 @@ final class ProductUrlValidator {
         if (isGenericProductName(actualTitle)) {
             return fail(score, "title is generic product category");
         }
+        if (namesContradict(expectedName, actualTitle)) {
+            // 유사도보다 먼저 본다. 유사도는 괄호 안 내용을 지우고 비교하므로
+            // 자유적립식과 정액적립식을 1.0 으로 같다고 판정한다.
+            return fail(score, "title names a different product variant");
+        }
 
         String expectedCompact = compact(expectedName);
         String titleCompact = compact(actualTitle);
@@ -45,6 +50,32 @@ final class ProductUrlValidator {
             return new ValidationOutcome(ScrapeStatus.WARN, score, "title similarity is low");
         }
         return new ValidationOutcome(ScrapeStatus.PASS, score, "");
+    }
+
+    /**
+     * 두 이름이 서로 다른 상품을 가리키는지. 공통 접두·접미를 벗겨내고 양쪽에 고유 잔여가 남으면 다른 상품이다.
+     * <p>
+     * 한쪽만 남으면 축약 관계이므로 같은 상품으로 본다 — 은행도 FSS 도 서로 줄여 쓴다
+     * ({@code 실세금리정기예금} ↔ {@code 정기예금}, {@code 정액} ↔ {@code 정액적립식}).
+     * 구분자나 어휘 사전에 기대지 않으므로 은행이 괄호 없이 {@code JB다이렉트적금 자유형} 처럼 써도 동작한다.
+     */
+    static boolean namesContradict(String expectedName, String actualTitle) {
+        String expected = compact(expectedName);
+        String actual = compact(actualTitle);
+        if (expected.isEmpty() || actual.isEmpty()) {
+            return false;
+        }
+        int prefix = 0;
+        while (prefix < expected.length() && prefix < actual.length()
+                && expected.charAt(prefix) == actual.charAt(prefix)) {
+            prefix++;
+        }
+        int suffix = 0;
+        while (suffix < expected.length() - prefix && suffix < actual.length() - prefix
+                && expected.charAt(expected.length() - 1 - suffix) == actual.charAt(actual.length() - 1 - suffix)) {
+            suffix++;
+        }
+        return expected.length() - prefix - suffix > 0 && actual.length() - prefix - suffix > 0;
     }
 
     private URI parseHttpUri(String value) {
@@ -78,7 +109,7 @@ final class ProductUrlValidator {
                 .contains(compact(title));
     }
 
-    private String compact(String value) {
+    private static String compact(String value) {
         if (value == null) {
             return "";
         }
