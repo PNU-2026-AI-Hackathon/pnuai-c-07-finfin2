@@ -66,9 +66,7 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
                 ".product_list li", ".product-list > li", ".product", ".prd-info",
                 ".list-con-area", ".listTyProducts > li", ".goods-list li", "tr"
         ));
-        int index = 0;
         for (Element block : document.select(selectors)) {
-            index++;
             String name = bestProductBlockName(block);
             if (!looksLikeProductName(name)) {
                 continue;
@@ -81,9 +79,9 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
                 }
             }
             if (url.isBlank()) {
-                String blockId = cleanText(block.id());
-                url = currentUrl.split("#", 2)[0] + "#"
-                        + (blockId.isBlank() ? "product-" + index : blockId);
+                // 링크가 없으면 후보로 쓰지 않는다. 예전에는 목록 페이지에 "#product-N" 을 붙여
+                // 없는 URL 을 만들었는데, 같은 도메인이라 검증을 통과해 목록 페이지가 상품 URL 로 저장됐다.
+                continue;
             }
             candidates.add(new ProductCandidate(name, url));
         }

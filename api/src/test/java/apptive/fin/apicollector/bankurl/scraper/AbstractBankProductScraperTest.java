@@ -12,6 +12,28 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AbstractBankProductScraperTest {
 
     @Test
+    void skipsProductBlocksWithoutRealLink() {
+        // 링크 없는 블록에 목록 페이지 조각 URL 을 만들어 붙이면, 같은 도메인이라 검증을 통과해
+        // 목록 페이지가 상품 URL 로 저장된다. 후보로 만들지 않는 것이 맞다.
+        TestScraper scraper = new TestScraper();
+
+        List<ProductCandidate> candidates = scraper.extractProducts(
+                Jsoup.parse("""
+                        <ul class="product_list">
+                          <li><h3>링크없는 정기예금</h3></li>
+                          <li><h3>링크있는 정기적금</h3><a href="/deposit/2">보기</a></li>
+                        </ul>
+                        """, "https://bank.example/list"),
+                "https://bank.example/list"
+        );
+
+        assertThat(candidates).extracting(ProductCandidate::url)
+                .allSatisfy(url -> assertThat(url).doesNotContain("#product-"));
+        assertThat(candidates).extracting(ProductCandidate::name)
+                .doesNotContain("링크없는 정기예금");
+    }
+
+    @Test
     void extractsOnlyNamedProductLinks() {
         TestScraper scraper = new TestScraper();
 
