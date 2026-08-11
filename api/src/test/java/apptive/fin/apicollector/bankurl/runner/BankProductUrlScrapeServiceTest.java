@@ -38,6 +38,11 @@ class BankProductUrlScrapeServiceTest {
             }
 
             @Override
+            public boolean isAlive() {
+                return true;
+            }
+
+            @Override
             public void close() {
             }
         };
@@ -65,6 +70,11 @@ class BankProductUrlScrapeServiceTest {
                     @Override
                     public ScrapedProduct scrape(BankProductScraper scraper, BankProductUrlTarget target) {
                         throw new AssertionError("must not scrape unsupported provider");
+                    }
+
+                    @Override
+                    public boolean isAlive() {
+                        return true;
                     }
 
                     @Override
@@ -99,6 +109,11 @@ class BankProductUrlScrapeServiceTest {
                         throw new IllegalStateException("worker " + workerId + " scraped alone", exception);
                     }
                     return new ScrapedProduct(target.productName(), "https://example.com/product");
+                }
+
+                @Override
+                public boolean isAlive() {
+                    return true;
                 }
 
                 @Override
@@ -200,12 +215,62 @@ class BankProductUrlScrapeServiceTest {
         });
     }
 
+    @Test
+    void deadBrowserWorkerStopsInsteadOfBurningThroughTheQueue() {
+        // 브라우저가 죽은 워커는 타깃마다 즉시 실패하므로, 멈추지 않으면 정상 워커보다 먼저 큐를 비운다.
+        // 워커 1은 첫 타깃 뒤 죽고, 워커 2가 나머지를 전부 정상 처리해야 한다.
+        Queue<Long> scrapedByHealthyWorker = new ConcurrentLinkedQueue<>();
+        AtomicInteger created = new AtomicInteger();
+        BankScrapeWorkerFactory workerFactory = () -> {
+            if (created.incrementAndGet() == 1) {
+                return new BankScrapeWorker() {
+                    private boolean alive = true;
+
+                    @Override
+                    public ScrapedProduct scrape(BankProductScraper ignored, BankProductUrlTarget target) {
+                        alive = false;
+                        throw new IllegalStateException("Browser has been closed");
+                    }
+
+                    @Override
+                    public boolean isAlive() {
+                        return alive;
+                    }
+
+                    @Override
+                    public void close() {
+                    }
+                };
+            }
+            return passingWorker(scrapedByHealthyWorker);
+        };
+        BankProductUrlScrapeService service = new BankProductUrlScrapeService(
+                List.of(new FakeScraper()),
+                new BankProductUrlProperties(true, 2, 90, 0),
+                workerFactory
+        );
+
+        List<ScrapeResult> results = service.scrape(LongStream.rangeClosed(1, 10)
+                .mapToObj(productId -> target(productId, "TEST"))
+                .toList());
+
+        assertThat(results).hasSize(10);
+        // 죽은 워커가 삼킨 것은 자기가 집은 1건뿐이고 나머지 9건은 살아 있는 워커가 처리한다.
+        assertThat(results).filteredOn(result -> result.status() == ScrapeStatus.FAIL).hasSize(1);
+        assertThat(scrapedByHealthyWorker).hasSize(9);
+    }
+
     private BankScrapeWorker passingWorker(Queue<Long> scrapedProductIds) {
         return new BankScrapeWorker() {
             @Override
             public ScrapedProduct scrape(BankProductScraper ignored, BankProductUrlTarget target) {
                 scrapedProductIds.add(target.productId());
                 return new ScrapedProduct(target.productName(), "https://example.com/product");
+            }
+
+            @Override
+            public boolean isAlive() {
+                return true;
             }
 
             @Override

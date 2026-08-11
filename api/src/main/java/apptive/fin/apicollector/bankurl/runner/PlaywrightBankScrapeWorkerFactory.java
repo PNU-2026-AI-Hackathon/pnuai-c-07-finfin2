@@ -52,6 +52,11 @@ class PlaywrightBankScrapeWorkerFactory implements BankScrapeWorkerFactory {
         }
 
         @Override
+        public boolean isAlive() {
+            return browser.isConnected();
+        }
+
+        @Override
         public void close() {
             // browser.close() 가 실패해도(Chromium 비정상 종료 등) 드라이버는 반드시 닫는다.
             try {

@@ -121,6 +121,11 @@ public class BankProductUrlScrapeService {
             while ((target = pending.poll()) != null) {
                 // 결과를 즉시 공유 컬렉션에 넣어, 이 워커가 뒤에서 죽어도 처리분이 유실되지 않게 한다.
                 results.add(scrapeOne(worker, target));
+                if (!worker.isAlive()) {
+                    // 브라우저가 끊겼다. 계속 돌면 남은 타깃을 즉시 실패로 소진해버리므로 여기서 빠진다.
+                    workerFailures.add(new IllegalStateException("scrape worker browser disconnected"));
+                    return;
+                }
             }
         } catch (RuntimeException exception) {
             // 이 워커만 빠진다. 남은 타깃은 살아 있는 다른 워커가 계속 가져간다.
