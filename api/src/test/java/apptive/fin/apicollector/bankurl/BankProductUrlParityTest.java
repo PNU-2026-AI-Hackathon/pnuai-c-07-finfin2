@@ -62,13 +62,17 @@ class BankProductUrlParityTest {
         List<ParityResult> javaResults = toParityResults(scrapeService.scrape(targets));
         writeResults(javaFullDir.resolve(RESULT_FILE), javaResults);
 
-        Comparison comparison = compare(pythonResults, javaResults);
-        if (!comparison.mismatchedKeys().isEmpty()) {
+        Comparison firstRun = compare(pythonResults, javaResults);
+        Comparison comparison = firstRun;
+        if (!firstRun.mismatchedKeys().isEmpty()) {
             comparison = retryMismatches(
-                    pythonScraperDir, reportDir, targets, pythonResults, javaResults, comparison.mismatchedKeys()
+                    pythonScraperDir, reportDir, targets, pythonResults, javaResults, firstRun.mismatchedKeys()
             );
         }
 
+        // 재시도로 통과하더라도 첫 실행 불일치는 남긴다. 그게 지워지면 스케줄링에 따른
+        // 비결정적 URL 선택이 diff 에서 사라져 증거가 없어진다.
+        writeDiff(reportDir.resolve("first-run-diff.json"), firstRun);
         writeDiff(reportDir.resolve("diff.json"), comparison);
         assertThat(comparison.targetSetMatches())
                 .as("Python and Java target sets; see %s", reportDir.resolve("diff.json"))
