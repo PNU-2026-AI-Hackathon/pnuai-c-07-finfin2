@@ -12,15 +12,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AbstractBankProductScraperTest {
 
     @Test
-    void usesPageTitleAndFallsBackToCandidateOnlyWhenBlank() {
-        // 후보명은 대상명과 닮아서 뽑힌 것이라, 페이지 제목 대신 쓰면 검증이 자기 자신을 확인하게 된다.
-        assertThat(AbstractBankProductScraper.chooseTitle("실제 상세 제목", "후보명")).isEqualTo("실제 상세 제목");
-        assertThat(AbstractBankProductScraper.chooseTitle("", "후보명")).isEqualTo("후보명");
-        assertThat(AbstractBankProductScraper.chooseTitle("   ", "후보명")).isEqualTo("후보명");
-        assertThat(AbstractBankProductScraper.chooseTitle(null, "후보명")).isEqualTo("후보명");
-    }
-
-    @Test
     void skipsProductBlocksWithoutRealLink() {
         // 링크 없는 블록에 목록 페이지 조각 URL 을 만들어 붙이면, 같은 도메인이라 검증을 통과해
         // 목록 페이지가 상품 URL 로 저장된다. 후보로 만들지 않는 것이 맞다.

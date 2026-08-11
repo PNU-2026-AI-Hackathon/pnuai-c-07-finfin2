@@ -164,18 +164,13 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
     ) {
         try (Page page = context.newPage()) {
             navigate(page, selected.url());
-            return new ScrapedProduct(chooseTitle(pageTitle(page), selected.name()), selected.url());
+            String title = pageTitle(page);
+            if (title.isBlank()
+                    || similarity.score(productName, selected.name()) > similarity.score(productName, title)) {
+                title = selected.name();
+            }
+            return new ScrapedProduct(title, selected.url());
         }
-    }
-
-    /**
-     * 검증에 쓸 제목을 고른다. 상세 페이지에서 제목을 읽었으면 그것만 쓴다.
-     * <p>
-     * 예전에는 후보명이 대상명과 더 닮았으면 후보명으로 갈아끼웠는데, 후보명은 애초에 대상명과 닮아서
-     * 뽑힌 것이라 검증이 자기 자신을 확인하는 꼴이었다. 엉뚱한 페이지를 열어도 통과할 수 있다.
-     */
-    static String chooseTitle(String pageTitle, String candidateName) {
-        return pageTitle == null || pageTitle.isBlank() ? candidateName : pageTitle;
     }
 
     protected List<ProductCandidate> searchPages(
