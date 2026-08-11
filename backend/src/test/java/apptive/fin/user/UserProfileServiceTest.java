@@ -66,7 +66,7 @@ class UserProfileServiceTest {
         assertThat(saved.getBirthdate()).isEqualTo(LocalDate.of(1996, 5, 20));
         assertThat(saved.getAnnualIncome()).isEqualTo(3600L);
         assertThat(saved.getHouseholdSize()).isEqualTo(1);
-        assertThat(saved.getMainBanks()).containsExactly("KB");
+        assertThat(saved.getNeverUsedBanks()).containsExactly("SHINHAN");
         assertThat(saved.getSelectedOptionIds()).containsExactly(100L, 200L);
     }
 
@@ -80,7 +80,7 @@ class UserProfileServiceTest {
         UserProfileRequestDto updated = new UserProfileRequestDto(
                 LocalDate.of(2000, 1, 1), 5000L, 2, 120, 12,
                 false, true, false, 700_000L,
-                List.of("TOSS"), List.of("SHINHAN"), List.of("WOORI"), List.of(300L));
+                List.of("SHINHAN"), List.of("WOORI"), List.of(300L));
 
         userProfileService.upsert(USER_ID, updated);
 
@@ -117,14 +117,13 @@ class UserProfileServiceTest {
         profile.apply(new UserProfileRequestDto(
                 today.minusYears(28), 3600L, 1, 100, 24,
                 true, true, true, 500_000L,
-                List.of("KB"), List.of("SHINHAN"), List.of("WOORI"),
+                List.of("SHINHAN"), List.of("WOORI"),
                 List.of(100L, 200L)));
 
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(profile));
         when(categoryOptionRepository.findAllById(List.of(100L, 200L))).thenReturn(List.of(
                 categoryOption("REGION_SEOUL", "서울"),
                 categoryOption("BANK_SALARY_TRANSFER", "급여이체 가능")));
-        // 주거래(KB)는 표시 제외 → 첫거래/재예치 코드만 해소 대상
         when(providerRepository.findByCodeIn(anyList())).thenReturn(List.of(
                 provider("SHINHAN", "신한은행"),
                 provider("WOORI", "우리은행")));
@@ -135,7 +134,6 @@ class UserProfileServiceTest {
         UserProfileResponseDto response = userProfileService.getProfile(USER_ID);
 
         assertThat(response.hasProfile()).isTrue();
-        assertThat(response.mainBanks()).containsExactly("KB");   // 원본은 프리필용으로 유지
 
         UserProfileResponseDto.Display display = response.display();
         assertThat(display.age()).isEqualTo(28);
@@ -151,7 +149,7 @@ class UserProfileServiceTest {
         UserProfile profile = new UserProfile(mockUser());
         profile.apply(new UserProfileRequestDto(
                 LocalDate.of(1995, 1, 1), 3000L, 1, 100, null,
-                null, null, null, null, null, null, null, null));
+                null, null, null, null, null, null, null));
 
         when(userProfileRepository.findByUserId(USER_ID)).thenReturn(Optional.of(profile));
         when(medianIncomeService.getMedianIncomesDto(anyInt(), eq(1))).thenReturn(
@@ -169,7 +167,7 @@ class UserProfileServiceTest {
         return new UserProfileRequestDto(
                 LocalDate.of(1996, 5, 20), 3600L, 1, 100, 24,
                 true, true, true, 500_000L,
-                List.of("KB"), List.of("SHINHAN"), List.of("WOORI"),
+                List.of("SHINHAN"), List.of("WOORI"),
                 List.of(100L, 200L));
     }
 

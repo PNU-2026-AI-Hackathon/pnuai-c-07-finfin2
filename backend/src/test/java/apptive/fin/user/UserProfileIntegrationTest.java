@@ -49,7 +49,7 @@ class UserProfileIntegrationTest extends IntegrationTestSupport {
         UserProfileRequestDto request = new UserProfileRequestDto(
                 birthdate, 3600L, 1, 100, 24,
                 true, true, true, 500_000L,
-                List.of("MB"), List.of("SH"), List.of("WR"),
+                List.of("SH"), List.of("WR"),
                 List.of(seoulId, salaryTransferId));
 
         // 1) 저장 후 조회 → 서버 계산값 재산출 확인
@@ -59,7 +59,6 @@ class UserProfileIntegrationTest extends IntegrationTestSupport {
         assertThat(response.hasProfile()).isTrue();
         // 원본 저장값(프리필용) 왕복
         assertThat(response.birthdate()).isEqualTo(birthdate);
-        assertThat(response.mainBanks()).containsExactly("MB");
         assertThat(response.neverUsedBanks()).containsExactly("SH");
         assertThat(response.selectedOptionIds()).containsExactly(seoulId, salaryTransferId);
         // 서버 계산 표시값
@@ -68,7 +67,7 @@ class UserProfileIntegrationTest extends IntegrationTestSupport {
         assertThat(display.householdIncomeGuide()).isEqualTo(256);   // data.sql: 2026·1인·100% = 256
         assertThat(display.region()).isEqualTo("서울");
         assertThat(display.preferentialConditions()).contains("급여이체 가능");
-        // 주거래(MB) 제외, 첫거래/재예치만 (provider 미시드 → 코드 그대로 폴백)
+        // provider 미시드 → 첫거래/재예치 코드는 그대로 폴백
         assertThat(display.transactionHistory().firstTransactionBanks()).containsExactly("SH");
         assertThat(display.transactionHistory().redepositBanks()).containsExactly("WR");
 

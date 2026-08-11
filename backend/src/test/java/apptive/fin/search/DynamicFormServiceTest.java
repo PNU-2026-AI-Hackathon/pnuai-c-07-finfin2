@@ -42,8 +42,7 @@ class DynamicFormServiceTest {
     void 미취업_옵션이면_연소득_기본값을_0으로_근속기간을_숨김으로_설정한다() {
         SearchRequestDto request = createRequest(
                 List.of(new OptionRequestDto(1L, 10L)),
-                null,
-                List.of()
+                null
         );
 
         when(categoryOptionService.getOptionMap()).thenReturn(Map.of(
@@ -56,7 +55,6 @@ class DynamicFormServiceTest {
         assertThat(result.showTenure()).isEqualTo(false);
         assertThat(result.showTenure()).isFalse();
         assertThat(result.ageBound()).isEqualTo(34);
-        assertThat(result.showBankInterestRateCheckList()).isFalse();
         assertThat(result.medianIncomes()).isNull();
         assertThat(result.preferentialInterestRateOptions()).isEmpty();
 
@@ -67,8 +65,7 @@ class DynamicFormServiceTest {
     void 군복무_옵션이어도_기본_나이상한을_유지한다() {
         SearchRequestDto request = createRequest(
                 List.of(new OptionRequestDto(1L, 20L)),
-                null,
-                List.of()
+                null
         );
 
         when(categoryOptionService.getOptionMap()).thenReturn(Map.of(
@@ -79,7 +76,6 @@ class DynamicFormServiceTest {
 
         assertThat(result.ageBound()).isEqualTo(34);
         assertThat(result.yearlyEarnDefault()).isNull();
-        assertThat(result.showBankInterestRateCheckList()).isFalse();
         assertThat(result.medianIncomes()).isNull();
 
         verifyNoInteractions(medianIncomeService);
@@ -89,7 +85,7 @@ class DynamicFormServiceTest {
     void 가구원수가_있으면_현재연도와_가구원수로_중위소득을_조회한다() {
         int currentYear = Year.now(ZoneId.of("Asia/Seoul")).getValue();
         MedianIncomesDto medianIncomesDto = createMedianIncomesDto(currentYear, 3);
-        SearchRequestDto request = createRequest(List.of(), 3, List.of());
+        SearchRequestDto request = createRequest(List.of(), 3);
 
         when(categoryOptionService.getOptionMap()).thenReturn(Map.of());
         when(medianIncomeService.getMedianIncomesDto(currentYear, 3)).thenReturn(medianIncomesDto);
@@ -97,14 +93,13 @@ class DynamicFormServiceTest {
         DynamicFormResponseDto result = dynamicFormService.calcFormCondition(request);
 
         assertThat(result.medianIncomes()).isEqualTo(medianIncomesDto);
-        assertThat(result.showBankInterestRateCheckList()).isFalse();
 
         verify(medianIncomeService).getMedianIncomesDto(currentYear, 3);
     }
 
     @Test
     void 가구원수가_없으면_중위소득을_조회하지_않는다() {
-        SearchRequestDto request = createRequest(List.of(), null, List.of());
+        SearchRequestDto request = createRequest(List.of(), null);
 
         when(categoryOptionService.getOptionMap()).thenReturn(Map.of());
 
@@ -116,37 +111,10 @@ class DynamicFormServiceTest {
     }
 
     @Test
-    void 주거래은행이_있으면_우대금리_체크리스트를_노출한다() {
-        SearchRequestDto request = createRequest(List.of(), null, List.of("KB"));
-
-        when(categoryOptionService.getOptionMap()).thenReturn(Map.of());
-
-        DynamicFormResponseDto result = dynamicFormService.calcFormCondition(request);
-
-        assertThat(result.showBankInterestRateCheckList()).isTrue();
-
-        verifyNoInteractions(medianIncomeService);
-    }
-
-    @Test
-    void 주거래은행이_null이면_우대금리_체크리스트를_노출하지_않는다() {
-        SearchRequestDto request = createRequest(List.of(), null, null);
-
-        when(categoryOptionService.getOptionMap()).thenReturn(Map.of());
-
-        DynamicFormResponseDto result = dynamicFormService.calcFormCondition(request);
-
-        assertThat(result.showBankInterestRateCheckList()).isFalse();
-
-        verifyNoInteractions(medianIncomeService);
-    }
-
-    @Test
     void 키워드로_매핑되지_않는_옵션은_무시한다() {
         SearchRequestDto request = createRequest(
                 List.of(new OptionRequestDto(1L, 999L)),
-                null,
-                List.of()
+                null
         );
 
         when(categoryOptionService.getOptionMap()).thenReturn(Map.of());
@@ -156,7 +124,6 @@ class DynamicFormServiceTest {
         assertThat(result.showTenure()).isTrue();
         assertThat(result.ageBound()).isEqualTo(34);
         assertThat(result.yearlyEarnDefault()).isNull();
-        assertThat(result.showBankInterestRateCheckList()).isFalse();
         assertThat(result.medianIncomes()).isNull();
 
         verifyNoInteractions(medianIncomeService);
@@ -164,7 +131,7 @@ class DynamicFormServiceTest {
 
     @Test
     void 추가조건이_없으면_기본값으로_응답한다() {
-        SearchRequestDto request = createRequest(List.of(), null, List.of());
+        SearchRequestDto request = createRequest(List.of(), null);
 
         when(categoryOptionService.getOptionMap()).thenReturn(Map.of());
 
@@ -173,7 +140,6 @@ class DynamicFormServiceTest {
         assertThat(result.showTenure()).isTrue();
         assertThat(result.ageBound()).isEqualTo(34);
         assertThat(result.yearlyEarnDefault()).isNull();
-        assertThat(result.showBankInterestRateCheckList()).isFalse();
         assertThat(result.medianIncomes()).isNull();
         assertThat(result.preferentialInterestRateOptions()).isEmpty();
 
@@ -189,8 +155,7 @@ class DynamicFormServiceTest {
                         new OptionRequestDto(1L, 10L),
                         new OptionRequestDto(2L, 20L)
                 ),
-                3,
-                List.of("KB")
+                3
         );
 
         when(categoryOptionService.getOptionMap()).thenReturn(Map.of(
@@ -203,7 +168,6 @@ class DynamicFormServiceTest {
 
         assertThat(result.yearlyEarnDefault()).isEqualTo(0);
         assertThat(result.ageBound()).isEqualTo(34);
-        assertThat(result.showBankInterestRateCheckList()).isTrue();
         assertThat(result.medianIncomes()).isEqualTo(medianIncomesDto);
         assertThat(result.showTenure()).isFalse();
         assertThat(result.preferentialInterestRateOptions()).isEmpty();
@@ -211,11 +175,11 @@ class DynamicFormServiceTest {
         verify(medianIncomeService).getMedianIncomesDto(currentYear, 3);
     }
 
-    private SearchRequestDto createRequest(List<OptionRequestDto> options, Integer householdSize, List<String> mainBanks) {
-        return new SearchRequestDto(options, createDetailedOptions(householdSize, mainBanks));
+    private SearchRequestDto createRequest(List<OptionRequestDto> options, Integer householdSize) {
+        return new SearchRequestDto(options, createDetailedOptions(householdSize));
     }
 
-    private DetailedOptionsDto createDetailedOptions(Integer householdSize, List<String> mainBanks) {
+    private DetailedOptionsDto createDetailedOptions(Integer householdSize) {
         return new DetailedOptionsDto(
                 LocalDate.of(2000, 1, 1),
                 30_000_000L,
@@ -226,7 +190,6 @@ class DynamicFormServiceTest {
                 null,
                 null,
                 null,
-                mainBanks,
                 List.of()
         );
     }

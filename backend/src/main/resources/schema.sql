@@ -39,7 +39,7 @@ CREATE TABLE user_profiles (
     is_homeless BOOLEAN,
     is_householder BOOLEAN,
     monthly_savings_goal BIGINT,
-    main_banks TEXT,
+    main_banks TEXT, -- 롤백을 위해 보존한 미사용 컬럼
     never_used_banks TEXT,
     matured_saving_banks TEXT,
     selected_option_ids TEXT,

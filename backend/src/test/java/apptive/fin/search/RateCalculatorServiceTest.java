@@ -143,7 +143,7 @@ class RateCalculatorServiceTest {
                 List.of(),
                 new DetailedOptionsDto(
                         null, null, null, null, null,
-                        null, null, null, null, null,
+                        null, null, null, null,
                         List.of("KB"), null, List.of()
                 )
         );
@@ -695,7 +695,6 @@ class RateCalculatorServiceTest {
                         null,
                         null,
                         monthlySavingsGoal,
-                        null,
                         neverUsedBanks,
                         maturedSavingBanks,
                         List.of()

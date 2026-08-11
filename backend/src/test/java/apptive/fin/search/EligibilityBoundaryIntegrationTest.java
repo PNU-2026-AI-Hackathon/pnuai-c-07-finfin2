@@ -164,7 +164,7 @@ class EligibilityBoundaryIntegrationTest extends IntegrationTestSupport {
                 options,
                 new DetailedOptionsDto(
                         birthdateForAge(age),
-                        null, null, null, null, null, null, null, null, null, List.of()
+                        null, null, null, null, null, null, null, null, List.of()
                 )
         );
     }
@@ -175,7 +175,7 @@ class EligibilityBoundaryIntegrationTest extends IntegrationTestSupport {
                 new DetailedOptionsDto(
                         birthdateForAge(30),
                         annualIncome,
-                        null, null, null, null, null, null, null, null, List.of()
+                        null, null, null, null, null, null, null, List.of()
                 )
         );
     }
@@ -188,7 +188,7 @@ class EligibilityBoundaryIntegrationTest extends IntegrationTestSupport {
                         null,
                         null,
                         householdIncomePercent,
-                        null, null, null, null, null, null, List.of()
+                        null, null, null, null, null, List.of()
                 )
         );
     }
@@ -200,7 +200,6 @@ class EligibilityBoundaryIntegrationTest extends IntegrationTestSupport {
                         birthdateForAge(30),
                         null, null, null, null, null, null, null,
                         monthlyDeposit,
-                        null,
                         List.of()
                 )
         );

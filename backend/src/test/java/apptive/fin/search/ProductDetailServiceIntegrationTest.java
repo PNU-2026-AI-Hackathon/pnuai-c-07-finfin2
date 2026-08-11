@@ -489,11 +489,11 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
 
         DetailedOptionsDto usedBank = new DetailedOptionsDto(
                 null, null, null, null, null, null, null, null,
-                null, null, List.of("SEARCH_BANK_B"), List.of(), List.of()
+                null, List.of("SEARCH_BANK_B"), List.of(), List.of()
         );
         DetailedOptionsDto unusedBank = new DetailedOptionsDto(
                 null, null, null, null, null, null, null, null,
-                null, null, List.of(), List.of(), List.of()
+                null, List.of(), List.of(), List.of()
         );
 
         ProductDetailResponseDto withHistory = productDetailService.getProductDetail(
@@ -713,7 +713,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
                 new DetailedOptionsDto(
                         LocalDate.now().minusYears(27),
                         30_000_000L, 3, 100, 12, null, true, null,
-                        monthlySavingsGoal, List.of(),
+                        monthlySavingsGoal,
                         List.of(),
                         List.of(),
                         List.of()
@@ -727,17 +727,17 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
                 requiredStep1Options(),
                 new DetailedOptionsDto(
                         null, null, null, null, null, null, null, null,
-                        monthlySavingsGoal, null, List.of()
+                        monthlySavingsGoal, List.of()
                 )
         );
     }
 
-    // 거래 이력 3종을 null이 아닌 값으로 채워 개인화 접근 조건과 맞춘다.
+    // 거래 이력 2종을 null이 아닌 값으로 채워 개인화 접근 조건과 맞춘다.
     private DetailedOptionsDto detailedOptions(long monthlySavingsGoal) {
         return new DetailedOptionsDto(
                 LocalDate.now().minusYears(27),
                 30_000_000L, 3, 100, 12, null, true, null,
-                monthlySavingsGoal, List.of(),
+                monthlySavingsGoal,
                 List.of(),
                 List.of(),
                 List.of()
