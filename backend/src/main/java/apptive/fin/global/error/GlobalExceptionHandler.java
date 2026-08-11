@@ -8,6 +8,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -55,6 +56,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     protected ResponseEntity<ErrorResponseDto> handleIllegalArgumentException(IllegalArgumentException e) {
         ErrorResponseDto dto = ErrorResponseDto.of(CommonErrorCode.INVALID_INPUT_VALUE, e.getMessage());
+        return ResponseEntity
+                .status(CommonErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
+                .body(dto);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    protected ResponseEntity<ErrorResponseDto> handleMissingServletRequestParameterException(
+            MissingServletRequestParameterException e) {
+        ErrorResponseDto dto = ErrorResponseDto.of(
+                CommonErrorCode.INVALID_INPUT_VALUE,
+                "필수 파라미터 '" + e.getParameterName() + "'이(가) 누락되었습니다."
+        );
         return ResponseEntity
                 .status(CommonErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
                 .body(dto);
