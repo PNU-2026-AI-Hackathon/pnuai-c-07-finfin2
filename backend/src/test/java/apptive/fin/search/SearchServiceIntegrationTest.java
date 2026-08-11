@@ -392,7 +392,6 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                         true,
                         null,
                         50L,
-                        null,
                         List.of()
                 )
         );
@@ -410,7 +409,7 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                 new DetailedOptionsDto(
                         LocalDate.now().minusYears(27),
                         30_000_000L, 3, 100, 12, null, true, null,
-                        null, List.of(), List.of(), List.of(), List.of()
+                        null, List.of(), List.of(), List.of()
                 )
         );
 
@@ -428,7 +427,7 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                 new DetailedOptionsDto(
                         LocalDate.now().minusYears(27),
                         30_000_000L, 3, 100, 12, null, true, null,
-                        50L, List.of(), List.of(), List.of(), List.of()
+                        50L, List.of(), List.of(), List.of()
                 )
         );
 
@@ -450,7 +449,7 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                 new DetailedOptionsDto(
                         LocalDate.now().minusYears(27),
                         30_000_000L, 3, 100, 12, null, true, null,
-                        50L, List.of(), List.of(), List.of(), List.of()
+                        50L, List.of(), List.of(), List.of()
                 )
         );
 
@@ -523,7 +522,6 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                         true,
                         null,
                         50L,
-                        null,
                         List.of(),
                         List.of(),
                         List.of()
@@ -582,7 +580,6 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                         true,
                         null,
                         monthlySavingsGoal,
-                        List.of(),
                         List.of(),
                         List.of(),
                         List.of()

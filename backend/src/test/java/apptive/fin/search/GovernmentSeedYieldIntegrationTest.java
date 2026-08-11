@@ -134,7 +134,6 @@ class GovernmentSeedYieldIntegrationTest extends IntegrationTestSupport {
                         null,
                         null,
                         monthlySavingsGoal,
-                        null,
                         List.of()
                 )
         );

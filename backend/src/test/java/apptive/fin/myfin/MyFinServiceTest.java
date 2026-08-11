@@ -262,7 +262,7 @@ class MyFinServiceTest {
                 List.of(),
                 new DetailedOptionsDto(
                         null, null, null, null, null,
-                        null, null, null, null, null,
+                        null, null, null, null,
                         List.of("KB"), List.of(), List.of()
                 )
         );
@@ -270,7 +270,7 @@ class MyFinServiceTest {
                 List.of(),
                 new DetailedOptionsDto(
                         null, null, null, null, null,
-                        null, null, null, null, null,
+                        null, null, null, null,
                         List.of("KB"), null, List.of()
                 )
         );

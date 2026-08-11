@@ -31,7 +31,7 @@ class SearchRequestPolicyTest {
                 new DetailedOptionsDto(
                         null, null, null, null, null,
                         null, null, null, null, null,
-                        null, null, null
+                        null, null
                 )
         );
         ResolvedKeywords keywords = new ResolvedKeywords(
@@ -51,7 +51,7 @@ class SearchRequestPolicyTest {
                 new DetailedOptionsDto(
                         null, null, null, null, null,
                         null, null, null, 50L, null,
-                        null, null, null
+                        null, null
                 )
         );
         ResolvedKeywords keywords = new ResolvedKeywords(
@@ -71,7 +71,7 @@ class SearchRequestPolicyTest {
                 new DetailedOptionsDto(
                         null, null, null, null, null,
                         null, null, null, 50L, null,
-                        null, null, null
+                        null, null
                 )
         );
         ResolvedKeywords keywords = new ResolvedKeywords(
@@ -88,6 +88,21 @@ class SearchRequestPolicyTest {
     void 로그인하고_1단계와_2단계를_완료하면_개인화를_허용한다() {
         boolean allowed = policy.canUsePersonalization(
                 request(completeDetailedOptions()),
+                completeKeywords(),
+                new AuthUserDetails(1L, UserRole.RECOMMENDATION)
+        );
+
+        assertThat(allowed).isTrue();
+    }
+
+    @Test
+    void 첫거래와_만기거래_이력을_입력하면_개인화를_허용한다() {
+        DetailedOptionsDto transactionHistory = detailedOptions(
+                LocalDate.of(2000, 1, 1), 30_000_000L, 3, 100,
+                50L, List.of(), List.of());
+
+        boolean allowed = policy.canUsePersonalization(
+                request(transactionHistory),
                 completeKeywords(),
                 new AuthUserDetails(1L, UserRole.RECOMMENDATION)
         );
@@ -129,7 +144,7 @@ class SearchRequestPolicyTest {
     void 단계1_필수값이_하나라도_없으면_개인화를_허용하지_않는다() {
         DetailedOptionsDto withoutMonthlySavingsGoal = detailedOptions(
                 LocalDate.of(2000, 1, 1), 30_000_000L, 3, 100,
-                null, List.of(), List.of(), List.of());
+                null, List.of(), List.of());
         ResolvedKeywords withoutSavingPeriod = new ResolvedKeywords(
                 List.of(), List.of(), null,
                 List.of(), List.of(KeywordValueEnum.BANK_SALARY_TRANSFER));
@@ -164,19 +179,17 @@ class SearchRequestPolicyTest {
     private static Stream<Arguments> missingStep2Fields() {
         return Stream.of(
                 Arguments.of("생년월일", detailedOptions(
-                        null, 30_000_000L, 3, 100, 50L, List.of(), List.of(), List.of())),
+                        null, 30_000_000L, 3, 100, 50L, List.of(), List.of())),
                 Arguments.of("개인 연 소득", detailedOptions(
-                        LocalDate.of(2000, 1, 1), null, 3, 100, 50L, List.of(), List.of(), List.of())),
+                        LocalDate.of(2000, 1, 1), null, 3, 100, 50L, List.of(), List.of())),
                 Arguments.of("가구원 수", detailedOptions(
-                        LocalDate.of(2000, 1, 1), 30_000_000L, null, 100, 50L, List.of(), List.of(), List.of())),
+                        LocalDate.of(2000, 1, 1), 30_000_000L, null, 100, 50L, List.of(), List.of())),
                 Arguments.of("가구 소득", detailedOptions(
-                        LocalDate.of(2000, 1, 1), 30_000_000L, 3, null, 50L, List.of(), List.of(), List.of())),
-                Arguments.of("주거래 은행", detailedOptions(
-                        LocalDate.of(2000, 1, 1), 30_000_000L, 3, 100, 50L, null, List.of(), List.of())),
+                        LocalDate.of(2000, 1, 1), 30_000_000L, 3, null, 50L, List.of(), List.of())),
                 Arguments.of("미거래 은행", detailedOptions(
-                        LocalDate.of(2000, 1, 1), 30_000_000L, 3, 100, 50L, List.of(), null, List.of())),
+                        LocalDate.of(2000, 1, 1), 30_000_000L, 3, 100, 50L, null, List.of())),
                 Arguments.of("만기 거래 은행", detailedOptions(
-                        LocalDate.of(2000, 1, 1), 30_000_000L, 3, 100, 50L, List.of(), List.of(), null))
+                        LocalDate.of(2000, 1, 1), 30_000_000L, 3, 100, 50L, List.of(), null))
         );
     }
 
@@ -194,7 +207,7 @@ class SearchRequestPolicyTest {
     private static DetailedOptionsDto completeDetailedOptions() {
         return detailedOptions(
                 LocalDate.of(2000, 1, 1), 30_000_000L, 3, 100,
-                50L, List.of(), List.of(), List.of());
+                50L, List.of(), List.of());
     }
 
     private static DetailedOptionsDto detailedOptions(
@@ -203,14 +216,13 @@ class SearchRequestPolicyTest {
             Integer householdSize,
             Integer householdIncomePercent,
             Long monthlySavingsGoal,
-            List<String> mainBanks,
             List<String> neverUsedBanks,
             List<String> maturedSavingBanks
     ) {
         return new DetailedOptionsDto(
                 birthdate, annualIncome, householdSize, householdIncomePercent,
                 null, null, null, null, monthlySavingsGoal,
-                mainBanks, neverUsedBanks, maturedSavingBanks, null
+                neverUsedBanks, maturedSavingBanks, null
         );
     }
 }

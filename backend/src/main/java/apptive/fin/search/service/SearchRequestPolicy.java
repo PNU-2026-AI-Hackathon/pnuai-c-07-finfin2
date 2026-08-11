@@ -41,7 +41,6 @@ public class SearchRequestPolicy {
                 && detail.annualIncome() != null
                 && detail.householdSize() != null
                 && detail.householdIncomePercent() != null
-                && detail.mainBanks() != null
                 && detail.neverUsedBanks() != null
                 && detail.maturedSavingBanks() != null;
     }
