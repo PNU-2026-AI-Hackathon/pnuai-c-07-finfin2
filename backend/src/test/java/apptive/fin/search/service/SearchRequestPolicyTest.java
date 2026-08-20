@@ -111,6 +111,28 @@ class SearchRequestPolicyTest {
     }
 
     @Test
+    void 약관동의전_사용자는_입력을_완료해도_개인화를_허용하지_않는다() {
+        boolean allowed = policy.canUsePersonalization(
+                request(completeDetailedOptions()),
+                completeKeywords(),
+                new AuthUserDetails(1L, UserRole.BEFORE_AGREED)
+        );
+
+        assertThat(allowed).isFalse();
+    }
+
+    @Test
+    void 관리자는_입력을_완료하면_개인화를_허용한다() {
+        boolean allowed = policy.canUsePersonalization(
+                request(completeDetailedOptions()),
+                completeKeywords(),
+                new AuthUserDetails(1L, UserRole.ADMIN)
+        );
+
+        assertThat(allowed).isTrue();
+    }
+
+    @Test
     void 비로그인이면_입력을_완료해도_개인화를_허용하지_않는다() {
         boolean allowed = policy.canUsePersonalization(
                 request(completeDetailedOptions()), completeKeywords(), null);

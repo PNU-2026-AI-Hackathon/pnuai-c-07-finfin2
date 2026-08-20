@@ -474,6 +474,41 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 약관동의전_사용자는_입력을_완료해도_탭B를_비활성화한다() {
+        ProductSearchResultDto result = searchService.search(
+                createRequest(50, List.of()),
+                user(UserRole.BEFORE_AGREED)
+        );
+
+        assertThat(result.tabs().tabAEnabled()).isTrue();
+        assertThat(result.tabs().tabBEnabled()).isFalse();
+        assertThat(result.governmentRanked()).isNotEmpty();
+        assertThat(result.bankRanked()).isNotEmpty();
+        assertThat(result.governmentRateRanked()).isEmpty();
+        assertThat(result.bankRateRanked()).isEmpty();
+        assertThat(result.subscriptionProducts()).isEmpty();
+        assertThat(result.productCardSummaries())
+                .isNotEmpty()
+                .allSatisfy(summary -> {
+                    assertThat(summary.achievableRate()).isNull();
+                    assertThat(summary.expectedTotalContribution()).isNull();
+                    assertThat(summary.effectiveMonthlyDeposit()).isNull();
+                });
+    }
+
+    @Test
+    void 관리자는_입력을_완료하면_탭B를_사용할수있다() {
+        ProductSearchResultDto result = searchService.search(
+                createRequest(50, List.of()),
+                user(UserRole.ADMIN)
+        );
+
+        assertThat(result.tabs().tabBEnabled()).isTrue();
+        assertThat(result.governmentRateRanked()).isNotEmpty();
+        assertThat(result.bankRateRanked()).isNotEmpty();
+    }
+
+    @Test
     void 로그인해도_2단계_필수정보가_미완료면_탭B를_비활성화한다() {
         SearchRequestDto request = new SearchRequestDto(
                 requiredStep1Options(List.of(new OptionRequestDto(CategoryIdEnum.REGION.getId(), 2L))),
@@ -615,7 +650,11 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     private AuthUserDetails authenticatedUser() {
-        return new AuthUserDetails(1L, UserRole.RECOMMENDATION);
+        return user(UserRole.RECOMMENDATION);
+    }
+
+    private AuthUserDetails user(UserRole role) {
+        return new AuthUserDetails(1L, role);
     }
 
     // 청년우대적금에 36개월·고금리 옵션 추가.
