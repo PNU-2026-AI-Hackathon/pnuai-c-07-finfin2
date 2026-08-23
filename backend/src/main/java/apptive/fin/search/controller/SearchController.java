@@ -49,8 +49,11 @@ public class SearchController {
 
     @GetMapping("/products")
     public ResponseEntity<List<ProductNameSearchDto>> searchByName(
-            @RequestParam String searchInput
+            @RequestParam(required = false, defaultValue = "") String searchInput
     ){
+        if (searchInput.isBlank()) {
+            return ResponseEntity.ok(List.of());
+        }
         return ResponseEntity.ok(searchService.searchByName(searchInput));
     }
 
