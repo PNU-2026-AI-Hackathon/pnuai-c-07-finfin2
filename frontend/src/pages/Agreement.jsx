@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import client, { withAuth } from '../api/client';
 import AgreementItem from '../components/AgreementItem';
 import ContentModal from '../components/ContentModal';
 
 function Agreement() {
-  const { accessToken } = useAuth();
+  const { accessToken, setUserRole } = useAuth();
   const navigate = useNavigate();
   const [terms, setTerms] = useState([]);
   const [checks, setChecks] = useState({ age: false });
@@ -22,10 +23,8 @@ function Agreement() {
     if (!accessToken) return;
     const fetchTerms = async () => {
       try {
-        const res = await fetch("https://test-fin.duckdns.org/term", {
-          headers: { Authorization: `Bearer ${accessToken}` }
-        });
-        const data = await res.json();
+        const res = await client.get("/term", withAuth(accessToken));
+        const data = res.data;
         setTerms(data);
         const initialChecks = { age: false };
         data.forEach(t => { initialChecks[t.code] = false; });
@@ -58,19 +57,11 @@ function Agreement() {
         versionId: t.versionId,
         agreed: checks[t.code] ?? false
       }));
-      const res = await fetch("https://test-fin.duckdns.org/term", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-        body: JSON.stringify({
-          agreements: terms.map(t => ({
-            versionId: t.versionId,
-            agreed: checks[t.code] ?? false
-          }))
-        })
-      });
-      if (!res.ok) throw new Error("약관 동의 실패");
+      const res = await client.post("/term", { agreements }, withAuth(accessToken));
+
+      const data = res.data;
+      if (data?.userRole) setUserRole(data.userRole);
+
       navigate('/introduce', { replace: true });
     } catch (e) {
       console.error(e);
@@ -84,7 +75,7 @@ function Agreement() {
 
       {/* 약관 동의 모달 */}
       <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[60]">
-        <div className="bg-white font-[Inter] text-[#515151] w-full mt-5 max-w-2xl p-9 rounded-2xl shadow-2xl">
+        <div className="bg-white font-pretendard text-[#515151] w-full mt-5 max-w-2xl p-9 rounded-2xl shadow-2xl">
           <h2 className="text-xl font-bold mb-5 mt-6">이용약관에 동의해주세요.</h2>
 
           {/* 전체 동의 */}

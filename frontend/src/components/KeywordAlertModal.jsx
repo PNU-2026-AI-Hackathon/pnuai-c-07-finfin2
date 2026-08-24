@@ -12,25 +12,25 @@ export default function KeywordAlertModal({ onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-100 flex items-center justify-center bg-black/25 px-4"
+      className="fixed inset-0 z-100 flex items-start justify-center bg-[#989898]/53 px-4 pt-[33.5vh]"
       role="presentation"
       onMouseDown={onClose}
     >
       <div
-        className="w-full max-w-[360px] rounded-[20px] bg-white px-10 py-10 text-center shadow-2xl"
+        className="flex h-[397px] w-full max-w-[544px] flex-col items-center rounded-[20px] bg-white pt-[76px] text-center"
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="keyword-alert-title"
         aria-describedby="keyword-alert-description"
         onMouseDown={(event) => event.stopPropagation()}
       >
-        <div className="mx-auto mb-5 flex size-12 items-center justify-center rounded-full border-2 border-[#03BFA5] text-[#03BFA5]">
+        <div className="mb-[25px] flex size-[69px] items-center justify-center rounded-full border-2 border-[#03BFA5] text-[#03BFA5]">
           <svg
-            className="size-6"
+            className="size-[39px]"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth="1.8"
+            strokeWidth="1.7"
             aria-hidden="true"
           >
             <path
@@ -44,13 +44,13 @@ export default function KeywordAlertModal({ onClose }) {
 
         <h2
           id="keyword-alert-title"
-          className="text-[18px] font-bold text-[#03BFA5]"
+          className="text-[24px] font-semibold leading-[1.22] text-[#03BFA5]"
         >
-          키워드를 1개 이상 선택해주세요
+          키워드를 선택해주세요
         </h2>
         <p
           id="keyword-alert-description"
-          className="mt-3 text-[12px] text-[#03BFA5]"
+          className="mt-[25px] text-[15px] leading-[1.22] text-[#03BFA5]"
         >
           1개 이상의 키워드를 선택해야 다음 단계로 이동할 수 있어요.
         </p>
@@ -59,7 +59,7 @@ export default function KeywordAlertModal({ onClose }) {
           type="button"
           autoFocus
           onClick={onClose}
-          className="mt-7 h-9 w-full rounded-[4px] border border-[#E2E2E2] text-[13px] text-[#454545] transition-colors hover:border-[#03BFA5] hover:text-[#03BFA5]"
+          className="mt-10 h-10 w-[228px] rounded-[5px] border border-[#E0DFDF] text-[15px] leading-[1.22] text-[#4B4B4B] transition-colors hover:border-[#03BFA5] hover:text-[#03BFA5]"
         >
           확인
         </button>

@@ -1,6 +1,6 @@
 export default function StepBadge({ step }) {
   return (
-    <span className="inline-block px-3 py-1 rounded-full border-2 bg-[#F0FFFE] border-[#03BFA5] text-[#03BFA5] text-[18px] font-inter tracking-wider mb-4 shadow-sm">
+    <span className="inline-flex w-fit items-center justify-center rounded-full border-2 border-[#03BFA5] bg-[#F0FFFE] px-4 py-1 text-[18px] font-semibold text-[#03BFA5] font-pretendard mb-5 shadow-sm">
       STEP{step}
     </span>
   );
