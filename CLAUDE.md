@@ -30,9 +30,6 @@ Both modules use the Gradle wrapper (Java 21 toolchain, Spring Boot 4.x). On Win
 
 # 은행 상품 URL 수집용 Chromium 설치
 ./gradlew.bat playwrightInstall
-
-# 기존 Python 스크래퍼와 Java 결과(URL + PASS/WARN/FAIL) 동등성 검증
-./gradlew.bat bankUrlParityTest -PpythonScraperDir="C:\\path\\to\\fin_web_scrape"
 ```
 
 ### Local database (required for both)

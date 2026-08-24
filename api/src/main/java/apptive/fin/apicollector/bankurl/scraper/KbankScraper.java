@@ -4,11 +4,11 @@ import com.microsoft.playwright.BrowserContext;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 @Component
@@ -16,15 +16,11 @@ public class KbankScraper extends AbstractBankProductScraper {
 
     private static final String LIST_URL =
             "https://www.kbanknow.com/web/product/info/list?tab=deposit";
-    private static final Map<String, String> NAMES_BY_PATH = new LinkedHashMap<>();
 
-    static {
-        NAMES_BY_PATH.put("/web/product/deposit/rolling-farm", "데굴데굴농장");
-        NAMES_BY_PATH.put("/web/product/deposit/mykids-saving", "마이키즈 적금");
-        NAMES_BY_PATH.put("/web/product/deposit/codek-fixed", "코드K 정기예금");
-        NAMES_BY_PATH.put("/web/product/deposit/curious-saving", "궁금한 적금");
-        NAMES_BY_PATH.put("/web/product/deposit/primary-saving", "주거래우대 자유적금");
-        NAMES_BY_PATH.put("/web/product/deposit/codek-saving", "코드K 자유적금");
+    private final ObjectMapper objectMapper;
+
+    public KbankScraper(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -43,26 +39,45 @@ public class KbankScraper extends AbstractBankProductScraper {
     }
 
     List<ProductCandidate> extractProductLinks(Document document, String currentUrl) {
+        List<ProductCandidate> structuredProducts = extractStructuredProducts(document);
+        if (!structuredProducts.isEmpty()) {
+            return dedupe(structuredProducts);
+        }
+
         List<ProductCandidate> candidates = new ArrayList<>();
         for (Element anchor : document.select("a[href*=/web/product/]")) {
             String url = urlFromAnchor(anchor, currentUrl);
-            String name = nameFromUrl(url);
-            if (name.isBlank()) {
-                name = cleanText(anchor.text());
-            }
-            if (!url.isBlank() && (looksLikeProductName(name) || NAMES_BY_PATH.containsValue(name))) {
+            String name = cleanText(anchor.text());
+            if (!url.isBlank() && looksLikeProductName(name)) {
                 candidates.add(new ProductCandidate(name, url));
             }
         }
         return dedupe(candidates);
     }
 
-    private String nameFromUrl(String url) {
-        return NAMES_BY_PATH.entrySet().stream()
-                .filter(entry -> url.contains(entry.getKey()))
-                .map(Map.Entry::getValue)
-                .findFirst()
-                .orElse("");
+    private List<ProductCandidate> extractStructuredProducts(Document document) {
+        List<ProductCandidate> candidates = new ArrayList<>();
+        for (Element script : document.select("script[type=application/ld+json]")) {
+            try {
+                collectFinancialProducts(objectMapper.readTree(script.data()), candidates);
+            } catch (RuntimeException ignored) {
+                // 유효한 JSON-LD가 없으면 기존 HTML 링크 추출 방식으로 대체한다.
+            }
+        }
+        return candidates;
+    }
+
+    private void collectFinancialProducts(JsonNode node, List<ProductCandidate> candidates) {
+        if ("FinancialProduct".equals(node.path("@type").asString(""))) {
+            String name = cleanText(node.path("name").asString(""));
+            String url = cleanText(node.path("url").asString(""));
+            if (!name.isBlank() && !url.isBlank()) {
+                candidates.add(new ProductCandidate(name, url));
+            }
+        }
+        for (JsonNode child : node) {
+            collectFinancialProducts(child, candidates);
+        }
     }
 
     @Override

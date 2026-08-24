@@ -11,8 +11,10 @@ import java.util.Set;
 @Component
 public class ImBankScraper extends AbstractBankProductScraper {
 
+    // 상품 상세 화면은 내부 AJAX가 서버 세션에 FNM_DETAIL_DATA를 저장한 뒤 공통 프레임을 연다.
+    // pd_cd를 붙인 직접 GET은 빈 화면이므로, 바로 열 수 있는 상품 검색 결과 URL을 저장한다.
     private static final String SEARCH_URL =
-            "https://www.imbank.co.kr/dcz_ebz_10010_0010.act?kwd={q}";
+            "https://www.imbank.co.kr/dcz_ebz_10010_0010.act?kwd={q}&category=PRODUCT";
 
     @Override
     public String providerCode() {
