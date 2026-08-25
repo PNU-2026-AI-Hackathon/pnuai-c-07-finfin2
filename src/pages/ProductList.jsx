@@ -27,10 +27,6 @@ export default function ProductList() {
     () => getActiveRecommendationResult(location),
     [location],
   );
-  const recommendationCount = recommendationResult
-    ? (recommendationResult.governmentRanked?.length || 0)
-      + (recommendationResult.bankRanked?.length || 0)
-    : null;
   const rateTabEnabled = recommendationResult?.tabs?.tabBEnabled === true;
   const rateTabDisabledReason = recommendationResult?.tabs?.tabBDisabledReason;
 
@@ -49,6 +45,15 @@ export default function ProductList() {
     () => buildProductListFromResult(recommendationResult),
     [recommendationResult],
   );
+
+  // eligibleProductCount: 백엔드가 조건 매칭을 검토한 전체 후보 상품 수.
+  // recommendationProducts: 그중 조건을 충족해 실제로 추천 목록에 포함된 상품 수.
+  // eligibleProductCount가 응답에 없으면 추천 개수를 총 개수로 대체해 미충족 0개로 표시한다.
+  const recommendationCount = recommendationResult ? recommendationProducts.length : null;
+  const totalCandidateCount = recommendationResult?.eligibleProductCount ?? recommendationCount;
+  const excludedCount = totalCandidateCount !== null && recommendationCount !== null
+    ? Math.max(0, totalCandidateCount - recommendationCount)
+    : null;
 
   const filters = [
     { label: "전체", icon: null },
@@ -207,7 +212,7 @@ export default function ProductList() {
                     <span>
                       {recommendationCount === null
                         ? "입력 정보를 바탕으로 나에게 맞는 상품을 정렬했어요."
-                        : `분석 결과 ${recommendationCount}개의 상품을 추천했어요.`}
+                        : `총 ${totalCandidateCount}개 상품 중 미충족 ${excludedCount}개를 제외한 ${recommendationCount}개의 상품을 추천했어요.`}
                     </span>
                   </>
                 ) : (
