@@ -1,11 +1,14 @@
 package apptive.fin.apicollector.bankurl.scraper;
 
+import apptive.fin.apicollector.bankurl.BankUrlPolicy;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Frame;
 import com.microsoft.playwright.Locator;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.PlaywrightException;
+import com.microsoft.playwright.Request;
+import com.microsoft.playwright.Route;
 import com.microsoft.playwright.options.LoadState;
 import com.microsoft.playwright.options.WaitUntilState;
 import org.jsoup.Jsoup;
@@ -39,9 +42,10 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
         try (BrowserContext context = browser.newContext()) {
             context.setDefaultTimeout(timeoutMillis);
             context.setDefaultNavigationTimeout(timeoutMillis);
+            context.route("**/*", this::routeNavigation);
             List<ProductCandidate> candidates = search(context, productName);
             ProductCandidate selected = select(candidates, productName);
-            return collect(context, selected, productName);
+            return collect(context, selected);
         }
     }
 
@@ -159,17 +163,12 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
 
     protected ScrapedProduct collect(
             BrowserContext context,
-            ProductCandidate selected,
-            String productName
+            ProductCandidate selected
     ) {
         try (Page page = context.newPage()) {
             navigate(page, selected.url());
-            String title = pageTitle(page);
-            if (title.isBlank()
-                    || similarity.score(productName, selected.name()) > similarity.score(productName, title)) {
-                title = selected.name();
-            }
-            return new ScrapedProduct(title, selected.url());
+            requireAllowedNavigation(page.url());
+            return new ScrapedProduct(selected.name(), selected.url());
         }
     }
 
@@ -242,11 +241,41 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
     }
 
     protected void navigate(Page page, String url) {
+        requireAllowedNavigation(url);
         // 타임아웃을 명시하지 않으면 컨텍스트 기본값(BANK_URL_TIMEOUT_SECONDS)이 적용된다.
         // 예전에는 30초를 하드코딩해 설정값을 덮었다.
         page.navigate(url, new Page.NavigateOptions()
                 .setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
         settle(page);
+    }
+
+    private void requireAllowedNavigation(String url) {
+        BankUrlPolicy.navigationError(url, allowedDomains())
+                .ifPresent(error -> {
+                    throw new IllegalArgumentException(error);
+                });
+    }
+
+    void routeNavigation(Route route) {
+        Request request = route.request();
+        if (isTopLevelNavigation(request)
+                && BankUrlPolicy.navigationError(request.url(), allowedDomains()).isPresent()) {
+            route.abort();
+            return;
+        }
+        route.resume();
+    }
+
+    private boolean isTopLevelNavigation(Request request) {
+        if (!request.isNavigationRequest()) {
+            return false;
+        }
+        try {
+            return request.frame() == request.frame().page().mainFrame();
+        } catch (PlaywrightException ignored) {
+            // The initial navigation can be issued before Playwright creates its Frame object.
+            return true;
+        }
     }
 
     protected void settle(Page page) {
@@ -263,48 +292,6 @@ public abstract class AbstractBankProductScraper implements BankProductScraper {
 
     protected double settleMillis() {
         return 1_000;
-    }
-
-    protected String pageTitle(Page page) {
-        for (String selector : titleSelectors()) {
-            try {
-                Locator locator = page.locator(selector).first();
-                if (locator.count() == 0) {
-                    continue;
-                }
-                String title = cleanText(locator.getAttribute("value"));
-                if (title.isBlank()) {
-                    title = cleanText(locator.getAttribute("data-product-name"));
-                }
-                if (title.isBlank()) {
-                    title = cleanText(locator.innerText(new Locator.InnerTextOptions().setTimeout(2_000)));
-                }
-                if (looksLikeProductName(title)) {
-                    return title;
-                }
-            } catch (PlaywrightException ignored) {
-                // Try the next title selector.
-            }
-        }
-        try {
-            String openGraphTitle = cleanText(
-                    page.locator("meta[property='og:title']").first().getAttribute("content")
-            );
-            if (!openGraphTitle.isBlank()) {
-                return openGraphTitle;
-            }
-        } catch (PlaywrightException ignored) {
-            // Fall back to the document title.
-        }
-        return cleanText(page.title()).split("\\s*[|>_<-]\\s*")[0];
-    }
-
-    protected List<String> titleSelectors() {
-        return List.of(
-                "input[name=PRD_NM]", "input[name=prdNm]", "input[name=prd_nm]",
-                "input[name=productName]", "input[name=product_name]", "[data-product-name]",
-                "h1", "h2", ".product-title", ".prd-title", ".tit", ".name"
-        );
     }
 
     protected List<PageContent> pageContents(Page page) {

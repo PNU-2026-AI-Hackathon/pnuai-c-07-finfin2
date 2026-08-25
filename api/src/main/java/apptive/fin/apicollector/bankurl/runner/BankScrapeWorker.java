@@ -14,6 +14,13 @@ interface BankScrapeWorker extends AutoCloseable {
      */
     boolean isAlive();
 
+    /**
+     * 이번 실패가 상품 단위 오류가 아니라 이 워커를 더 사용할 수 없다는 신호인지.
+     */
+    default boolean isUnusable(RuntimeException failure) {
+        return !isAlive();
+    }
+
     @Override
     void close();
 }

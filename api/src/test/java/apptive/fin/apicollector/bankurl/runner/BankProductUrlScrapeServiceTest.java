@@ -216,9 +216,47 @@ class BankProductUrlScrapeServiceTest {
     }
 
     @Test
-    void workerThatKeepsFailingStopsEvenWhenBrowserReportsAlive() {
+    void consecutiveProductValidationFailuresDoNotReplaceHealthyWorker() {
+        AtomicInteger createdWorkers = new AtomicInteger();
+        AtomicInteger scrapeAttempts = new AtomicInteger();
+        BankProductUrlScrapeService service = new BankProductUrlScrapeService(
+                List.of(new FakeScraper()),
+                new BankProductUrlProperties(true, 1, 90, 0),
+                () -> {
+                    createdWorkers.incrementAndGet();
+                    return new BankScrapeWorker() {
+                        @Override
+                        public ScrapedProduct scrape(BankProductScraper ignored, BankProductUrlTarget target) {
+                            scrapeAttempts.incrementAndGet();
+                            return new ScrapedProduct("자동차보험", "https://example.com/product");
+                        }
+
+                        @Override
+                        public boolean isAlive() {
+                            return true;
+                        }
+
+                        @Override
+                        public void close() {
+                        }
+                    };
+                }
+        );
+
+        List<ScrapeResult> results = service.scrape(LongStream.rangeClosed(1, 5)
+                .mapToObj(productId -> target(productId, "TEST"))
+                .toList());
+
+        assertThat(results).hasSize(5)
+                .allSatisfy(result -> assertThat(result.status()).isEqualTo(ScrapeStatus.FAIL));
+        assertThat(createdWorkers).hasValue(1);
+        assertThat(scrapeAttempts).hasValue(5);
+    }
+
+    @Test
+    void transportFailureStopsWorkerEvenWhenBrowserReportsAlive() {
         // Playwright 의 Browser.isConnected() 는 드라이버가 보낸 close 이벤트에서만 false 가 된다.
-        // 드라이버 프로세스가 죽으면 이벤트가 안 와 true 로 남으므로, 연속 실패로도 워커를 빼야 한다.
+        // 드라이버 프로세스가 죽으면 이벤트가 안 와 true 로 남으므로, transport 오류로 워커를 빼야 한다.
         Queue<Long> scrapedByHealthyWorker = new ConcurrentLinkedQueue<>();
         AtomicInteger created = new AtomicInteger();
         AtomicInteger deadWorkerAttempts = new AtomicInteger();
@@ -234,6 +272,11 @@ class BankProductUrlScrapeServiceTest {
                     @Override
                     public boolean isAlive() {
                         return true;   // 드라이버가 죽어도 브라우저는 살아있다고 보고한다
+                    }
+
+                    @Override
+                    public boolean isUnusable(RuntimeException failure) {
+                        return true;
                     }
 
                     @Override
@@ -254,7 +297,7 @@ class BankProductUrlScrapeServiceTest {
                 .toList());
 
         assertThat(results).hasSize(30);
-        // 30건 전부를 죽은 워커가 삼키지 않고, 연속 실패 임계에서 빠져야 한다.
+        // 30건 전부를 죽은 워커가 삼키지 않고, transport 오류에서 즉시 빠져야 한다.
         assertThat(deadWorkerAttempts.get()).isLessThan(10);
         assertThat(scrapedByHealthyWorker.size()).isGreaterThan(20);
     }

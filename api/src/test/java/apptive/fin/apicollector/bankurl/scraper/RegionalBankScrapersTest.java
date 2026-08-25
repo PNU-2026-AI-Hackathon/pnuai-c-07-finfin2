@@ -37,6 +37,26 @@ class RegionalBankScrapersTest {
     }
 
     @Test
+    void kyongnamPrefersWithUsProductOverDifferentFreeSavingsProduct() {
+        KyongnamBankScraper scraper = new KyongnamBankScraper();
+        ProductCandidate expected = new ProductCandidate(
+                "BNK 위더스WithUs 자유적금",
+                "https://www.knbank.co.kr/ib20/mnu/FPMDPT020103000?fnc_prd_no=0000202492"
+        );
+        ProductCandidate different = new ProductCandidate(
+                "BNK더조은자유적금",
+                "https://www.knbank.co.kr/ib20/mnu/FPMDPT020103000?fnc_prd_no=0000020178"
+        );
+
+        ProductCandidate selected = scraper.select(
+                List.of(different, expected),
+                "BNK 위더스자유적금"
+        );
+
+        assertThat(selected).isEqualTo(expected);
+    }
+
+    @Test
     void busanBuildsDirectDetailUrlFromFpcd() {
         var result = new BusanBankScraper().extractProductList(Jsoup.parse("""
                 <a class="FPCD_DTL" fpcd="0010100191">더(THE) 레벨업 정기예금</a>
@@ -81,6 +101,21 @@ class RegionalBankScrapersTest {
         );
 
         assertThat(result).containsExactly(candidates.get(1));
+    }
+
+    @Test
+    void jejuUsesUnmarkedCandidateWhenSiteOmitsInterestPaymentType() {
+        JejuBankScraper scraper = new JejuBankScraper();
+        ProductCandidate candidate = new ProductCandidate(
+                "스마일드림정기예금",
+                "https://www.jejubank.co.kr/prepaid"
+        );
+
+        List<ProductCandidate> result = scraper.preferMatchingInterestType(
+                "스마일드림 정기예금 (개인/선이자지급식)", List.of(candidate)
+        );
+
+        assertThat(result).containsExactly(candidate);
     }
 
     @Test

@@ -7,6 +7,8 @@ import apptive.fin.apicollector.bankurl.scraper.ScrapedProduct;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.PlaywrightException;
+import com.microsoft.playwright.TimeoutError;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -62,6 +64,11 @@ class PlaywrightBankScrapeWorkerFactory implements BankScrapeWorkerFactory {
         }
 
         @Override
+        public boolean isUnusable(RuntimeException failure) {
+            return !browser.isConnected() || isTransportFailure(failure);
+        }
+
+        @Override
         public void close() {
             // browser.close() 가 실패해도(Chromium 비정상 종료 등) 드라이버는 반드시 닫는다.
             // finally 로 감싸면 playwright.close() 가 던질 때 원래 원인이 소실되는데,
@@ -78,5 +85,24 @@ class PlaywrightBankScrapeWorkerFactory implements BankScrapeWorkerFactory {
             }
             playwright.close();
         }
+    }
+
+    static boolean isTransportFailure(Throwable failure) {
+        for (Throwable current = failure; current != null; current = current.getCause()) {
+            if (current instanceof TimeoutError) {
+                return false;
+            }
+            if (!(current instanceof PlaywrightException)) {
+                continue;
+            }
+            String message = current.getMessage() == null ? "" : current.getMessage();
+            if (message.contains("Playwright connection closed")
+                    || message.contains("Failed to read message from driver, pipe closed")
+                    || message.contains("Browser has been closed")
+                    || message.contains("Target page, context or browser has been closed")) {
+                return true;
+            }
+        }
+        return false;
     }
 }

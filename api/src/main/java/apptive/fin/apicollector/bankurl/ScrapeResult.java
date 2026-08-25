@@ -4,7 +4,7 @@ public record ScrapeResult(
         BankProductUrlTarget target,
         String scraper,
         ScrapeStatus status,
-        String title,
+        String candidateName,
         String productUrl,
         double similarity,
         String error,

@@ -27,9 +27,6 @@ import java.util.stream.Collectors;
 @Service
 public class BankProductUrlScrapeService {
 
-    // 연속으로 이만큼 실패하면 워커 쪽 문제로 본다. 정상 실행에서는 FAIL 이 0건이고
-    // 큐가 은행별로 인터리브돼 있어 연속 3건은 서로 다른 은행이다.
-    private static final int UNHEALTHY_CONSECUTIVE_FAILURES = 3;
     // 죽은 워커가 되돌린 타깃을 처리할 기회를 한 번 더 준다.
     private static final int MAX_ROUNDS = 2;
 
@@ -138,15 +135,21 @@ public class BankProductUrlScrapeService {
             AtomicInteger requeueBudget
     ) {
         try (BankScrapeWorker worker = workerFactory.create()) {
-            int consecutiveFailures = 0;
             BankProductUrlTarget target;
             while ((target = pending.poll()) != null) {
-                ScrapeResult result = scrapeOne(worker, target);
-                consecutiveFailures = result.status() == ScrapeStatus.FAIL ? consecutiveFailures + 1 : 0;
-                // Playwright 의 Browser.isConnected() 는 드라이버가 보낸 close 이벤트에서만 false 가 되므로
-                // 드라이버 프로세스 사망은 잡지 못한다. 연속 실패를 보조 신호로 함께 본다.
-                // 큐가 은행별로 인터리브돼 있어 연속 3건은 서로 다른 은행이다 — 워커 쪽 문제로 보는 게 맞다.
-                if (!worker.isAlive() || consecutiveFailures >= UNHEALTHY_CONSECUTIVE_FAILURES) {
+                ScrapeResult result;
+                try {
+                    result = scrapeOne(worker, target);
+                } catch (WorkerUnavailableException exception) {
+                    if (requeueBudget.getAndDecrement() > 0) {
+                        pending.offer(target);
+                    } else {
+                        results.add(failedResult(target, exception, 0, 0));
+                    }
+                    workerFailures.add(exception);
+                    return;
+                }
+                if (!worker.isAlive()) {
                     if (requeueBudget.getAndDecrement() > 0) {
                         // 못 쓰는 브라우저로 헛시도한 결과다. 확정하지 않고 살아 있는 워커에 다시 준다.
                         pending.offer(target);
@@ -175,13 +178,13 @@ public class BankProductUrlScrapeService {
             try {
                 ScrapedProduct product = worker.scrape(scraper, target);
                 ValidationOutcome outcome = validator.validate(
-                        target.productName(), product.title(), product.productUrl(), scraper.allowedDomains()
+                        target.productName(), product.candidateName(), product.productUrl(), scraper.allowedDomains()
                 );
                 return new ScrapeResult(
                         target,
                         scraper.getClass().getSimpleName(),
                         outcome.status(),
-                        product.title(),
+                        product.candidateName(),
                         product.productUrl(),
                         outcome.similarity(),
                         outcome.error(),
@@ -189,6 +192,9 @@ public class BankProductUrlScrapeService {
                         attempt
                 );
             } catch (RuntimeException exception) {
+                if (worker.isUnusable(exception)) {
+                    throw new WorkerUnavailableException(exception);
+                }
                 if (attempt > properties.effectiveRetries()) {
                     return failedResult(target, exception, attempt, started);
                 }
@@ -220,5 +226,12 @@ public class BankProductUrlScrapeService {
 
     private long elapsedMillis(long started) {
         return (System.nanoTime() - started) / 1_000_000;
+    }
+
+    private static class WorkerUnavailableException extends RuntimeException {
+
+        WorkerUnavailableException(RuntimeException cause) {
+            super(cause.getMessage(), cause);
+        }
     }
 }

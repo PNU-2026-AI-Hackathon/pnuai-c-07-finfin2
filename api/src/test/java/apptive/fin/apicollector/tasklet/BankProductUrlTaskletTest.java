@@ -1,5 +1,7 @@
 package apptive.fin.apicollector.tasklet;
 
+import apptive.fin.apicollector.Mode;
+import apptive.fin.apicollector.Source;
 import apptive.fin.apicollector.bankurl.BankProductUrlPersistenceService;
 import apptive.fin.apicollector.bankurl.BankProductUrlProperties;
 import apptive.fin.apicollector.bankurl.BankProductUrlRepository;
@@ -7,6 +9,7 @@ import apptive.fin.apicollector.bankurl.BankProductUrlTarget;
 import apptive.fin.apicollector.bankurl.ScrapeResult;
 import apptive.fin.apicollector.bankurl.ScrapeStatus;
 import apptive.fin.apicollector.bankurl.runner.BankProductUrlScrapeService;
+import apptive.fin.apicollector.config.CollectorProperties;
 import apptive.fin.apicollector.product.ProductType;
 import org.junit.jupiter.api.Test;
 import org.springframework.batch.infrastructure.repeat.RepeatStatus;
@@ -26,8 +29,25 @@ class BankProductUrlTaskletTest {
     private final BankProductUrlPersistenceService persistenceService = mock(BankProductUrlPersistenceService.class);
 
     @Test
+    void normalizeOnlyModeSkipsAllUrlWork() {
+        BankProductUrlTasklet tasklet = new BankProductUrlTasklet(
+                collectorProperties(Mode.NORMALIZE_ONLY),
+                new BankProductUrlProperties(true, 4, 90, 1),
+                repository,
+                scrapeService,
+                persistenceService
+        );
+
+        RepeatStatus status = tasklet.execute(null, null);
+
+        assertThat(status).isEqualTo(RepeatStatus.FINISHED);
+        verifyNoInteractions(repository, scrapeService, persistenceService);
+    }
+
+    @Test
     void disabledCollectorSkipsAllWork() {
         BankProductUrlTasklet tasklet = new BankProductUrlTasklet(
+                collectorProperties(Mode.SYNC),
                 new BankProductUrlProperties(false, 4, 90, 1),
                 repository,
                 scrapeService,
@@ -53,6 +73,7 @@ class BankProductUrlTaskletTest {
         when(scrapeService.scrape(List.of(target))).thenReturn(List.of(result));
         when(persistenceService.applyPassedResults(List.of(result))).thenReturn(2);
         BankProductUrlTasklet tasklet = new BankProductUrlTasklet(
+                collectorProperties(Mode.SYNC),
                 new BankProductUrlProperties(true, 4, 90, 1),
                 repository,
                 scrapeService,
@@ -63,5 +84,12 @@ class BankProductUrlTaskletTest {
 
         assertThat(status).isEqualTo(RepeatStatus.FINISHED);
         verify(persistenceService).applyPassedResults(List.of(result));
+    }
+
+    private CollectorProperties collectorProperties(Mode mode) {
+        return new CollectorProperties(
+                true, Source.FSS, mode, 1, 100, 30,
+                null, null, null
+        );
     }
 }

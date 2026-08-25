@@ -18,6 +18,49 @@ class ProductNameSimilarityTest {
         assertThat(similarity.score("청년내일적금", "청년내일적금")).isEqualTo(1.0);
     }
 
+    @Test
+    void conflictingSavingsTypesDoNotMatch() {
+        assertThat(similarity.score(
+                "JB 다이렉트적금(자유적립식)",
+                "JB 다이렉트적금(정액적립식)"
+        )).isZero();
+    }
+
+    @Test
+    void conflictingInterestPaymentTypesDoNotMatch() {
+        assertThat(similarity.score(
+                "제주Dream 정기예금(만기지급식)",
+                "제주Dream 정기예금(월이자지급식)"
+        )).isZero();
+    }
+
+    @Test
+    void unmarkedCandidateCanRepresentSharedProductPage() {
+        assertThat(similarity.hasConflictingVariant(
+                "스마일드림 정기예금(선이자지급식)",
+                "스마일드림 정기예금"
+        )).isFalse();
+    }
+
+    @Test
+    void prefersCandidateContainingTheTargetNameOverDifferentProduct() {
+        double sameProduct = similarity.score(
+                "BNK 위더스자유적금",
+                "BNK 위더스WithUs 자유적금"
+        );
+        double differentProduct = similarity.score(
+                "BNK 위더스자유적금",
+                "BNK더조은자유적금"
+        );
+
+        assertThat(sameProduct).isGreaterThan(differentProduct);
+    }
+
+    @Test
+    void doesNotTreatDifferentEnglishBrandsAsTheSameGenericSavingsProduct() {
+        assertThat(similarity.score("Alpha 자유적금", "Beta 자유적금")).isLessThan(0.80);
+    }
+
     @ParameterizedTest
     @MethodSource("similarityCases")
     void matchesPythonThresholdClassification(String query, String candidate, boolean expected) {

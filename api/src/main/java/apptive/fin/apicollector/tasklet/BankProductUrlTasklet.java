@@ -7,6 +7,7 @@ import apptive.fin.apicollector.bankurl.BankProductUrlTarget;
 import apptive.fin.apicollector.bankurl.ScrapeResult;
 import apptive.fin.apicollector.bankurl.ScrapeStatus;
 import apptive.fin.apicollector.bankurl.runner.BankProductUrlScrapeService;
+import apptive.fin.apicollector.config.CollectorProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.scope.context.ChunkContext;
@@ -22,6 +23,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BankProductUrlTasklet implements Tasklet {
 
+    private final CollectorProperties collectorProperties;
     private final BankProductUrlProperties properties;
     private final BankProductUrlRepository repository;
     private final BankProductUrlScrapeService scrapeService;
@@ -29,6 +31,10 @@ public class BankProductUrlTasklet implements Tasklet {
 
     @Override
     public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) {
+        if (collectorProperties.mode().isNormalizeOnly()) {
+            log.info("BankProductUrlTasklet skipped. mode={}", collectorProperties.mode());
+            return RepeatStatus.FINISHED;
+        }
         if (!properties.enabled()) {
             log.info("BankProductUrlTasklet skipped. enabled=false");
             return RepeatStatus.FINISHED;
@@ -49,24 +55,24 @@ public class BankProductUrlTasklet implements Tasklet {
         results.stream()
                 .filter(result -> result.status() != ScrapeStatus.PASS)
                 .forEach(result -> log.warn(
-                        "Bank product URL {}. provider={}, product={}, title={}, url={}, similarity={}, error={}",
+                        "Bank product URL {}. provider={}, product={}, candidate={}, url={}, similarity={}, error={}",
                         result.status(),
                         result.target().providerName(),
                         result.target().productName(),
-                        result.title(),
+                        result.candidateName(),
                         result.productUrl(),
                         result.similarity(),
                         result.error()
                 ));
-        // 어떤 제목과 비교해서 그 판정이 나왔는지가 없으면 원인 분석이 매번 막힌다.
+        // 어떤 후보명과 비교해서 그 판정이 나왔는지가 없으면 원인 분석이 매번 막힌다.
         // PASS 까지 포함해 전부 남기되, 평소 로그를 덮지 않도록 DEBUG 로 둔다.
         if (log.isDebugEnabled()) {
             results.forEach(result -> log.debug(
-                    "Bank product URL detail. status={}, provider={}, product={}, title={}, similarity={}",
+                    "Bank product URL detail. status={}, provider={}, product={}, candidate={}, similarity={}",
                     result.status(),
                     result.target().providerName(),
                     result.target().productName(),
-                    result.title(),
+                    result.candidateName(),
                     result.similarity()
             ));
         }

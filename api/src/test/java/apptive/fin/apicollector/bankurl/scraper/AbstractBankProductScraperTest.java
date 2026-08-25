@@ -1,6 +1,10 @@
 package apptive.fin.apicollector.bankurl.scraper;
 
 import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.Frame;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Request;
+import com.microsoft.playwright.Route;
 import org.jsoup.Jsoup;
 import org.junit.jupiter.api.Test;
 
@@ -8,8 +12,79 @@ import java.util.List;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 class AbstractBankProductScraperTest {
+
+    @Test
+    void rejectsCandidateUrlBeforeNavigation() {
+        TestScraper scraper = new TestScraper();
+        Page page = mock(Page.class);
+
+        assertThatThrownBy(() -> scraper.navigate(page, "http://127.0.0.1/internal"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("domain mismatch");
+        verifyNoInteractions(page);
+    }
+
+    @Test
+    void keepsCandidateNameAndUrlAfterAllowedNavigation() {
+        CollectingTestScraper scraper = new CollectingTestScraper();
+        BrowserContext context = mock(BrowserContext.class);
+        Page page = mock(Page.class);
+        when(context.newPage()).thenReturn(page);
+        when(page.url()).thenReturn("https://bank.example/home");
+
+        ScrapedProduct product = scraper.collectProduct(
+                context,
+                new ProductCandidate("테스트 정기예금", "https://bank.example/start")
+        );
+
+        assertThat(product).isEqualTo(new ScrapedProduct(
+                "테스트 정기예금",
+                "https://bank.example/start"
+        ));
+    }
+
+    @Test
+    void rejectsFinalUrlOutsideProviderDomain() {
+        CollectingTestScraper scraper = new CollectingTestScraper();
+        BrowserContext context = mock(BrowserContext.class);
+        Page page = mock(Page.class);
+        when(context.newPage()).thenReturn(page);
+        when(page.url()).thenReturn("http://127.0.0.1/internal");
+
+        assertThatThrownBy(() -> scraper.collectProduct(
+                context,
+                new ProductCandidate("테스트 정기예금", "https://bank.example/start")
+        )).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("domain mismatch");
+    }
+
+    @Test
+    void abortsTopLevelRedirectOutsideProviderDomain() {
+        TestScraper scraper = new TestScraper();
+        Route route = mock(Route.class);
+        Request request = mock(Request.class);
+        Frame frame = mock(Frame.class);
+        Page page = mock(Page.class);
+        when(route.request()).thenReturn(request);
+        when(request.isNavigationRequest()).thenReturn(true);
+        when(request.url()).thenReturn("http://127.0.0.1/internal");
+        when(request.frame()).thenReturn(frame);
+        when(frame.page()).thenReturn(page);
+        when(page.mainFrame()).thenReturn(frame);
+
+        scraper.routeNavigation(route);
+
+        verify(route).abort();
+        verify(route, never()).resume();
+    }
 
     @Test
     void skipsProductBlocksWithoutRealLink() {
@@ -89,5 +164,17 @@ class AbstractBankProductScraperTest {
         protected List<ProductCandidate> search(BrowserContext context, String productName) {
             return List.of();
         }
+    }
+
+    private static class CollectingTestScraper extends TestScraper {
+
+        ScrapedProduct collectProduct(BrowserContext context, ProductCandidate candidate) {
+            return collect(context, candidate);
+        }
+
+        @Override
+        protected void navigate(Page page, String url) {
+        }
+
     }
 }

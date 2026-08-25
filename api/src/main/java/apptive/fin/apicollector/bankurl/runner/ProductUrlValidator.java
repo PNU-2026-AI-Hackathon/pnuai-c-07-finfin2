@@ -1,9 +1,9 @@
 package apptive.fin.apicollector.bankurl.runner;
 
+import apptive.fin.apicollector.bankurl.BankUrlPolicy;
 import apptive.fin.apicollector.bankurl.ScrapeStatus;
 import apptive.fin.apicollector.bankurl.scraper.ProductNameSimilarity;
 
-import java.net.URI;
 import java.util.Locale;
 import java.util.Set;
 
@@ -13,69 +13,40 @@ final class ProductUrlValidator {
 
     ValidationOutcome validate(
             String expectedName,
-            String actualTitle,
+            String candidateName,
             String productUrl,
             Set<String> allowedDomains
     ) {
-        double score = similarity.score(expectedName, actualTitle);
-        URI uri = parseHttpUri(productUrl);
-        if (uri == null) {
-            return fail(score, "product_url is not absolute http(s)");
+        double score = similarity.score(expectedName, candidateName);
+        var urlError = BankUrlPolicy.validationError(productUrl, allowedDomains);
+        if (urlError.isPresent()) {
+            return fail(score, urlError.get());
         }
-        if (productUrl.length() > 500) {
-            return fail(score, "product_url exceeds database limit");
+        if (isGenericProductName(candidateName)) {
+            return fail(score, "candidate name is generic product category");
         }
-        if (!domainMatches(uri.getHost(), allowedDomains)) {
-            return fail(score, "product_url domain mismatch");
-        }
-        if (isGenericProductName(actualTitle)) {
-            return fail(score, "title is generic product category");
+        if (similarity.hasConflictingVariant(expectedName, candidateName)) {
+            return fail(score, "candidate product variant conflicts with target");
         }
 
         String expectedCompact = compact(expectedName);
-        String titleCompact = compact(actualTitle);
+        String candidateCompact = compact(candidateName);
         if (!expectedCompact.isEmpty()
-                && (expectedCompact.equals(titleCompact) || titleCompact.contains(expectedCompact))) {
+                && (expectedCompact.equals(candidateCompact) || candidateCompact.contains(expectedCompact))) {
             return new ValidationOutcome(ScrapeStatus.PASS, 1.0, "");
         }
         if (score < 0.55) {
-            return fail(score, "title similarity is too low");
+            return fail(score, "candidate name similarity is too low");
         }
         if (score < 0.80) {
-            return new ValidationOutcome(ScrapeStatus.WARN, score, "title similarity is low");
+            return new ValidationOutcome(ScrapeStatus.WARN, score, "candidate name similarity is low");
         }
         return new ValidationOutcome(ScrapeStatus.PASS, score, "");
     }
 
-    private URI parseHttpUri(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        try {
-            URI uri = URI.create(value);
-            if (("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))
-                    && uri.getHost() != null) {
-                return uri;
-            }
-        } catch (IllegalArgumentException ignored) {
-            // Invalid values are reported through the validation result.
-        }
-        return null;
-    }
-
-    private boolean domainMatches(String hostname, Set<String> allowedDomains) {
-        if (hostname == null || allowedDomains == null) {
-            return false;
-        }
-        String normalizedHost = hostname.toLowerCase(Locale.ROOT);
-        return allowedDomains.stream()
-                .map(domain -> domain.toLowerCase(Locale.ROOT))
-                .anyMatch(domain -> normalizedHost.equals(domain) || normalizedHost.endsWith("." + domain));
-    }
-
-    private boolean isGenericProductName(String title) {
+    private boolean isGenericProductName(String candidateName) {
         return Set.of("예금", "적금", "통장", "deposit", "saving", "savings")
-                .contains(compact(title));
+                .contains(compact(candidateName));
     }
 
     private String compact(String value) {
