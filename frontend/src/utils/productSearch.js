@@ -52,6 +52,7 @@ export async function runProductSearch(request, accessToken) {
     result: {
       ...result,
       productDetails,
+      monthlySavingsGoal: request?.detailedOptions?.monthlySavingsGoal ?? null,
     },
   };
 

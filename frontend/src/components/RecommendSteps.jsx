@@ -63,6 +63,19 @@ function toggleSingleField(data, setData, field, val) {
 /*  1. 저축 계획 (Step 1-1) */
 export function StepSavingPlan({ data, setData, onPrev, onNext }) {
   const amount = data.monthlyAmount || 1;
+  const [amountText, setAmountText] = useState(String(amount));
+
+  useEffect(() => {
+    setAmountText(String(amount));
+  }, [amount]);
+
+  const commitAmount = (raw) => {
+    const parsed = Number(raw);
+    const next = raw === "" || !Number.isFinite(parsed) ? amount : Math.min(100, Math.max(1, parsed));
+    setData({ ...data, monthlyAmount: next });
+    setAmountText(String(next));
+  };
+
   return (
       <StepLayout step={1} title="기본 정보" sub="월 납입 희망액을 슬라이더로 조정하거나 직접 입력해주세요.">
         <div className="pl-6 mt-8">
@@ -82,8 +95,10 @@ export function StepSavingPlan({ data, setData, onPrev, onNext }) {
 
           <div className="flex items-center border border-[#CACACA] rounded-full w-[198px] h-[46px] px-5 mb-16 bg-white shadow-sm">
             <div className="flex items-center justify-center border border-[#CACACA] rounded-[4px] w-[66px] h-[25px] mr-4 bg-[#FBFBFB]">
-              <input type="number" value={amount}
-                onChange={(e) => setData({ ...data, monthlyAmount: Math.min(100, Math.max(1, Number(e.target.value))) })}
+              <input type="number" value={amountText}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => setAmountText(e.target.value)}
+                onBlur={(e) => commitAmount(e.target.value)}
                 className="w-full text-center text-[#CACACA] text-[16px] font-bold bg-transparent outline-none"
               />
             </div>
@@ -515,23 +530,14 @@ const TABS = [
   { id: '지방', label: '지방', icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z' }
 ];
 
-const REGION_BANK_MAP = {
-  "reg_05": "BNK부산",
-  "reg_06": "BNK경남은행",
-  "reg_07": "광주은행",
-  "reg_08": "전북은행",
-  "reg_09": "제주은행"
-};
-
 export function BankSelector({
-  theme = 'mint', 
-  title, 
+  theme = 'mint',
+  title,
   infoText,
-  selectedBanks = [], 
-  onChange, 
+  selectedBanks = [],
+  onChange,
   disabledBanks = [],
   cats,
-  userRegion 
 }) {
   const [activeTab, setActiveTab] = useState('전체');
 
@@ -542,16 +548,7 @@ export function BankSelector({
   const themeColor = colors[theme];
   const categoriesToUse = cats?.bankCategories || [];
 
-  const displayedCategories = categoriesToUse.map(category => {
-    if (category.id === '지방') {
-      if (activeTab === '전체') {
-        const myLocalBank = REGION_BANK_MAP[userRegion];
-        return { ...category, banks: category.banks.filter(b => b === myLocalBank) };
-      }
-      return category;
-    }
-    return category;
-  }).filter(category => {
+  const displayedCategories = categoriesToUse.filter(category => {
     if (activeTab !== '전체' && category.id !== activeTab) return false;
     if (category.banks.length === 0) return false;
     return true;
@@ -693,7 +690,7 @@ export function StepTransaction({ data, setData, cats, onPrev, onSubmit, onSkip 
           {subStep === 1 && (
             <BankSelector 
               theme="mint" title="첫거래 은행" infoText="아직 거래해본 적 없는 은행을 선택하면, 해당 은행의 ‘첫거래 우대금리'가 자동 반영됩니다."
-              cats={cats} userRegion={data.region} selectedBanks={firstBanks}
+              cats={cats} selectedBanks={firstBanks}
               onChange={(newBanks) => setData({ ...data, firstBanks: newBanks })}
             />
           )}
@@ -701,7 +698,7 @@ export function StepTransaction({ data, setData, cats, onPrev, onSubmit, onSkip 
           {subStep === 2 && (
             <BankSelector 
               theme="blue" title="만기 예적금이 있는 은행" infoText="만기된(될) 예적금이 있는 은행을 선택하면 해당 은행의 ‘재예치 우대금리’가 자동 반영됩니다."
-              cats={cats} userRegion={data.region} selectedBanks={maturedBanks}
+              cats={cats} selectedBanks={maturedBanks}
               onChange={(newBanks) => setData({ ...data, maturedBanks: newBanks })}
               disabledBanks={firstBanks} 
             />

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import client, { withAuth } from "../api/client";
 import { MOCK_PROFILE, MOCK_OPTION_CATEGORIES, MOCK_FAVORITES } from "../data/mypage";
-import { findCategoryByGroup, normalizeCategoryName } from "../utils/recommendationPayload";
+import { buildRecommendationRequestFromProfile, findCategoryByGroup, normalizeCategoryName } from "../utils/recommendationPayload";
 
 const TAG_GROUP_KEYS = ["savingPeriod", "status", "benefits", "bankRelation"];
 
@@ -136,14 +136,19 @@ export default function useMyPage() {
       setLoading(true);
       setError(null);
       try {
-        const [profileRes, categoriesRes, favoritesRes] = await Promise.all([
+        const [profileRes, categoriesRes] = await Promise.all([
           client.get("/user/me/profile", withAuth(accessToken)),
           client.get("/api/categories", withAuth(accessToken)),
-          client.get("/favorites", withAuth(accessToken)),
         ]);
         if (cancelled) return;
         setProfile(profileRes.data);
         setCategories(categoriesRes.data || []);
+
+        // /favorites는 프로필 미반영 원본 기록만 내려주므로, 사용자 프로필을 실어
+        // /favorites/list(getFavoritesWithProfile)를 호출해 개인화된 fitScore/금리를 받아온다.
+        const favoritesRequest = buildRecommendationRequestFromProfile(profileRes.data, categoriesRes.data || []);
+        const favoritesRes = await client.post("/favorites/list", favoritesRequest, withAuth(accessToken));
+        if (cancelled) return;
         setFavorites(favoritesRes.data?.items || []);
         setShowComparisonNotice(Boolean(favoritesRes.data?.showComparisonNotice));
       } catch (e) {

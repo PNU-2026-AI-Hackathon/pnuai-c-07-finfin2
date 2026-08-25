@@ -21,6 +21,26 @@
   --font-gmarket: 'GmarketSans', sans-serif;
 }
 
+@layer base {
+  body {
+    font-family: var(--font-pretendard);
+  }
+
+  button:not(:disabled),
+  [role="button"],
+  a[href],
+  select,
+  summary,
+  label {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+}
+
 .recommend-range {
   --range-progress: 0%;
   --range-fill: #03BFA5;
