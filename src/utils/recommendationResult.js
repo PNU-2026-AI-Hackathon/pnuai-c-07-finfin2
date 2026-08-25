@@ -172,10 +172,15 @@ function buildRateConditionRows(bank, rateTable) {
   return [...metRows, ...unmetRows, ...interestRow];
 }
 
-function buildCalculatorConfig({ detail, baseRateNum, achievableRateNum }) {
+function buildCalculatorConfig({ detail, baseRateNum, achievableRateNum, monthlySavingsGoal }) {
   const bank = detail?.bank;
   const months = Math.max(...asArray(detail?.saveTrms).map(toFiniteNumber).filter((p) => p !== null), 0) || 12;
-  const monthlyAmount = toFiniteNumber(detail?.maxMonthlyLimit) ?? 500_000;
+  const maxLimit = toFiniteNumber(detail?.maxMonthlyLimit) ?? 500_000;
+  const minLimit = toFiniteNumber(detail?.minMonthlyLimit);
+  const requestedAmount = toFiniteNumber(monthlySavingsGoal);
+  const monthlyAmount = requestedAmount !== null
+    ? Math.min(maxLimit, Math.max(minLimit ?? requestedAmount, requestedAmount))
+    : maxLimit;
   const accumulationType = reserveTypeShortLabel(detail?.reserveType);
   const intrRateType = asArray(detail?.rateTable)[0]?.intrRateType;
   const interestType = interestTypeLabel(intrRateType) || "단리";
@@ -214,7 +219,7 @@ function buildCalculatorConfig({ detail, baseRateNum, achievableRateNum }) {
   };
 }
 
-function buildProductView(id, indices) {
+function buildProductView(id, indices, monthlySavingsGoal) {
   const { govMatches, bankMatches, govRates, bankRates, subscriptionRates, details } = indices;
 
   const match = govMatches.get(id) || bankMatches.get(id);
@@ -261,6 +266,7 @@ function buildProductView(id, indices) {
   return {
     id,
     productId: id,
+    productPropertyId: toFiniteNumber(match?.productPropertyId ?? detail?.productPropertyId),
     category,
     title: productName,
     institution: providerName,
@@ -299,7 +305,7 @@ function buildProductView(id, indices) {
     rateConditions: buildRateConditionRows(detail?.bank, detail?.rateTable),
     recruitPeriod: detail?.recruitmentPeriod || "취급기관 상시 확인 필요",
     applyUrl: detail?.applyUrl || null,
-    calculator: buildCalculatorConfig({ detail, baseRateNum, achievableRateNum }),
+    calculator: buildCalculatorConfig({ detail, baseRateNum, achievableRateNum, monthlySavingsGoal }),
 
     detail,
   };
@@ -312,7 +318,7 @@ export function buildProductListFromResult(result) {
   const ids = collectAllIds(indices);
 
   return [...ids]
-    .map((id) => buildProductView(id, indices))
+    .map((id) => buildProductView(id, indices, result?.monthlySavingsGoal))
     .sort((a, b) => b.suitability - a.suitability);
 }
 
@@ -323,5 +329,5 @@ export function findProductViewById(result, productId) {
   const id = String(productId);
   if (!collectAllIds(indices).has(id)) return null;
 
-  return buildProductView(id, indices);
+  return buildProductView(id, indices, result?.monthlySavingsGoal);
 }
