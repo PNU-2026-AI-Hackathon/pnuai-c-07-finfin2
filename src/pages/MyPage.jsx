@@ -6,6 +6,7 @@ import heartIcon from "../assets/green_heart.png";
 import { useAuth } from "../context/AuthContext";
 import { buildRecommendationRequestFromProfile } from "../utils/recommendationPayload";
 import { runProductSearch } from "../utils/productSearch";
+import { keywordLabel } from "../utils/productLabels";
 
 function ChevronDownIcon({ className = "" }) {
   return (
@@ -66,15 +67,24 @@ function Tabs({ active, onChange, likedCount }) {
 
 /* ---------- 찜해둔 Fin. 탭 ---------- */
 
+// excludeFromRateComparison만으로는 백엔드에서 정부 상품 분류가 누락될 수 있어
+// sourceCode("GOV")도 함께 확인해 방어적으로 판단한다.
+function isGovernmentItem(item) {
+  return item.sourceCode === "GOV" || Boolean(item.excludeFromRateComparison);
+}
+
 function mapFavoriteItem(item) {
-  const isContribution = Boolean(item.excludeFromRateComparison);
+  const isContribution = isGovernmentItem(item);
   const metrics = item.metrics || {};
 
   return {
     id: item.productPropertyId,
     title: item.productName,
     subtitle: item.summaryLine,
-    tags: [`적합도 ${item.fitScore}%`, ...(item.keywords || [])],
+    tags: [
+      ...(item.fitScore != null ? [`적합도 ${item.fitScore}%`] : []),
+      ...(item.keywords || []).map(keywordLabel),
+    ],
     isContribution,
     contributionRate:
       isContribution && metrics.contributionYieldRate != null ? `연 ${metrics.contributionYieldRate.toFixed(1)}%` : null,
@@ -181,17 +191,17 @@ function LikedCard({ product, onRemove }) {
           <div className="flex items-center w-full justify-start rounded-lg border border-[#EDF1EF]">
             <div className="flex flex-1 flex-col items-start my-4 pl-3.5">
               <span className="text-[14px] text-[#8A8A8A]">기본 금리</span>
-              <span className="text-[22px] font-extrabold text-[#03BFA5]">연 {product.baseRate}%</span>
+              <span className="text-[22px] font-extrabold text-[#03BFA5]">{product.baseRate != null ? `연 ${product.baseRate}%` : "정보 없음"}</span>
             </div>
             <div className="h-full w-px bg-[#EDF1EF]" />
             <div className="flex flex-1 flex-col items-start pl-3.5">
               <span className="text-[13px] text-[#8A8A8A]">최고 금리</span>
-              <span className="text-[22px] font-extrabold text-[#26313A]">연 {product.maxRate}%</span>
+              <span className="text-[22px] font-extrabold text-[#26313A]">{product.maxRate != null ? `연 ${product.maxRate}%` : "정보 없음"}</span>
             </div>
           </div>
           <div className="flex items-center justify-center gap-2 w-full rounded-lg bg-[#EFFFFD] py-1.5 mt-3 text-[14px] text-[#03BFA5]">
             <span>내가 받을 수 있는 금리</span>
-            <span className="font-semibold">연 {product.myRate}%</span>
+            <span className="font-semibold">{product.myRate != null ? `연 ${product.myRate}%` : "정보 없음"}</span>
           </div>
         </div>
       )}
@@ -301,12 +311,12 @@ function EmptyLikedState({ onGoRecommend }) {
 function LikedTab({ favorites, showComparisonNotice, onRemove, onGoRecommend }) {
   const [filter, setFilter] = useState("all");
 
-  const govCount = favorites.filter((item) => item.excludeFromRateComparison).length;
+  const govCount = favorites.filter(isGovernmentItem).length;
   const bankCount = favorites.length - govCount;
 
   const filtered = favorites.filter((item) => {
-    if (filter === "gov") return item.excludeFromRateComparison;
-    if (filter === "bank") return !item.excludeFromRateComparison;
+    if (filter === "gov") return isGovernmentItem(item);
+    if (filter === "bank") return !isGovernmentItem(item);
     return true;
   });
 
