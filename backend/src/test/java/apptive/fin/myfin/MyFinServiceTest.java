@@ -14,10 +14,12 @@ import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.enums.ProductApplyStatus;
 import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.dto.DetailedOptionsDto;
+import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.repository.ProductPropertyRepository;
 import apptive.fin.search.service.MatchScoreService;
 import apptive.fin.search.service.RateCalculatorService;
+import apptive.fin.search.service.ResolveKeywordService;
 import apptive.fin.user.entity.User;
 import apptive.fin.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -50,6 +52,8 @@ class MyFinServiceTest {
     private MatchScoreService matchScoreService;
     @Mock
     private RateCalculatorService rateCalculatorService;
+    @Mock
+    private ResolveKeywordService resolveKeywordService;
 
     @InjectMocks
     private MyFinService myFinService;
@@ -217,7 +221,8 @@ class MyFinServiceTest {
                 userRepository,
                 productPropertyRepository,
                 matchScoreService,
-                new RateCalculatorService()
+                new RateCalculatorService(),
+                resolveKeywordService
         );
         MyFin favorite = mock(MyFin.class);
         Product product = mock(Product.class);
@@ -248,7 +253,8 @@ class MyFinServiceTest {
                 userRepository,
                 productPropertyRepository,
                 new MatchScoreService(),
-                new RateCalculatorService()
+                new RateCalculatorService(),
+                resolveKeywordService
         );
         MyFin favorite = mock(MyFin.class);
         Product product = bankProductWithFirstTransactionRate();
@@ -274,10 +280,13 @@ class MyFinServiceTest {
                         List.of("KB"), null, List.of()
                 )
         );
+        when(resolveKeywordService.resolveKeywords(List.of()))
+                .thenReturn(ResolvedKeywords.emptyKeywords());
 
         MyfinResponseDto.Item completeItem = service.getFavorites(1L, complete).items().getFirst();
         MyfinResponseDto.Item incompleteItem = service.getFavorites(1L, incomplete).items().getFirst();
 
+        assertEquals(100, completeItem.fitScore());
         assertTrue(completeItem.fitScore() > incompleteItem.fitScore());
         assertEquals(4.0, completeItem.metrics().achievableRate());
         assertEquals(3.5, incompleteItem.metrics().achievableRate());
