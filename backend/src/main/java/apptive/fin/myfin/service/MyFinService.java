@@ -17,6 +17,7 @@ import apptive.fin.search.enums.ProductApplyStatus;
 import apptive.fin.search.repository.ProductPropertyRepository;
 import apptive.fin.search.service.MatchScoreService;
 import apptive.fin.search.service.RateCalculatorService;
+import apptive.fin.search.service.ResolveKeywordService;
 import apptive.fin.search.util.ProductAvailability;
 import apptive.fin.user.entity.User;
 import apptive.fin.user.repository.UserRepository;
@@ -38,6 +39,7 @@ public class MyFinService {
     private final ProductPropertyRepository productPropertyRepository;
     private final MatchScoreService matchScoreService;
     private final RateCalculatorService rateCalculatorService;
+    private final ResolveKeywordService resolveKeywordService;
 
     // 찜 목록 조회
     // 최신 배치 데이터 + 프로필 기준 재계산
@@ -49,7 +51,9 @@ public class MyFinService {
             return new MyfinResponseDto.List_(List.of(), false);
         }
 
-        ResolvedKeywords keywords = ResolvedKeywords.emptyKeywords();
+        ResolvedKeywords keywords = request != null && request.options() != null ?
+            resolveKeywordService.resolveKeywords(request.options()) : 
+            ResolvedKeywords.emptyKeywords();
 
         List<MyfinResponseDto.Item> items = favorites.stream()
                 .map(myFin -> toItemDto(myFin, request, keywords))
@@ -174,7 +178,7 @@ public class MyFinService {
                 request.hasTransactionHistory()
         );
         // totalScore를 0~100 스케일로 변환
-        return (int) Math.round(matchDto.totalScore() * 100);
+        return (int) matchDto.totalScore();
     }
 
     private MyfinResponseDto.Metrics calculateMetrics(ProductProperty pp, String sourceCode, SearchRequestDto request, ResolvedKeywords keywords) {
