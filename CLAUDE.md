@@ -27,6 +27,12 @@ Both modules use the Gradle wrapper (Java 21 toolchain, Spring Boot 4.x). On Win
 # api/  — collector
 ./gradlew.bat bootRun            # runs the batch job on startup (batch.job.enabled=true)
 ./gradlew.bat test
+
+# 은행 상품 URL 수집용 Chromium 설치
+./gradlew.bat playwrightInstall
+
+# 기존 Python 스크래퍼와 Java 결과(URL + PASS/WARN/FAIL) 동등성 검증
+./gradlew.bat bankUrlParityTest -PpythonScraperDir="C:\\path\\to\\fin_web_scrape"
 ```
 
 ### Local database (required for both)
@@ -61,6 +67,7 @@ A single Spring Batch job `financialProductSyncJob` runs on boot. It is driven e
 - **`source`** (`FSS` | `ONTONG` | `ALL`) — `SourceDecider` branches the job into `fssSyncFlow`, `ontongYouthSyncFlow`, or `allSyncFlow`. Note: the 온통청년 API is deprecated; `ONTONG`/manual products now come from `FetchManualRawTasklet` reading `manual-products.json`.
 - **`mode`** (`SYNC` | `NORMALIZE_ONLY`) — `NORMALIZE_ONLY` skips all `Fetch*RawTasklet`s and re-normalizes existing raw rows without hitting external APIs or deactivating missing products.
 - Each flow is: **fetch raw → normalize → deactivate-missing**. Fetch tasklets store `ProductRaw`; the normalize step reads raw rows and runs them through source-specific `ProductNormalizer`s (`FssProductNormalizer`, `OntongYouthProductNormalizer`, `ManualProductNormalizer`) → `ProductDraft` → written to `product`/`product_property`/keyword/rate tables.
+- FSS/ALL flows then run `bankProductUrlStep`. It uses headless Chromium to resolve product-specific URLs for active FSS bank products and updates only PASS results. WARN/FAIL keep the previous URL and do not fail the job. Configure it with `BANK_PRODUCT_URL_ENABLED`, `BANK_URL_CONCURRENCY`, `BANK_URL_TIMEOUT_SECONDS`, and `BANK_URL_RETRIES`.
 - **LLM enrichment**: when `collector.llm.enabled=true`, the FSS normalize step switches to an **async chunked** pipeline (`AsyncProductItemProcessor`/`Writer` on a fixed thread pool sized by `llm.max-concurrency`) that calls Gemini (`GeminiLlmProviderClient`) to enrich drafts. Results are cached in an `llm_enrichment_cache` table keyed by prompt/schema version. When disabled, normalization is synchronous.
 
 ### Cache/version invalidation knobs (important for re-processing)

@@ -32,7 +32,9 @@ collector:
   source: ALL
   mode: SYNC
   # REQ-001 상품명 후행 괄호 제거 재정규화를 위해 27 -> 28. (PR #20이 27로 올린 것 위에 얹음)
-  normalizer-version: 28
+  # 28 -> 29: 괄호 제거를 수집기에서 걷어내고 응답 시점으로 옮겼다. 이미 28로 정규화해 괄호가 떨어진
+  # 환경은 raw 가 28로 마킹돼 재정규화 대상에서 빠지므로, 버전을 올려 원천 이름을 다시 채운다.
+  normalizer-version: 29
   reader-page-size : 500
   unseen-disable-period : 1
 
@@ -45,6 +47,13 @@ collector:
     base-url: https://finlife.fss.or.kr
     api-key: ${FSS_API_KEY:}
     page-size : 100
+
+  bank-product-url:
+    enabled: ${BANK_PRODUCT_URL_ENABLED:true}
+    # 워커 하나가 Chromium 하나를 소유한다(Playwright Java 는 스레드 안전하지 않음). 올리면 그만큼 메모리를 쓴다.
+    concurrency: ${BANK_URL_CONCURRENCY:8}
+    timeout-seconds: ${BANK_URL_TIMEOUT_SECONDS:90}
+    retries: ${BANK_URL_RETRIES:1}
 
   llm:
     enabled: ${LLM_ENABLED:false}
