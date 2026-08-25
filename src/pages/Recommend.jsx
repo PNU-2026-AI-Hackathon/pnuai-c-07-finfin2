@@ -11,9 +11,12 @@ import {
   StepTransaction,
   LoadingScreen,
 } from "../components/RecommendSteps";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { readPersistedRecommendation } from "../utils/recommendationResult";
+
+// 검색바가 화면 상단에서 이 정도 간격을 유지하도록 스크롤 (sticky 헤더 높이 + 여유 간격)
+const SEARCH_BAR_TOP_OFFSET = 96;
 
 export default function Recommend() {
   const { step, formData, setFormData, cats, loading, go, handleSubmit } = useRecommendForm();
@@ -24,7 +27,21 @@ export default function Recommend() {
   const [analysisError, setAnalysisError] = useState("");
   const [analysisResult, setAnalysisResult] = useState(null);
   const analysisPromiseRef = useRef(null);
+  const searchBarRef = useRef(null);
   const hasPreviousRecommendation = Boolean(readPersistedRecommendation()?.result);
+
+  const scrollToSearchBar = useCallback(() => {
+    const el = searchBarRef.current;
+    if (!el) return;
+    const targetTop = el.getBoundingClientRect().top + window.scrollY - SEARCH_BAR_TOP_OFFSET;
+    window.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+  }, []);
+
+  // 검색창을 열거나(눌렀을 때) 단계가 바뀔 때마다 검색창이 항상 같은 위치로 오도록 스크롤
+  useEffect(() => {
+    if (!isOpen) return;
+    scrollToSearchBar();
+  }, [isOpen, step, scrollToSearchBar]);
 
   const startAnalysis = () => {
     setAnalysisError("");
@@ -130,6 +147,7 @@ export default function Recommend() {
           {/* 검색바 */}
           <button
             type="button"
+            ref={searchBarRef}
             onClick={() => setIsOpen((prev) => !prev)}
             disabled={isAnalyzing}
             aria-label={isOpen ? "정보 입력 닫기" : "정보 입력 열기"}
