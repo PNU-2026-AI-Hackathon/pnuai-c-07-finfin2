@@ -15,6 +15,7 @@ import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.enums.ProductApplyStatus;
 import apptive.fin.search.repository.ProductPropertyRepository;
+import apptive.fin.search.service.BankMaxInterestPolicy;
 import apptive.fin.search.service.MatchScoreService;
 import apptive.fin.search.service.RateCalculatorService;
 import apptive.fin.search.service.ResolveKeywordService;
@@ -52,11 +53,21 @@ public class MyFinService {
         }
 
         ResolvedKeywords keywords = request != null && request.options() != null ?
-            resolveKeywordService.resolveKeywords(request.options()) : 
+            resolveKeywordService.resolveKeywords(request.options()) :
             ResolvedKeywords.emptyKeywords();
 
+        // 은행 상품 #최고이율 상위 30% 판정용 임계 금리 계산
+        List<Double> bankMaxRates = favorites.stream()
+                .map(MyFin::getProductProperty)
+                .filter(pp -> pp.getProduct().isBank())
+                .map(ProductProperty::getMaxRate)
+                .filter(rate -> rate != null)
+                .map(java.math.BigDecimal::doubleValue)
+                .toList();
+        Double bankMaxInterestThreshold = BankMaxInterestPolicy.calculateThreshold(bankMaxRates);
+
         List<MyfinResponseDto.Item> items = favorites.stream()
-                .map(myFin -> toItemDto(myFin, request, keywords))
+                .map(myFin -> toItemDto(myFin, request, keywords, bankMaxInterestThreshold))
                 .toList();
 
         // 정부(ONTONG)와 은행(FSS) 상품이 혼재되어 있는지 확인
@@ -118,7 +129,7 @@ public class MyFinService {
         return myfinRepository.countByUserId(userId);
     }
 
-    private MyfinResponseDto.Item toItemDto(MyFin myFin, SearchRequestDto request, ResolvedKeywords keywords) {
+    private MyfinResponseDto.Item toItemDto(MyFin myFin, SearchRequestDto request, ResolvedKeywords keywords, Double bankMaxInterestThreshold) {
         ProductProperty pp = myFin.getProductProperty();
         Product product = pp.getProduct();
         String sourceCode = product.getSource().getCode();
@@ -130,7 +141,7 @@ public class MyFinService {
                 .toList();
 
         // 적합도 계산 (MatchScoreService 활용)
-        Integer fitScore = calculateFitScore(product, pp, request, keywords);
+        Integer fitScore = calculateFitScore(product, pp, request, keywords, bankMaxInterestThreshold);
 
         // 요약 라인 생성
         String summaryLine = buildSummaryLine(pp, sourceCode);
@@ -165,7 +176,7 @@ public class MyFinService {
         );
     }
 
-    private Integer calculateFitScore(Product product, ProductProperty pp, SearchRequestDto request, ResolvedKeywords keywords) {
+    private Integer calculateFitScore(Product product, ProductProperty pp, SearchRequestDto request, ResolvedKeywords keywords, Double bankMaxInterestThreshold) {
         if (request == null) {
             return null;
         }
@@ -175,7 +186,8 @@ public class MyFinService {
                 pp,
                 request,
                 keywords,
-                request.hasTransactionHistory()
+                request.hasTransactionHistory(),
+                bankMaxInterestThreshold
         );
         // totalScore를 0~100 스케일로 변환
         return (int) matchDto.totalScore();
