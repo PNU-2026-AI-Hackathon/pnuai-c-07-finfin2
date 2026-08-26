@@ -44,4 +44,4 @@ AI가 결과를 단독 결정하지 않도록 **제품에서는 규칙과 검증
 | 데이터 | Codex / Claude | 공공 API 연동, 스키마 정규화 설정 |
 | 배포·기타 | Codex | EC2·Docker Compose 스크립트 생성, 코드 리뷰 |
 
-생성 코드는 그대로 채택하지 않았다. 팀원이 요구사항과 기존 구조에 맞는지 diff를 리뷰하고 비즈니스 규칙·보안·예외 처리를 보완한 뒤, 단위·Testcontainers 통합 테스트를 통과한 코드만 반영했다. Git 이력에는 최초 LLM 보강 후 JSON 파싱, 스키마, 비동기 호출, 캐시·폴백, 오분류 가드와 테스트를 반복 개선한 과정이 남아 있으며, 프로젝트 제약은 `CLAUDE.md`·`AGENTS.md`로 공유했다.
+생성 코드는 그대로 채택하지 않았다. 팀원이 요구사항과 기존 구조에 맞는지 diff를 리뷰하고 비즈니스 규칙·보안·예외 처리를 보완한 뒤, 단위·Testcontainers 통합 테스트를 통과한 코드만 반영했다. Git 이력에는 최초 LLM 보강 후 JSON 파싱, 스키마, 비동기 호출, 캐시·폴백, 오분류 가드와 테스트를 반복 개선한 과정이 남아 있으며, 프로젝트 제약은 [CLAUDE.md](https://github.com/PNU-2026-AI-Hackathon/pnuai-c-07-finfin2/blob/main/CLAUDE.md)·[AGENTS.md](https://github.com/PNU-2026-AI-Hackathon/pnuai-c-07-finfin2/blob/main/AGENTS.md)로 공유했다.
