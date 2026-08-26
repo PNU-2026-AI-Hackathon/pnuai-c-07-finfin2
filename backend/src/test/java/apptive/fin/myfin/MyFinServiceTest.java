@@ -21,6 +21,8 @@ import apptive.fin.search.service.EligibilityFilterService;
 import apptive.fin.search.service.MatchScoreService;
 import apptive.fin.search.service.RateCalculatorService;
 import apptive.fin.search.service.ResolveKeywordService;
+import apptive.fin.search.service.SearchRequestPolicy;
+import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.user.entity.User;
 import apptive.fin.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,6 +59,8 @@ class MyFinServiceTest {
     private ResolveKeywordService resolveKeywordService;
     @Mock
     private EligibilityFilterService eligibilityFilterService;
+    @Mock
+    private SearchRequestPolicy searchRequestPolicy;
 
     @InjectMocks
     private MyFinService myFinService;
@@ -226,7 +230,8 @@ class MyFinServiceTest {
                 matchScoreService,
                 new RateCalculatorService(),
                 resolveKeywordService,
-                eligibilityFilterService
+                eligibilityFilterService,
+                searchRequestPolicy
         );
         MyFin favorite = mock(MyFin.class);
         Product product = mock(Product.class);
@@ -259,11 +264,13 @@ class MyFinServiceTest {
                 new MatchScoreService(),
                 new RateCalculatorService(),
                 resolveKeywordService,
-                eligibilityFilterService
+                eligibilityFilterService,
+                searchRequestPolicy
         );
         MyFin favorite = mock(MyFin.class);
         Product product = bankProductWithFirstTransactionRate();
         ProductProperty property = product.getProperties().getFirst();
+        AuthUserDetails userDetails = mock(AuthUserDetails.class);
 
         when(myFinRepository.findAllByUserIdWithDetails(1L)).thenReturn(List.of(favorite));
         when(favorite.getId()).thenReturn(10L);
@@ -289,9 +296,12 @@ class MyFinServiceTest {
         );
         when(resolveKeywordService.resolveKeywords(List.of()))
                 .thenReturn(ResolvedKeywords.emptyKeywords());
+        // tabBEnabled: complete 요청은 true, incomplete 요청은 false
+        when(searchRequestPolicy.canUsePersonalization(eq(complete), any(), eq(userDetails))).thenReturn(true);
+        when(searchRequestPolicy.canUsePersonalization(eq(incomplete), any(), eq(userDetails))).thenReturn(false);
 
-        MyfinResponseDto.Item completeItem = service.getFavorites(1L, complete).items().getFirst();
-        MyfinResponseDto.Item incompleteItem = service.getFavorites(1L, incomplete).items().getFirst();
+        MyfinResponseDto.Item completeItem = service.getFavorites(1L, complete, userDetails).items().getFirst();
+        MyfinResponseDto.Item incompleteItem = service.getFavorites(1L, incomplete, userDetails).items().getFirst();
 
         assertEquals(100, completeItem.fitScore());
         assertTrue(completeItem.fitScore() > incompleteItem.fitScore());
