@@ -26,7 +26,7 @@ public class MyFinController {
             @RequestBody(required = false) SearchRequestDto request,
             @AuthenticationPrincipal AuthUserDetails userDetails
     ) {
-        return ResponseEntity.ok(myFinService.getFavorites(userDetails.getId(), request));
+        return ResponseEntity.ok(myFinService.getFavorites(userDetails.getId(), request, userDetails));
     }
 
     // 찜 목록 조회 (기본)
