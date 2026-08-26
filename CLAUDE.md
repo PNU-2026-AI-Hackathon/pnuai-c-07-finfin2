@@ -22,7 +22,8 @@ Both modules use the Gradle wrapper (Java 21 toolchain, Spring Boot 4.x). On Win
 ./gradlew.bat test               # full test suite
 ./gradlew.bat test --tests "apptive.fin.search.service.MatchScoreServiceTest"   # single test class
 ./gradlew.bat test --tests "*.MatchScoreServiceTest.someMethod"                 # single test method
-./gradlew.bat resetDb            # devtool: drop+recreate local dev DB schema from schema.sql + seed (custom JavaExec task)
+./gradlew.bat resetDb            # devtool: Flyway clean+migrate, then load product seed data
+./gradlew.bat resetDb --args="--no-seed"  # schema + reference data only
 
 # api/  — collector
 ./gradlew.bat bootRun            # runs the batch job on startup (batch.job.enabled=true)
@@ -35,11 +36,14 @@ Both `application-dev.yml` files point at `jdbc:postgresql://localhost:5678/data
 
 Each module reads secrets from a git-ignored `.env` (Spring `config.import: optional:file:.env[.properties]`). `backend/.env` needs the OAuth client IDs/secrets and `JWT_SECRET`; `api/.env` needs `FSS_API_KEY`, `GEMINI_API_KEY`, etc.
 
-### Schema management is manual — do not expect auto-DDL
+### Schema management uses Flyway
 
-Both apps run JPA with `ddl-auto: validate` (they never create tables). Schema comes from `schema.sql`:
-- **`api/`** dev profile uses `sql.init.mode: always` → it re-runs `schema.sql` on boot.
-- **`backend/`** dev profile uses `sql.init.mode: never` → it validates entities against whatever is already in the DB. **If you change `backend/src/main/resources/schema.sql`, you must apply the change to the running `localhost:5678` DB by hand (or via `./gradlew.bat resetDb`), or `contextLoads()` will fail on startup.** The two modules' `schema.sql` files describe the same shared tables — keep entity changes consistent across both.
+Both apps run JPA with `ddl-auto: validate` and apply the same Flyway history from `database/db/migration/` before Hibernate validation. The top-level migration directory is the single source of truth and is packaged into both Gradle applications; do not create module-local migration copies.
+
+- Add every schema/reference-data change as a new `V<version>__<description>.sql`; never edit an applied migration.
+- `baseline-on-migrate` uses version 2 so an existing pre-Flyway database is recorded at the legacy schema/reference-data boundary, then receives V3 and later migrations.
+- Spring Batch keeps managing its own `BATCH_*` metadata tables through `spring.batch.jdbc.initialize-schema`; application tables belong to Flyway.
+- `./gradlew.bat resetDb` is destructive and intended only for the local development database. It runs Flyway `clean` + `migrate`, then loads `backend/src/main/resources/seed/*.sql` unless `--no-seed` is passed.
 
 ## Backend architecture (`backend/`)
 
@@ -48,7 +52,7 @@ Package-by-feature under `apptive.fin`: `auth`, `user`, `term`, `category`, `sea
 - **Auth**: OAuth2 login (Google, Kakao) → issues JWT (access + refresh). `global/config/SecurityConfig` is stateless (no session); `JwtAuthFilter` runs before the username/password filter. Public paths: `/auth/**`, `/search/**`, `/oauth2/**`, `POST /users`; everything else requires auth. Swagger (`/swagger-ui/**`, `/v3/api-docs/**`) is permitted **only** under `dev`/`test` profiles and denied otherwise. CORS allowed origin comes from `app.frontend.url`.
 - **Search (recommendation core)**: `SearchService.search()` orchestrates a pipeline of focused services — `ResolveKeywordService` (request options → `ResolvedKeywords`), `EligibilityFilterService` (who can subscribe), `MatchScoreService` (relevance score per product/property), `RateCalculatorService` (achievable interest rate). Results are split into government vs. bank products and returned as two rankings (match-score order + rate order), gated by tab availability (`tabB` needs a logged-in user with detailed profile options). Products are collapsed to the best `(Product, ProductProperty)` pair per product. `BankMaxInterestPolicy` owns the pure top-rate threshold and qualification rules; `collapseToBestPerProduct` remains a static ranking helper for unit testing.
 - **Errors**: every domain defines an `ErrorCode` enum (e.g. `SearchErrorCode`, `AuthErrorCode`) implementing the `global/error/ErrorCode` interface (`codePrefix + errNum`). Throw `BusinessException(errorCode)`; `GlobalExceptionHandler` (`@RestControllerAdvice`) maps it to `ErrorResponseDto`. Add new failure modes as enum constants, not ad-hoc exceptions.
-- **Seed data**: `data.sql` (median incomes) and `seed/*.sql` (providers, products, keywords, rates) populate reference/product data.
+- **Seed data**: Flyway V2 contains reference data (median incomes, terms, categories); `backend/src/main/resources/seed/*.sql` contains optional development product data loaded by `resetDb`.
 
 ### Tests (`backend/`)
 

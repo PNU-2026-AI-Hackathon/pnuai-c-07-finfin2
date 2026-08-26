@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.offset;
 @Sql(scripts = "/sql/cleanup-product-fixtures.sql", executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
 
-    // data.sql의 category_option 삽입 순서로 결정되는 옵션 id
+    // V2 migration의 category_option 삽입 순서로 결정되는 옵션 id
     private static final Long AROUND_1_YEAR_PERIOD_OPTION_ID = 24L; // TERM_AROUND_1_YEAR
     private static final Long MAX_INTEREST_BENEFIT_OPTION_ID = 25L; // BENEFIT_MAX_INTEREST
     private static final Long FIRST_TRANSACTION_OPTION_ID = 31L;    // BANK_FIRST_TRANSACTION

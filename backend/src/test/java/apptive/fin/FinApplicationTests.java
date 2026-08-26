@@ -1,10 +1,9 @@
 package apptive.fin;
 
+import apptive.fin.support.IntegrationTestSupport;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
-class FinApplicationTests {
+class FinApplicationTests extends IntegrationTestSupport {
 
     @Test
     void contextLoads() {

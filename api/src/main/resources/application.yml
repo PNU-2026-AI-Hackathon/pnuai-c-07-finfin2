@@ -5,3 +5,6 @@ spring:
     active: dev
   config:
     import: optional:file:.env[.properties]
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 2
