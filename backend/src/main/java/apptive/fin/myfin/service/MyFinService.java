@@ -1,11 +1,13 @@
 package apptive.fin.myfin.service;
 
+import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.global.error.BusinessException;
 import apptive.fin.myfin.MyFinErrorCode;
 import apptive.fin.myfin.dto.MyfinResponseDto;
 import apptive.fin.myfin.entity.MyFin;
 import apptive.fin.myfin.repository.MyFinRepository;
 import apptive.fin.search.dto.BankDetailDto;
+import apptive.fin.search.dto.EligibleProductOption;
 import apptive.fin.search.dto.GovernmentDetailDto;
 import apptive.fin.search.dto.ProductMatchDto;
 import apptive.fin.search.dto.ResolvedKeywords;
@@ -15,9 +17,12 @@ import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.enums.ProductApplyStatus;
 import apptive.fin.search.repository.ProductPropertyRepository;
+import apptive.fin.search.service.BankMaxInterestPolicy;
+import apptive.fin.search.service.EligibilityFilterService;
 import apptive.fin.search.service.MatchScoreService;
 import apptive.fin.search.service.RateCalculatorService;
 import apptive.fin.search.service.ResolveKeywordService;
+import apptive.fin.search.service.SearchRequestPolicy;
 import apptive.fin.search.util.ProductAvailability;
 import apptive.fin.user.entity.User;
 import apptive.fin.user.repository.UserRepository;
@@ -40,11 +45,13 @@ public class MyFinService {
     private final MatchScoreService matchScoreService;
     private final RateCalculatorService rateCalculatorService;
     private final ResolveKeywordService resolveKeywordService;
+    private final EligibilityFilterService eligibilityFilterService;
+    private final SearchRequestPolicy searchRequestPolicy;
 
     // 찜 목록 조회
     // 최신 배치 데이터 + 프로필 기준 재계산
     // 찜 등록 최신순 정렬
-    public MyfinResponseDto.List_ getFavorites(Long userId, SearchRequestDto request) {
+    public MyfinResponseDto.List_ getFavorites(Long userId, SearchRequestDto request, AuthUserDetails userDetails) {
         List<MyFin> favorites = myfinRepository.findAllByUserIdWithDetails(userId);
 
         if (favorites.isEmpty()) {
@@ -52,11 +59,28 @@ public class MyFinService {
         }
 
         ResolvedKeywords keywords = request != null && request.options() != null ?
-            resolveKeywordService.resolveKeywords(request.options()) : 
+            resolveKeywordService.resolveKeywords(request.options()) :
             ResolvedKeywords.emptyKeywords();
 
+        // SearchService와 동일한 tabB 활성화 조건 (은행상품 거래이력 반영 여부)
+        boolean tabBEnabled = searchRequestPolicy.canUsePersonalization(request, keywords, userDetails);
+
+        // 은행 상품 #최고이율 상위 30% 판정용 임계 금리 계산
+        // SearchService와 동일하게 "가입 가능한 전체 은행상품" 결과셋 기준으로 계산해야
+        // 추천 목록과 찜 목록의 적합도가 일치한다. 찜한 상품만으로 계산하면 모집단이 작아져
+        // 값이 달라지므로(#33) eligibilityFilterService로 동일한 모집단을 구한다.
+        List<Double> bankMaxRates = request != null
+                ? eligibilityFilterService.filterEligibleOptions(request, keywords).stream()
+                        .filter(option -> option.product().isBank())
+                        .map(option -> option.property().getMaxRate())
+                        .filter(rate -> rate != null)
+                        .map(java.math.BigDecimal::doubleValue)
+                        .toList()
+                : List.of();
+        Double bankMaxInterestThreshold = BankMaxInterestPolicy.calculateThreshold(bankMaxRates);
+
         List<MyfinResponseDto.Item> items = favorites.stream()
-                .map(myFin -> toItemDto(myFin, request, keywords))
+                .map(myFin -> toItemDto(myFin, request, keywords, bankMaxInterestThreshold, tabBEnabled))
                 .toList();
 
         // 정부(ONTONG)와 은행(FSS) 상품이 혼재되어 있는지 확인
@@ -69,7 +93,7 @@ public class MyFinService {
 
     // 프로필 없이 조회 (기본값 사용)
     public MyfinResponseDto.List_ getFavorites(Long userId) {
-        return getFavorites(userId, null);
+        return getFavorites(userId, null, null);
     }
 
     // 찜 추가
@@ -118,7 +142,7 @@ public class MyFinService {
         return myfinRepository.countByUserId(userId);
     }
 
-    private MyfinResponseDto.Item toItemDto(MyFin myFin, SearchRequestDto request, ResolvedKeywords keywords) {
+    private MyfinResponseDto.Item toItemDto(MyFin myFin, SearchRequestDto request, ResolvedKeywords keywords, Double bankMaxInterestThreshold, boolean tabBEnabled) {
         ProductProperty pp = myFin.getProductProperty();
         Product product = pp.getProduct();
         String sourceCode = product.getSource().getCode();
@@ -130,7 +154,9 @@ public class MyFinService {
                 .toList();
 
         // 적합도 계산 (MatchScoreService 활용)
-        Integer fitScore = calculateFitScore(product, pp, request, keywords);
+        // SearchService와 동일하게: 정부상품은 거래이력 무시(false), 은행상품은 tabBEnabled 사용
+        boolean includeTransactionHistory = !product.isGovernment() && tabBEnabled;
+        Integer fitScore = calculateFitScore(product, pp, request, keywords, bankMaxInterestThreshold, includeTransactionHistory);
 
         // 요약 라인 생성
         String summaryLine = buildSummaryLine(pp, sourceCode);
@@ -165,7 +191,7 @@ public class MyFinService {
         );
     }
 
-    private Integer calculateFitScore(Product product, ProductProperty pp, SearchRequestDto request, ResolvedKeywords keywords) {
+    private Integer calculateFitScore(Product product, ProductProperty pp, SearchRequestDto request, ResolvedKeywords keywords, Double bankMaxInterestThreshold, boolean includeTransactionHistory) {
         if (request == null) {
             return null;
         }
@@ -175,7 +201,8 @@ public class MyFinService {
                 pp,
                 request,
                 keywords,
-                request.hasTransactionHistory()
+                includeTransactionHistory,
+                bankMaxInterestThreshold
         );
         // totalScore를 0~100 스케일로 변환
         return (int) matchDto.totalScore();

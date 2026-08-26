@@ -14,12 +14,16 @@ import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.enums.ProductApplyStatus;
 import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.dto.DetailedOptionsDto;
+import apptive.fin.search.dto.ProductMatchDto;
 import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.repository.ProductPropertyRepository;
+import apptive.fin.search.service.EligibilityFilterService;
 import apptive.fin.search.service.MatchScoreService;
 import apptive.fin.search.service.RateCalculatorService;
 import apptive.fin.search.service.ResolveKeywordService;
+import apptive.fin.search.service.SearchRequestPolicy;
+import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.user.entity.User;
 import apptive.fin.user.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -54,6 +58,10 @@ class MyFinServiceTest {
     private RateCalculatorService rateCalculatorService;
     @Mock
     private ResolveKeywordService resolveKeywordService;
+    @Mock
+    private EligibilityFilterService eligibilityFilterService;
+    @Mock
+    private SearchRequestPolicy searchRequestPolicy;
 
     @InjectMocks
     private MyFinService myFinService;
@@ -222,7 +230,9 @@ class MyFinServiceTest {
                 productPropertyRepository,
                 matchScoreService,
                 new RateCalculatorService(),
-                resolveKeywordService
+                resolveKeywordService,
+                eligibilityFilterService,
+                searchRequestPolicy
         );
         MyFin favorite = mock(MyFin.class);
         Product product = mock(Product.class);
@@ -254,15 +264,20 @@ class MyFinServiceTest {
                 productPropertyRepository,
                 new MatchScoreService(),
                 new RateCalculatorService(),
-                resolveKeywordService
+                resolveKeywordService,
+                eligibilityFilterService,
+                searchRequestPolicy
         );
         MyFin favorite = mock(MyFin.class);
         Product product = bankProductWithFirstTransactionRate();
         ProductProperty property = product.getProperties().getFirst();
+        AuthUserDetails userDetails = mock(AuthUserDetails.class);
 
         when(myFinRepository.findAllByUserIdWithDetails(1L)).thenReturn(List.of(favorite));
         when(favorite.getId()).thenReturn(10L);
         when(favorite.getProductProperty()).thenReturn(property);
+        // 최고이율 상위 30% 임계값 계산용 모집단(전체 가입가능 은행상품)은 이 테스트의 관심사가 아니므로 빈 결과로 스텁
+        when(eligibilityFilterService.filterEligibleOptions(any(), any())).thenReturn(List.of());
 
         SearchRequestDto complete = new SearchRequestDto(
                 List.of(),
@@ -282,15 +297,84 @@ class MyFinServiceTest {
         );
         when(resolveKeywordService.resolveKeywords(List.of()))
                 .thenReturn(ResolvedKeywords.emptyKeywords());
+        // tabBEnabled: complete 요청은 true, incomplete 요청은 false
+        when(searchRequestPolicy.canUsePersonalization(eq(complete), any(), eq(userDetails))).thenReturn(true);
+        when(searchRequestPolicy.canUsePersonalization(eq(incomplete), any(), eq(userDetails))).thenReturn(false);
 
-        MyfinResponseDto.Item completeItem = service.getFavorites(1L, complete).items().getFirst();
-        MyfinResponseDto.Item incompleteItem = service.getFavorites(1L, incomplete).items().getFirst();
+        MyfinResponseDto.Item completeItem = service.getFavorites(1L, complete, userDetails).items().getFirst();
+        MyfinResponseDto.Item incompleteItem = service.getFavorites(1L, incomplete, userDetails).items().getFirst();
+
+        // 검증: fitScore 값 출력 (PR 첨부용)
+        System.out.println("=== fitScore 계산 결과 비교 ===");
+        System.out.println("tabBEnabled=true  (거래이력 반영)  : fitScore = " + completeItem.fitScore());
+        System.out.println("tabBEnabled=false (거래이력 미반영): fitScore = " + incompleteItem.fitScore());
+        System.out.println("achievableRate (tabBEnabled=true) : " + completeItem.metrics().achievableRate() + "%");
+        System.out.println("achievableRate (tabBEnabled=false): " + incompleteItem.metrics().achievableRate() + "%");
 
         assertEquals(100, completeItem.fitScore());
         assertTrue(completeItem.fitScore() > incompleteItem.fitScore());
         assertEquals(4.0, completeItem.metrics().achievableRate());
         assertEquals(3.5, incompleteItem.metrics().achievableRate());
         assertFalse(completeItem.keywords().contains(KeywordValueEnum.BANK_ETC.name()));
+    }
+
+    @Test
+    void Search와_MyFin의_fitScore가_동일한_조건에서_일치한다() {
+        // Given: 동일한 MatchScoreService 사용
+        MatchScoreService sharedMatchScoreService = new MatchScoreService();
+
+        MyFinService myFinService = new MyFinService(
+                myFinRepository,
+                userRepository,
+                productPropertyRepository,
+                sharedMatchScoreService,
+                new RateCalculatorService(),
+                resolveKeywordService,
+                eligibilityFilterService,
+                searchRequestPolicy
+        );
+
+        MyFin favorite = mock(MyFin.class);
+        Product product = bankProductWithFirstTransactionRate();
+        ProductProperty property = product.getProperties().getFirst();
+        AuthUserDetails userDetails = mock(AuthUserDetails.class);
+
+        when(myFinRepository.findAllByUserIdWithDetails(1L)).thenReturn(List.of(favorite));
+        when(favorite.getId()).thenReturn(10L);
+        when(favorite.getProductProperty()).thenReturn(property);
+        when(eligibilityFilterService.filterEligibleOptions(any(), any())).thenReturn(List.of());
+
+        SearchRequestDto request = new SearchRequestDto(
+                List.of(),
+                new DetailedOptionsDto(
+                        null, null, null, null, null,
+                        null, null, null, null,
+                        List.of("KB"), List.of(), List.of()
+                )
+        );
+        ResolvedKeywords keywords = ResolvedKeywords.emptyKeywords();
+        when(resolveKeywordService.resolveKeywords(List.of())).thenReturn(keywords);
+        when(searchRequestPolicy.canUsePersonalization(any(), any(), any())).thenReturn(true);
+
+        // When: Search 방식으로 직접 계산
+        boolean searchIncludeTransactionHistory = true; // 은행상품, tabBEnabled=true
+        Double searchThreshold = null; // 빈 모집단
+        ProductMatchDto searchResult = sharedMatchScoreService.score(
+                product, property, request, keywords, searchIncludeTransactionHistory, searchThreshold
+        );
+        int searchFitScore = (int) searchResult.totalScore();
+
+        // When: MyFin 방식으로 계산
+        MyfinResponseDto.Item myFinItem = myFinService.getFavorites(1L, request, userDetails).items().getFirst();
+        int myFinFitScore = myFinItem.fitScore();
+
+        // Then: 동일한 값이 나와야 함
+        System.out.println("=== Search vs MyFin fitScore 비교 ===");
+        System.out.println("Search fitScore: " + searchFitScore);
+        System.out.println("MyFin  fitScore: " + myFinFitScore);
+        System.out.println("일치 여부: " + (searchFitScore == myFinFitScore ? "✓ 일치" : "✗ 불일치"));
+
+        assertEquals(searchFitScore, myFinFitScore, "Search와 MyFin의 fitScore가 동일해야 합니다");
     }
 
     private Product bankProductWithFirstTransactionRate() {
