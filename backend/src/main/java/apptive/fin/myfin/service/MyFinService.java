@@ -6,6 +6,7 @@ import apptive.fin.myfin.dto.MyfinResponseDto;
 import apptive.fin.myfin.entity.MyFin;
 import apptive.fin.myfin.repository.MyFinRepository;
 import apptive.fin.search.dto.BankDetailDto;
+import apptive.fin.search.dto.EligibleProductOption;
 import apptive.fin.search.dto.GovernmentDetailDto;
 import apptive.fin.search.dto.ProductMatchDto;
 import apptive.fin.search.dto.ResolvedKeywords;
@@ -16,6 +17,7 @@ import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.enums.ProductApplyStatus;
 import apptive.fin.search.repository.ProductPropertyRepository;
 import apptive.fin.search.service.BankMaxInterestPolicy;
+import apptive.fin.search.service.EligibilityFilterService;
 import apptive.fin.search.service.MatchScoreService;
 import apptive.fin.search.service.RateCalculatorService;
 import apptive.fin.search.service.ResolveKeywordService;
@@ -41,6 +43,7 @@ public class MyFinService {
     private final MatchScoreService matchScoreService;
     private final RateCalculatorService rateCalculatorService;
     private final ResolveKeywordService resolveKeywordService;
+    private final EligibilityFilterService eligibilityFilterService;
 
     // 찜 목록 조회
     // 최신 배치 데이터 + 프로필 기준 재계산
@@ -57,13 +60,17 @@ public class MyFinService {
             ResolvedKeywords.emptyKeywords();
 
         // 은행 상품 #최고이율 상위 30% 판정용 임계 금리 계산
-        List<Double> bankMaxRates = favorites.stream()
-                .map(MyFin::getProductProperty)
-                .filter(pp -> pp.getProduct().isBank())
-                .map(ProductProperty::getMaxRate)
-                .filter(rate -> rate != null)
-                .map(java.math.BigDecimal::doubleValue)
-                .toList();
+        // SearchService와 동일하게 "가입 가능한 전체 은행상품" 결과셋 기준으로 계산해야
+        // 추천 목록과 찜 목록의 적합도가 일치한다. 찜한 상품만으로 계산하면 모집단이 작아져
+        // 값이 달라지므로(#33) eligibilityFilterService로 동일한 모집단을 구한다.
+        List<Double> bankMaxRates = request != null
+                ? eligibilityFilterService.filterEligibleOptions(request, keywords).stream()
+                        .filter(option -> option.product().isBank())
+                        .map(option -> option.property().getMaxRate())
+                        .filter(rate -> rate != null)
+                        .map(java.math.BigDecimal::doubleValue)
+                        .toList()
+                : List.of();
         Double bankMaxInterestThreshold = BankMaxInterestPolicy.calculateThreshold(bankMaxRates);
 
         List<MyfinResponseDto.Item> items = favorites.stream()

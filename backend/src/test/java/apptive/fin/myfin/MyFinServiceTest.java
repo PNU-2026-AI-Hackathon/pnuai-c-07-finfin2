@@ -17,6 +17,7 @@ import apptive.fin.search.dto.DetailedOptionsDto;
 import apptive.fin.search.dto.ResolvedKeywords;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.repository.ProductPropertyRepository;
+import apptive.fin.search.service.EligibilityFilterService;
 import apptive.fin.search.service.MatchScoreService;
 import apptive.fin.search.service.RateCalculatorService;
 import apptive.fin.search.service.ResolveKeywordService;
@@ -54,6 +55,8 @@ class MyFinServiceTest {
     private RateCalculatorService rateCalculatorService;
     @Mock
     private ResolveKeywordService resolveKeywordService;
+    @Mock
+    private EligibilityFilterService eligibilityFilterService;
 
     @InjectMocks
     private MyFinService myFinService;
@@ -222,7 +225,8 @@ class MyFinServiceTest {
                 productPropertyRepository,
                 matchScoreService,
                 new RateCalculatorService(),
-                resolveKeywordService
+                resolveKeywordService,
+                eligibilityFilterService
         );
         MyFin favorite = mock(MyFin.class);
         Product product = mock(Product.class);
@@ -254,7 +258,8 @@ class MyFinServiceTest {
                 productPropertyRepository,
                 new MatchScoreService(),
                 new RateCalculatorService(),
-                resolveKeywordService
+                resolveKeywordService,
+                eligibilityFilterService
         );
         MyFin favorite = mock(MyFin.class);
         Product product = bankProductWithFirstTransactionRate();
@@ -263,6 +268,8 @@ class MyFinServiceTest {
         when(myFinRepository.findAllByUserIdWithDetails(1L)).thenReturn(List.of(favorite));
         when(favorite.getId()).thenReturn(10L);
         when(favorite.getProductProperty()).thenReturn(property);
+        // 최고이율 상위 30% 임계값 계산용 모집단(전체 가입가능 은행상품)은 이 테스트의 관심사가 아니므로 빈 결과로 스텁
+        when(eligibilityFilterService.filterEligibleOptions(any(), any())).thenReturn(List.of());
 
         SearchRequestDto complete = new SearchRequestDto(
                 List.of(),
