@@ -1,4 +1,7 @@
 spring:
+  docker:
+    compose:
+      enabled: false
   sql:
     init:
       mode: never
@@ -48,7 +51,7 @@ jwt:
 
 app:
   frontend:
-    url: "http://localhost:5173"
+    url: "http://localhost:8080"
   cookie:
     secure: false
     same-site: Lax
