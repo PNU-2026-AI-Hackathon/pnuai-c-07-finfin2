@@ -18,15 +18,26 @@ import apptive.fin.support.IntegrationTestSupport;
 import apptive.fin.user.UserRole;
 import apptive.fin.user.entity.User;
 import apptive.fin.user.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * #33 회귀 테스트: 추천 목록(SearchService)과 찜 목록(MyFinService)이 같은 프로필/옵션 조건에서
@@ -62,6 +73,117 @@ class MyFinFitScoreParityIntegrationTest extends IntegrationTestSupport {
     private MyFinRepository myFinRepository;
     @Autowired
     private ProductPropertyRepository productPropertyRepository;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private WebApplicationContext applicationContext;
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    private MockMvc mockMvc;
+
+    @BeforeEach
+    void setUpMockMvc() {
+        mockMvc = MockMvcBuilders.webAppContextSetup(applicationContext)
+                .apply(springSecurity())
+                .build();
+    }
+
+    // Postman 없이도 실제 HTTP 스택(컨트롤러 → 시큐리티 → JSON 직렬화)까지 그대로 통과시켜 검증한다.
+    // POST /search/products와 POST /favorites/list를 같은 요청 바디로 호출해 응답 JSON에서
+    // 같은 상품의 fitScore를 비교한다 — Postman으로 확인했을 때와 동일한 경로를 탄다.
+    @Test
+    void HTTP_엔드포인트로_호출해도_추천목록과_찜목록의_적합도가_같다() throws Exception {
+        SearchRequestDto request = createRequest(List.of(
+                new OptionRequestDto(CategoryIdEnum.REGION.getId(), BUSAN_REGION_OPTION_ID),
+                new OptionRequestDto(CategoryIdEnum.BENEFIT.getId(), MAX_INTEREST_BENEFIT_OPTION_ID)
+        ));
+        String requestJson = objectMapper.writeValueAsString(request);
+
+        Long userId = createUser();
+        AuthUserDetails userDetails = new AuthUserDetails(userId, UserRole.RECOMMENDATION);
+
+        String searchResponseJson = mockMvc.perform(post("/search/products")
+                        .with(user(userDetails))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        ProductSearchResultDto searchResult = objectMapper.readValue(searchResponseJson, ProductSearchResultDto.class);
+        ProductMatchDto card = findMatch(searchResult.bankRanked(), "청년우대적금");
+
+        // 찜 추가도 실제 엔드포인트로 (내부 서비스 직접 호출이 아니라 HTTP 왕복)
+        mockMvc.perform(post("/favorites")
+                        .with(user(userDetails))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"productPropertyId\":" + card.productPropertyId() + "}"))
+                .andExpect(status().isCreated());
+
+        String favoritesResponseJson = mockMvc.perform(post("/favorites/list")
+                        .with(user(userDetails))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        MyfinResponseDto.List_ favorites = objectMapper.readValue(favoritesResponseJson, MyfinResponseDto.List_.class);
+        MyfinResponseDto.Item item = findItem(favorites, card.productPropertyId());
+
+        assertThat(item.fitScore()).isEqualTo((int) card.totalScore());
+    }
+
+    // 찜한 상품만 놓고 보면 "상위 30%"처럼 보이지만, 가입 가능한 전체 은행상품 기준으로는
+    // 컷을 못 넘는 경우를 재현한다. 임계값을 "찜한 상품 모집단"으로 계산하는 버그가 있으면
+    // (그 상품 하나만 있는 모집단에서는 자기 자신이 곧 최댓값이라 항상 컷을 통과) 이 테스트가
+    // 실패하고, SearchService와 같은 모집단(가입 가능한 전체 은행상품)으로 계산하면 통과한다.
+    @Test
+    void 찜한_상품이_전체_은행상품_모집단_기준으로_컷을_못넘으면_찜목록도_추천목록과_같이_컷을_못넘긴다() {
+        insertHigherRateCompetingBankProducts(3, 10.0); // 청년우대적금(4.5)보다 훨씬 높은 경쟁상품 추가
+
+        SearchRequestDto request = createRequest(List.of(
+                new OptionRequestDto(CategoryIdEnum.BENEFIT.getId(), MAX_INTEREST_BENEFIT_OPTION_ID)
+        ));
+
+        Long userId = createUser();
+        AuthUserDetails userDetails = new AuthUserDetails(userId, UserRole.RECOMMENDATION);
+
+        ProductSearchResultDto searchResult = searchService.search(request, userDetails);
+        ProductMatchDto card = findMatch(searchResult.bankRanked(), "청년우대적금");
+        // 전제 확인: 경쟁상품들 때문에 이제는 컷을 못 넘어야 한다(0점).
+        assertThat(card.benefitScore()).isZero();
+
+        favorite(userId, card.productPropertyId());
+
+        MyfinResponseDto.List_ favorites = myFinService.getFavorites(userId, request, userDetails);
+        MyfinResponseDto.Item item = findItem(favorites, card.productPropertyId());
+
+        assertThat(item.fitScore()).isEqualTo((int) card.totalScore());
+    }
+
+    private void insertHigherRateCompetingBankProducts(int count, double maxRate) {
+        for (int i = 0; i < count; i++) {
+            String code = "SEARCH_COMPETITOR_" + i;
+            jdbcTemplate.update("""
+                    INSERT INTO product (source_id, type, product_code, product_name, content)
+                    VALUES ((SELECT id FROM product_source WHERE code = 'FSS'), 'SAVING', ?, ?, '경쟁상품')
+                    """, code, "경쟁적금" + i);
+            jdbcTemplate.update("""
+                    INSERT INTO product_properties (
+                        product_id, provider_id, base_rate, max_rate, min_monthly_limit, max_monthly_limit,
+                        min_age, max_age, requires_homeless, requires_householder,
+                        is_joinable, intr_rate_type, save_trm
+                    )
+                    VALUES (
+                        (SELECT id FROM product WHERE product_code = ?),
+                        (SELECT id FROM provider WHERE code = 'SEARCH_BANK_A'),
+                        ?, ?, 10, 50,
+                        19, 34, false, false,
+                        true, 'SINGLE_INTEREST', 12
+                    )
+                    """, code, maxRate, maxRate);
+        }
+    }
 
     @Test
     void 찜한_상품의_적합도는_추천목록의_적합도와_같다() {
