@@ -182,7 +182,10 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         assertThat(detail.bank().unmetConditions()).isEmpty();
         assertThat(detail.keywords())
                 .contains(KeywordValueEnum.STATUS_MILITARY, KeywordValueEnum.REGION_BUSAN);
-        assertThat(detail.applyUrl()).isEqualTo("https://bank.example/apply"); // FSS → provider 대표 URL
+        // 상품 자체 신청 URL이 없으면 applyUrl은 null, 기관 공식 채널 URL·이름으로 대체 안내한다.
+        assertThat(detail.applyUrl()).isNull();
+        assertThat(detail.officialChannelUrl()).isEqualTo("https://bank.example/apply"); // FSS → provider 대표 URL
+        assertThat(detail.officialChannelName()).isEqualTo("국민은행"); // SEARCH_BANK_B
     }
 
     @Test
@@ -224,7 +227,10 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         ProductDetailResponseDto detail = productDetailService.getProductDetail(
                 productId, request(propertyId, 100L), authenticatedUser());
 
+        // 상품 자체 신청 URL이 있으면 그걸 applyUrl로 내려주고 공식 채널은 비운다(상호배타).
         assertThat(detail.applyUrl()).isEqualTo("https://product.example/apply");
+        assertThat(detail.officialChannelUrl()).isNull();
+        assertThat(detail.officialChannelName()).isNull();
     }
 
     @Test
@@ -245,7 +251,10 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         ProductDetailResponseDto detail = productDetailService.getProductDetail(
                 productId, request(propertyId, 100L), authenticatedUser());
 
-        assertThat(detail.applyUrl()).isEqualTo("https://provider.example/apply");
+        // 선택 property에 자체 URL이 없으면 다른 property URL을 쓰지 않고 기관 공식 채널로 폴백한다.
+        assertThat(detail.applyUrl()).isNull();
+        assertThat(detail.officialChannelUrl()).isEqualTo("https://provider.example/apply");
+        assertThat(detail.officialChannelName()).isEqualTo("금융위원회"); // SEARCH_GOV
     }
 
     @Test
@@ -543,7 +552,10 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
 
         for (ProductDetailResponseDto detail : List.of(withHistory, withoutHistory)) {
             assertThat(detail.providerName()).isEqualTo("공개대표은행");
-            assertThat(detail.applyUrl()).isEqualTo("https://public.example/apply");
+            // 대표 property에 자체 신청 URL이 없으면 applyUrl은 null, 기관 공식 채널로 대체 안내.
+            assertThat(detail.applyUrl()).isNull();
+            assertThat(detail.officialChannelUrl()).isEqualTo("https://public.example/apply");
+            assertThat(detail.officialChannelName()).isEqualTo("공개대표은행");
             assertThat(detail.metricsLocked()).isTrue();
         }
     }
@@ -640,13 +652,18 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
                 productId, request(null, null), null);
 
         assertThat(detail.applyStatus()).isEqualTo(ProductApplyStatus.RECRUIT_CLOSED);
+        // 마감 상품은 신청 URL·공식 채널 모두 숨긴다(provider 대표 URL이 있어도).
         assertThat(detail.applyUrl()).isNull();
+        assertThat(detail.officialChannelUrl()).isNull();
+        assertThat(detail.officialChannelName()).isNull();
         assertThat(detail.metricsLocked()).isTrue();
         assertThat(detail.bank()).isNull();
         assertThat(detail.rateTable()).isNull();
         assertThat(detail.saveTrms()).containsExactly(12, 24);
         assertThat(locked.applyStatus()).isEqualTo(ProductApplyStatus.RECRUIT_CLOSED);
         assertThat(locked.applyUrl()).isNull();
+        assertThat(locked.officialChannelUrl()).isNull();
+        assertThat(locked.officialChannelName()).isNull();
         assertThat(locked.metricsLocked()).isTrue();
         assertThat(locked.bank()).isNull();
         assertThat(locked.rateTable()).isNull();
@@ -685,6 +702,8 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
 
         assertThat(detail.applyStatus()).isEqualTo(ProductApplyStatus.RECRUIT_CLOSED);
         assertThat(detail.applyUrl()).isNull();
+        assertThat(detail.officialChannelUrl()).isNull();
+        assertThat(detail.officialChannelName()).isNull();
         assertThat(detail.bank().maxRate()).isEqualTo(9.9);
         assertThat(detail.saveTrms()).containsExactly(24);
         assertThat(detail.rateTable())

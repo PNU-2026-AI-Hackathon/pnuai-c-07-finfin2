@@ -3,6 +3,7 @@ package apptive.fin.search.service;
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.global.error.BusinessException;
 import apptive.fin.search.SearchErrorCode;
+import apptive.fin.search.dto.ApplyLink;
 import apptive.fin.search.dto.BankDetailDto;
 import apptive.fin.search.dto.EligibleProductOption;
 import apptive.fin.search.dto.GovernmentDetailDto;
@@ -17,6 +18,7 @@ import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.entity.ProductSource;
 import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.repository.ProductRepository;
+import apptive.fin.search.util.ApplyLinkResolver;
 import apptive.fin.search.util.ProductAvailability;
 import apptive.fin.search.dto.OptionRequestDto;
 import lombok.RequiredArgsConstructor;
@@ -146,6 +148,8 @@ public class ProductDetailService {
             rateTable = buildRateTable(detailProperties, government);
         }
 
+        ApplyLink applyLink = ApplyLinkResolver.resolve(selected);
+
         return ProductDetailResponseDto.builder()
                 .productId(product.getId())
                 .productPropertyId(selected != null ? selected.getId() : null)
@@ -176,7 +180,9 @@ public class ProductDetailService {
                 .reserveTypeName(selected != null && selected.getReserveType() != null
                         ? selected.getReserveType().getLabel() : null)
                 .applyStatus(ProductAvailability.applyStatus(selected))
-                .applyUrl(ProductAvailability.applyUrl(selected))
+                .applyUrl(applyLink.applyUrl())
+                .officialChannelUrl(applyLink.officialChannelUrl())
+                .officialChannelName(applyLink.officialChannelName())
                 .metricsLocked(metricsLocked)
                 .lockMessage(metricsLocked ? METRICS_LOCK_MESSAGE : null)
                 .government(governmentDetail)
