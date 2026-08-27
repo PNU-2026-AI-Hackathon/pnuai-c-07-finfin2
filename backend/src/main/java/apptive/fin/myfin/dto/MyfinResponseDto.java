@@ -31,8 +31,10 @@ public record MyfinResponseDto() {
             boolean excludeFromRateComparison,
             ProductApplyStatus applyStatus,
 
-            String applyUrl
-            //TODO: String resolutionLevel    : Y4-3 아웃링크 해소 함수 재사용
+            // 상품 자체 신청 URL. 없으면 null이고 아래 officialChannel*로 대체 안내. (applyUrl과 상호배타)
+            String applyUrl,
+            String officialChannelUrl,
+            String officialChannelName
     ) {}
 
     public record Metrics(

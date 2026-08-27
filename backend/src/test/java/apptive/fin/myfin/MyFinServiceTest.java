@@ -181,16 +181,49 @@ class MyFinServiceTest {
         when(productProperty.keywordCodes()).thenReturn(Set.of());
         when(productProperty.getExcludeFromRateComparison()).thenReturn(false);
         when(productProperty.isJoinable()).thenReturn(true);
-        when(productProperty.resolvedApplyUrl()).thenReturn("https://product.example/apply");
+        when(productProperty.getApplyUrl()).thenReturn("https://product.example/apply");
         when(product.getSource()).thenReturn(source);
         when(source.getCode()).thenReturn("ONTONG");
         when(product.getProductCode()).thenReturn("POLICY001");
         when(product.getProductName()).thenReturn("청년정책상품");
 
-        MyfinResponseDto.List_ result = myFinService.getFavorites(1L);
+        MyfinResponseDto.Item item = myFinService.getFavorites(1L).items().getFirst();
 
-        assertEquals("https://product.example/apply", result.items().getFirst().applyUrl());
-        verify(productProperty).resolvedApplyUrl();
+        // 상품 자체 신청 URL이 있으면 그걸 applyUrl로, 공식 채널은 비운다(상호배타).
+        assertEquals("https://product.example/apply", item.applyUrl());
+        assertNull(item.officialChannelUrl());
+        assertNull(item.officialChannelName());
+        verify(productProperty).getApplyUrl();
+    }
+
+    @Test
+    void 찜목록은_상품_직접URL이_없으면_기관_공식채널URL과_이름을_반환한다() {
+        MyFin favorite = mock(MyFin.class);
+        Product product = mock(Product.class);
+        ProductSource source = mock(ProductSource.class);
+        Provider provider = mock(Provider.class);
+
+        when(myFinRepository.findAllByUserIdWithDetails(1L)).thenReturn(List.of(favorite));
+        when(favorite.getId()).thenReturn(10L);
+        when(favorite.getProductProperty()).thenReturn(productProperty);
+        when(productProperty.getProduct()).thenReturn(product);
+        when(productProperty.keywordCodes()).thenReturn(Set.of());
+        when(productProperty.getExcludeFromRateComparison()).thenReturn(false);
+        when(productProperty.isJoinable()).thenReturn(true);
+        when(productProperty.getApplyUrl()).thenReturn(null);
+        when(productProperty.getProvider()).thenReturn(provider);
+        when(provider.getApplyUrl()).thenReturn("https://provider.example/apply");
+        when(provider.getName()).thenReturn("국민은행");
+        when(product.getSource()).thenReturn(source);
+        when(source.getCode()).thenReturn("FSS");
+        when(product.getProductCode()).thenReturn("BANK001");
+        when(product.getProductName()).thenReturn("은행적금");
+
+        MyfinResponseDto.Item item = myFinService.getFavorites(1L).items().getFirst();
+
+        assertNull(item.applyUrl());
+        assertEquals("https://provider.example/apply", item.officialChannelUrl());
+        assertEquals("국민은행", item.officialChannelName());
     }
 
     @ParameterizedTest
@@ -209,8 +242,6 @@ class MyFinServiceTest {
         when(productProperty.keywordCodes()).thenReturn(Set.of());
         when(productProperty.getExcludeFromRateComparison()).thenReturn(false);
         when(productProperty.isJoinable()).thenReturn(false);
-        when(productProperty.resolvedApplyUrl()).thenReturn("https://bank.example/apply");
-        when(provider.getName()).thenReturn("국민은행");
         when(product.getSource()).thenReturn(source);
         when(source.getCode()).thenReturn(sourceCode);
         when(product.getProductCode()).thenReturn("CLOSED_BANK");
@@ -218,8 +249,11 @@ class MyFinServiceTest {
 
         MyfinResponseDto.Item item = myFinService.getFavorites(1L).items().getFirst();
 
+        // 마감 상품은 신청 URL과 공식 채널 모두 숨긴다.
         assertEquals(ProductApplyStatus.RECRUIT_CLOSED, item.applyStatus());
         assertNull(item.applyUrl());
+        assertNull(item.officialChannelUrl());
+        assertNull(item.officialChannelName());
     }
 
     @Test

@@ -125,19 +125,6 @@ public class ProductProperty {
         return Boolean.TRUE.equals(isJoinable);
     }
 
-    public String resolvedApplyUrl() {
-        if (applyUrl != null && !applyUrl.isBlank()) {
-            return applyUrl;
-        }
-        if (provider == null) {
-            return null;
-        }
-        String providerApplyUrl = provider.getApplyUrl();
-        return providerApplyUrl != null && !providerApplyUrl.isBlank()
-                ? providerApplyUrl
-                : null;
-    }
-
     // 이 property의 provider 코드가 주어진 코드 목록에 포함되는지(별칭 아닌 코드 기준).
     public boolean matchesAnyProvider(List<String> providerCodes) {
         if (provider == null || providerCodes == null) {
