@@ -69,7 +69,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 정부상품_상세는_비로그인시_수익지표를_잠근다() {
+    void 정부상품_상세는_비로그인시_개인화지표만_잠근다() {
         Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
 
         ProductDetailResponseDto detail = productDetailService.getProductDetail(
@@ -79,8 +79,40 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         assertThat(detail.lockMessage()).isNotBlank();
         assertThat(detail.government()).isNull();
         assertThat(detail.bank()).isNull();
-        assertThat(detail.rateTable()).isNull();
+        assertThat(detail.rateTable())
+                .singleElement()
+                .satisfies(row -> {
+                    assertThat(row.baseRate()).isEqualTo(10.0);
+                    assertThat(row.maxRate()).isEqualTo(10.0);
+                });
         assertThat(detail.providerName()).isEqualTo("금융위원회"); // 공개 정보는 노출
+    }
+
+    @Test
+    void 비로그인_은행상품은_공시금리만_반환한다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        Long propertyId = propertyId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("""
+                INSERT INTO product_preferential_rates
+                    (product_property_id, keyword_code, rate, description)
+                VALUES (?, 'BANK_ETC', 0.70, '기타 우대조건')
+                """, propertyId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(propertyId, 100L), null);
+
+        assertThat(detail.metricsLocked()).isTrue();
+        assertThat(detail.bank()).isNotNull();
+        assertThat(detail.bank().baseRate()).isEqualTo(3.8);
+        assertThat(detail.bank().maxRate()).isEqualTo(4.5);
+        assertThat(detail.bank().achievableRate()).isNull();
+        assertThat(detail.bank().metConditions()).isEmpty();
+        assertThat(detail.bank().unmetConditions()).isEmpty();
+        assertThat(detail.rateTable())
+                .singleElement()
+                .satisfies(row -> assertThat(row.preferentialRates())
+                        .extracting(condition -> condition.description())
+                        .containsExactly("기타 우대조건"));
     }
 
     @Test
@@ -94,7 +126,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         assertThat(detail.lockMessage()).isNotBlank();
         assertThat(detail.government()).isNull();
         assertThat(detail.bank()).isNull();
-        assertThat(detail.rateTable()).isNull();
+        assertThat(detail.rateTable()).hasSize(1);
     }
 
     @Test
@@ -107,7 +139,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         assertThat(detail.metricsLocked()).isTrue();
         assertThat(detail.government()).isNull();
         assertThat(detail.bank()).isNull();
-        assertThat(detail.rateTable()).isNull();
+        assertThat(detail.rateTable()).hasSize(1);
     }
 
     @Test
@@ -125,7 +157,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         assertThat(detail.lockMessage()).isNotBlank();
         assertThat(detail.government()).isNull();
         assertThat(detail.bank()).isNull();
-        assertThat(detail.rateTable()).isNull();
+        assertThat(detail.rateTable()).hasSize(1);
     }
 
     @Test
@@ -574,8 +606,10 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
                 productId, request(null, null), authenticatedUser());
 
         assertThat(detail.metricsLocked()).isTrue();
-        assertThat(detail.bank()).isNull();
-        assertThat(detail.rateTable()).isNull();
+        assertThat(detail.bank().baseRate()).isEqualTo(3.8);
+        assertThat(detail.bank().maxRate()).isEqualTo(4.5);
+        assertThat(detail.bank().achievableRate()).isNull();
+        assertThat(detail.rateTable()).hasSize(1);
         assertThat(detail.saveTrms()).containsExactly(12);
         assertThat(detail.keywords()).doesNotContain(KeywordValueEnum.STATUS_MILITARY);
     }
@@ -642,14 +676,16 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         assertThat(detail.applyStatus()).isEqualTo(ProductApplyStatus.RECRUIT_CLOSED);
         assertThat(detail.applyUrl()).isNull();
         assertThat(detail.metricsLocked()).isTrue();
-        assertThat(detail.bank()).isNull();
-        assertThat(detail.rateTable()).isNull();
+        assertThat(detail.bank().maxRate()).isEqualTo(9.9);
+        assertThat(detail.bank().achievableRate()).isNull();
+        assertThat(detail.rateTable()).hasSize(2);
         assertThat(detail.saveTrms()).containsExactly(12, 24);
         assertThat(locked.applyStatus()).isEqualTo(ProductApplyStatus.RECRUIT_CLOSED);
         assertThat(locked.applyUrl()).isNull();
         assertThat(locked.metricsLocked()).isTrue();
-        assertThat(locked.bank()).isNull();
-        assertThat(locked.rateTable()).isNull();
+        assertThat(locked.bank().maxRate()).isEqualTo(9.9);
+        assertThat(locked.bank().achievableRate()).isNull();
+        assertThat(locked.rateTable()).hasSize(2);
     }
 
     @Test
