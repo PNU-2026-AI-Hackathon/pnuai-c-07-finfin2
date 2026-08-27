@@ -238,28 +238,24 @@ flowchart LR
 <td width="50%"><img src="docs/img/screen-terms.png" width="100%" alt="약관 동의"><br><sub><b>Y1 약관 동의</b> — 추천에 필요한 최소 항목만 동의받음</sub></td>
 </tr>
 <tr>
-<td width="50%"><img src="docs/img/screen-intro.png" width="100%" alt="서비스 소개"><br><sub><b>Y2 서비스 소개·탐색</b> — 스크롤 랜딩과 비로그인 권한 분기 모달</sub></td>
 <td width="50%"><img src="docs/img/screen-input-1.png" width="100%" alt="정보 입력 키워드"><br><sub><b>Y3-1 정보 입력 ①</b> — 목표·금액·기간·조건을 키워드로 선택</sub></td>
-</tr>
-<tr>
 <td width="50%"><img src="docs/img/screen-input-2.png" width="100%" alt="정보 입력 수동"><br><sub><b>Y3-1 정보 입력 ②</b> — 자격 요건 수동 입력, 동적 폼이 불필요한 질문을 숨김</sub></td>
+</tr>
+<tr>
 <td width="50%"><img src="docs/img/screen-list-1.png" width="100%" alt="리스트 적합도순"><br><sub><b>Y3-2 리스트 ①</b> — 자격 미충족 제외 후 적합도(나에게 맞는 순) 정렬</sub></td>
-</tr>
-<tr>
 <td width="50%"><img src="docs/img/screen-list-2.png" width="100%" alt="리스트 실수령액순"><br><sub><b>Y3-2 리스트 ②</b> — 광고 금리가 아닌 세후 실수령액 순 정렬</sub></td>
+</tr>
+<tr>
 <td width="50%"><img src="docs/img/screen-detail-gov.png" width="100%" alt="상세 정부상품"><br><sub><b>Y4 상세 - 정부상품</b> — 기여금 환산 수익률과 자격 조건 표시</sub></td>
-</tr>
-<tr>
 <td width="50%"><img src="docs/img/screen-detail-bank.png" width="100%" alt="상세 은행상품"><br><sub><b>Y4 상세 - 은행상품</b> — 기본·최고 금리와 우대조건, 공식 채널 신청 연결</sub></td>
+</tr>
+<tr>
 <td width="50%"><img src="docs/img/screen-calc-deposit.png" width="100%" alt="예금 계산기"><br><sub><b>Y4-1 수익률 계산기 - 예금</b> — 거치식 세후 실수령액 자동 계산</sub></td>
-</tr>
-<tr>
 <td width="50%"><img src="docs/img/screen-calc-installment.png" width="100%" alt="적금 계산기"><br><sub><b>Y4-1 수익률 계산기 - 적금</b> — 적립식 세전·세후 실수령액 계산</sub></td>
-<td width="50%"><img src="docs/img/screen-mypage-fav.png" width="100%" alt="찜해둔 Fin."><br><sub><b>Y5 찜해둔 Fin.</b> — 관심 상품 저장·비교, 만기 알림</sub></td>
 </tr>
 <tr>
+<td width="50%"><img src="docs/img/screen-mypage-fav.png" width="100%" alt="찜해둔 Fin."><br><sub><b>Y5 찜해둔 Fin.</b> — 관심 상품 저장·비교, 만기 알림</sub></td>
 <td width="50%"><img src="docs/img/screen-mypage-info.png" width="100%" alt="개인정보 수정"><br><sub><b>Y5 개인정보 수정</b> — 저장된 정보로 입력 없이 다시 추천</sub></td>
-<td width="50%"></td>
 </tr>
 </table>
 
