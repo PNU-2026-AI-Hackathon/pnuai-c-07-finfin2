@@ -1,0 +1,156 @@
+package apptive.fin.apicollector.normalize.normalizer;
+
+import apptive.fin.apicollector.Source;
+import apptive.fin.apicollector.config.CollectorProperties;
+import apptive.fin.apicollector.global.util.JsonNodes;
+import apptive.fin.apicollector.normalize.ProductClassification;
+import apptive.fin.apicollector.normalize.dto.ProductDraft;
+import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
+import apptive.fin.apicollector.normalize.extractor.FssPreferentialRateExtractor;
+import apptive.fin.apicollector.normalize.extractor.FssRequiredKeywordExtractor;
+import apptive.fin.apicollector.normalize.extractor.KeywordExtractor;
+import apptive.fin.apicollector.raw.ProductRaw;
+
+import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Pattern;
+
+@Component
+public class FssProductNormalizer implements ProductNormalizer {
+
+    private final CollectorProperties properties;
+    private final KeywordExtractor keywordExtractor;
+    private final FssPreferentialRateExtractor preferentialRateExtractor;
+    private final FssRequiredKeywordExtractor requiredKeywordExtractor;
+    private final FssBankNameNormalizer bankNameNormalizer;
+    private final FssBankUrlNormalizer bankUrlNormalizer;
+    private final RawJsonReader rawJsonReader;
+
+    public FssProductNormalizer(
+            ObjectMapper objectMapper,
+            CollectorProperties properties,
+            KeywordExtractor keywordExtractor,
+            FssPreferentialRateExtractor preferentialRateExtractor,
+            FssRequiredKeywordExtractor requiredKeywordExtractor,
+            FssBankNameNormalizer bankNameNormalizer,
+            FssBankUrlNormalizer bankUrlNormalizer
+    ) {
+        this.properties = properties;
+        this.keywordExtractor = keywordExtractor;
+        this.preferentialRateExtractor = preferentialRateExtractor;
+        this.requiredKeywordExtractor = requiredKeywordExtractor;
+        this.bankNameNormalizer = bankNameNormalizer;
+        this.bankUrlNormalizer = bankUrlNormalizer;
+        this.rawJsonReader = new RawJsonReader(objectMapper, "FSS");
+    }
+
+    @Override
+    public Source source() {
+        return Source.FSS;
+    }
+
+    @Override
+    public ProductDraft normalize(ProductRaw rawProduct) {
+        JsonNode raw = rawJsonReader.read(rawProduct);
+        JsonNode base = raw.path("base");
+        String content = JsonNodes.joinContent(base, "join_way", "mtrt_int", "spcl_cnd", "join_member", "etc_note");
+        String joinMethod = JsonNodes.text(base, "join_way");
+        String eligibilityText = JsonNodes.text(base, "join_member");
+        String cautionText = JsonNodes.text(base, "etc_note");
+        String productName = stripTrailingParen(collapseWhitespace(JsonNodes.firstText(base, "fin_prdt_nm")));
+        List<ProductPropertyDraft> propertyDrafts = properties(raw, base);
+
+        var draft = ProductDraft.builder()
+                    .rawId(rawProduct.getId())
+                    .rawSource(rawProduct.getSource())
+                    .normalizerVersion(properties.normalizerVersion())
+                    .classification(ProductClassification.FINANCIAL_PRODUCT)
+                    .saveProduct(true)
+                    .sourceCode(Source.FSS.name())
+                    .type(rawProduct.getType())
+                    .productCode(rawProduct.getExternalId())
+                    .productName(rawJsonReader.required(productName, "productName", rawProduct))
+                    .content(content)
+                    .joinMethod(joinMethod)
+                    .eligibilityText(eligibilityText)
+                    .cautionText(cautionText)
+                    .properties(propertyDrafts)
+                    .build();
+
+        return keywordExtractor.attachTo(draft);
+    }
+
+    private List<ProductPropertyDraft> properties(
+            JsonNode raw,
+            JsonNode base
+    ) {
+        String providerCode = JsonNodes.firstText(base, "fin_co_no", "kor_co_nm");
+        String providerName = collapseWhitespace(bankNameNormalizer.normalize(providerCode, JsonNodes.firstText(base, "kor_co_nm", "fin_co_no")));
+        String providerApplyUrl = bankUrlNormalizer.normalize(providerCode).orElse(null);
+        Long maxMonthlyLimit = JsonNodes.longValueOrNullIfZero(base, "max_limit");
+        var preferentialRates = preferentialRateExtractor.extract(JsonNodes.text(base, "spcl_cnd"));
+        var requiredKeywords = requiredKeywordExtractor.extract(JsonNodes.text(base, "join_member"), JsonNodes.text(base, "etc_note"));
+        JsonNode optionsNode = raw.path("options");
+        if (optionsNode == null || !optionsNode.isArray() || optionsNode.isEmpty()) {
+            return List.of(ProductPropertyDraft.builder()
+                    .providerCode(providerCode)
+                    .providerName(providerName)
+                    .providerApplyUrl(providerApplyUrl)
+                    .maxMonthlyLimit(maxMonthlyLimit)
+                    .requiresHomeless(false)
+                    .requiresHouseholder(false)
+                    .requiredKeywords(requiredKeywords)
+                    .preferentialRates(preferentialRates)
+                    .build());
+        }
+
+        List<ProductPropertyDraft> properties = new ArrayList<>();
+        for (JsonNode option : optionsNode) {
+            properties.add(ProductPropertyDraft.builder()
+                    .providerCode(providerCode)
+                    .providerName(providerName)
+                    .providerApplyUrl(providerApplyUrl)
+                    .intrRateType(JsonNodes.firstText(option, "intr_rate_type"))
+                    .intrRateTypeName(JsonNodes.firstText(option, "intr_rate_type_nm"))
+                    .reserveType(JsonNodes.firstText(option, "rsrv_type"))
+                    .saveTerm(JsonNodes.integer(option, "save_trm"))
+                    .baseRate(JsonNodes.decimal(option, "intr_rate"))
+                    .maxRate(JsonNodes.decimal(option, "intr_rate2"))
+                    .maxMonthlyLimit(maxMonthlyLimit)
+//                    .minTenureMonths(JsonNodes.integer(option, "save_trm"))
+                    .requiresHomeless(false)
+                    .requiresHouseholder(false)
+                    .requiredKeywords(requiredKeywords)
+                    .preferentialRates(preferentialRates)
+                    .build());
+        }
+        return properties;
+    }
+
+    private static String collapseWhitespace(String value) {
+        if (value == null) {
+            return null;
+        }
+        String collapsed = value.replaceAll("\\s+", " ").trim();
+        return collapsed.isEmpty() ? null : collapsed;
+    }
+
+    // 금감원 fin_prdt_nm은 "○○적금\n(정액적립식)", "○○통장(정기예금)", "○○예금(시즌2)"처럼
+    // 적립·지급 방식이나 상품유형·시즌 표기를 이름 끝 괄호로 붙여 내려준다.
+    // PO 기준(00적금/00예금)에 따라 이름 끝 괄호는 통째로 뗀다.
+    // 더(The), 헤이(Hey)처럼 이름 중간에 박힌 브랜드 괄호는 끝이 아니라 그대로 남는다.
+    private static final Pattern TRAILING_PAREN = Pattern.compile("\\s*\\([^()]*\\)$");
+
+    private static String stripTrailingParen(String name) {
+        if (name == null) {
+            return null;
+        }
+        // $ 앵커라 매칭되는 괄호는 항상 맨 끝 하나뿐. "헤이(Hey)적금 (자유적립식)"은
+        // 마지막 "(자유적립식)"만 지워지고 중간 "(Hey)"는 남는다.
+        return TRAILING_PAREN.matcher(name).replaceFirst("").stripTrailing();
+    }
+}
