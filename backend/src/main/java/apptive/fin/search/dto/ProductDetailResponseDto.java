@@ -42,11 +42,11 @@ public record ProductDetailResponseDto(
 
         // CTA (공개 정보 — 잠금과 무관하게 항상 반환)
         ProductApplyStatus applyStatus,
-        // 상품 자체 신청 URL. 직접 신청 링크가 없으면 null이고 아래 officialChannel*로 대체 안내.
+        // 상품 자체 신청 URL. 직접 신청 링크가 없으면 null이고 아래 officialChannelUrl로 대체 안내. applyUrl과 상호배타.
         String applyUrl,
-        // applyUrl이 없을 때 안내할 기관 공식 채널 URL과 버튼 문구용 이름(예: "우리은행"). applyUrl과 상호배타.
+        // applyUrl이 없을 때 안내할 기관 공식 채널 URL. 버튼 문구용 기관명은 위 providerName을 그대로 쓴다
+        // (상세에선 채널명 = providerName이라 별도 필드를 두지 않음. 정부 채널명 구분은 실제 데이터 생기면 도입).
         String officialChannelUrl,
-        String officialChannelName,
 
         // 수익 지표 잠금 (property 미지정 또는 로그인/1·2단계 필수정보 미완료 시 true)
         boolean metricsLocked,

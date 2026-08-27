@@ -181,8 +181,8 @@ public class ProductDetailService {
                         ? selected.getReserveType().getLabel() : null)
                 .applyStatus(ProductAvailability.applyStatus(selected))
                 .applyUrl(applyLink.applyUrl())
+                // 상세는 버튼 문구용 기관명으로 providerName을 쓰므로 officialChannelName은 노출하지 않는다.
                 .officialChannelUrl(applyLink.officialChannelUrl())
-                .officialChannelName(applyLink.officialChannelName())
                 .metricsLocked(metricsLocked)
                 .lockMessage(metricsLocked ? METRICS_LOCK_MESSAGE : null)
                 .government(governmentDetail)
