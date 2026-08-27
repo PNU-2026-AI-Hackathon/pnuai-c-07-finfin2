@@ -48,7 +48,7 @@ public record ProductDetailResponseDto(
         boolean metricsLocked,
         String lockMessage,
 
-        // 유형별 (미잠금 시에만)
+        // 정부 개인화 지표는 미잠금 시에만, 은행 기본/최고금리와 금리표는 공개
         GovernmentDetailDto government,
         BankDetailDto bank,
         List<RateTableRowDto> rateTable
