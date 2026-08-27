@@ -135,15 +135,24 @@ public class ProductDetailService {
         }
 
         GovernmentDetailDto governmentDetail = null;
-        BankDetailDto bankDetail = null;
-        List<RateTableRowDto> rateTable = null;
+        BankDetailDto bankDetail = !government && !subscription && selected != null
+                ? new BankDetailDto(
+                        selected.getBaseRate() != null ? selected.getBaseRate().doubleValue() : null,
+                        selected.getMaxRate() != null ? selected.getMaxRate().doubleValue() : null,
+                        null,
+                        List.of(),
+                        List.of()
+                )
+                : null;
+        List<RateTableRowDto> rateTable = subscription
+                ? null
+                : buildRateTable(detailProperties, government);
         if (showMetrics) {
             if (government) {
                 governmentDetail = rateCalculatorService.governmentDetail(selected, calcRequest);
             } else {
                 bankDetail = rateCalculatorService.bankDetail(selected, calcRequest, keywords);
             }
-            rateTable = buildRateTable(detailProperties, government);
         }
 
         return ProductDetailResponseDto.builder()

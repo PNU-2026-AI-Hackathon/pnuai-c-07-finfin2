@@ -2,7 +2,7 @@ package apptive.fin.search.dto;
 
 import java.util.List;
 
-// 은행(FSS) 상세 수익 지표. 잠금 시 응답에서 null.
+// 기본/최고금리는 공개 정보. 개인화 잠금 시 달성 가능 금리는 null이고 조건 목록은 비어 있다.
 public record BankDetailDto(
         Double baseRate,        // 기본금리
         Double maxRate,         // 최고금리
