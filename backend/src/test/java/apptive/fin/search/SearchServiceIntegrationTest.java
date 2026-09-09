@@ -52,7 +52,7 @@ import static org.mockito.Mockito.verify;
 )
 class SearchServiceIntegrationTest extends IntegrationTestSupport {
 
-    // data.sql의 category_option 삽입 순서로 결정되는 옵션 id (다른 테스트도 같은 방식으로 하드코딩한다)
+    // V2 migration의 category_option 삽입 순서로 결정되는 옵션 id (다른 테스트도 같은 방식으로 하드코딩한다)
     private static final Long BUSAN_REGION_OPTION_ID = 2L;          // REGION_BUSAN
     private static final Long AROUND_1_YEAR_PERIOD_OPTION_ID = 24L; // TERM_AROUND_1_YEAR
     private static final Long MAX_INTEREST_BENEFIT_OPTION_ID = 25L; // BENEFIT_MAX_INTEREST
