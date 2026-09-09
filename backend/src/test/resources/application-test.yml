@@ -1,10 +1,10 @@
 spring:
   sql:
     init:
-      mode: always          # 컨테이너에 schema.sql + data.sql 로드 (기본 위치 classpath:schema.sql / data.sql)
+      mode: never           # 컨테이너는 운영과 같은 Flyway migration으로 초기화
   jpa:
     hibernate:
-      ddl-auto: validate    # schema.sql이 테이블 생성 → Hibernate는 검증만 (dev와 동일)
+      ddl-auto: validate    # Flyway가 테이블 생성 → Hibernate는 검증만 (dev와 동일)
     properties:
       hibernate:
         generate_statistics: true   # 쿼리 수 기반 N+1 회귀 테스트용 (테스트 프로파일 전용)
