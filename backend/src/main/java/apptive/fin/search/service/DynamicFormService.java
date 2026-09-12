@@ -44,18 +44,6 @@ public class DynamicFormService {
             );
         }
 
-        // 주거래 은행을 선택하면 은행의 우대금리 목록을 노출한다
-        if (searchRequestDto.detailedOptions().mainBanks() != null &&
-            !searchRequestDto.detailedOptions().mainBanks().isEmpty()
-        )
-            builder.showBankInterestRateCheckList(true);
-
-
-        // 추후 은행 상품으로 확장시 우대금리 조건 추가...
-//        if (searchRequestDto.detailedOptions().mainBanks() != null &&
-//                !searchRequestDto.detailedOptions().mainBanks().isEmpty()) {
-//
-//        }
         return builder.build();
     }
 

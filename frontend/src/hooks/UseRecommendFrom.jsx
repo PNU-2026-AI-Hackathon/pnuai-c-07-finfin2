@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
+import client, { withAuth } from "../api/client";
+import {
+  buildProfileUpdateFromRequest,
+  buildRecommendationRequest,
+  mapRecommendCategories,
+} from "../utils/recommendationPayload";
+import { runProductSearch } from "../utils/productSearch";
 
 const BANK_CATEGORIES = [
   { id: '시중', title: '시중은행', banks: ['KB국민', '신한', '하나', '우리', 'SC제일', 'iM뱅크'] },
@@ -44,6 +51,7 @@ const MOCK_CATEGORIES = {
     { optionId: "mock_first", optionValue: "첫 거래" },
     { optionId: "mock_salary", optionValue: "급여 이체" },
   ],
+  categoryIds: {},
   bankCategories: BANK_CATEGORIES,
   incomeLevel: INCOME_LEVELS,
 };
@@ -59,65 +67,49 @@ export default function useRecommendForm() {
   const [formData, setFormData] = useState({});
   const [cats, setCats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const mockMode = isMockRecommendMode();
 
   useEffect(() => {
-    if (isMockRecommendMode()) {
+    if (mockMode) {
       setCats(MOCK_CATEGORIES);
       setLoading(false);
       return;
     }
 
-    if (!accessToken) return; // 토큰 없으면 대기... 인데 백엔드에서 수정 시 바꿈
     const fetchCategories = async () => {
-    try {
-      const res = await fetch("https://test-fin.duckdns.org/api/categories", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
+      try {
+        const res = await client.get("/api/categories", withAuth(accessToken));
+        setCats(mapRecommendCategories(res.data, {
+          bankCategories: BANK_CATEGORIES,
+          incomeLevel: INCOME_LEVELS,
+        }));
+      } catch (e) {
+        console.error("카테고리 불러오기 실패:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      if (!res.ok) throw new Error("카테고리 요청 실패");
+    fetchCategories();
+  }, [accessToken, mockMode]);
 
-      const data = await res.json();
-
-      setCats({
-        regions: data.find((c) => c.categoryName === "거주지역")?.options || [],
-        status: data.find((c) => c.categoryName === "현재신분")?.options || [],
-        savingPeriod: data.find((c) => c.categoryName === "저축기간")?.options || [],
-        benefits: data.find((c) => c.categoryName === "핵심혜택")?.options || [],
-        bankRelation: data.find((c) => c.categoryName === "은행거래")?.options || [],
-        bankCategories: BANK_CATEGORIES,
-        incomeLevel: INCOME_LEVELS,
-      });
-    } catch (e) {
-      console.error("카테고리 불러오기 실패:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  fetchCategories();
-  }, [accessToken]);
-  
-  // 서버에 보내기는 나중에...
   const handleSubmit = async () => {
-    /*
-    try {
-      const res = await fetch("https://test-fin.duckdns.org/api/recommend", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(formData),
-      });
-      
-      if (!res.ok) throw new Error(“전송 실패”);
-      
-      const result = await res.json();
-      console.log("추천 결과:", result);
-    } catch (e) {
-      console.error(e);
+    const request = buildRecommendationRequest(formData, cats);
+
+    if (mockMode) {
+      return { request, result: null };
     }
-    */
+
+    const recommendationPromise = runProductSearch(request, accessToken);
+    const profileSavePromise = accessToken
+      ? client
+          .put("/user/me/profile", buildProfileUpdateFromRequest(request), withAuth(accessToken))
+          .catch((e) => console.error("프로필 저장 실패:", e))
+      : Promise.resolve();
+
+    const [recommendation] = await Promise.all([recommendationPromise, profileSavePromise]);
+
+    return recommendation;
   };
 
   const go = (n) => () => setStep(n);

@@ -15,7 +15,6 @@ public record DetailedOptionsDto(
         Boolean isHomeless,
         Boolean isHouseholder, // 세대주 여부
         Long monthlySavingsGoal,
-        List<String> mainBanks,
         List<String> neverUsedBanks,
         List<String> maturedSavingBanks,
         List<PreferentialInterestRateOption> selectedInterestRateOptions
@@ -30,7 +29,6 @@ public record DetailedOptionsDto(
             Boolean isHomeless,
             Boolean isHouseholder,
             Long monthlySavingsGoal,
-            List<String> mainBanks,
             List<PreferentialInterestRateOption> selectedInterestRateOptions
     ) {
         this(
@@ -43,7 +41,6 @@ public record DetailedOptionsDto(
                 isHomeless,
                 isHouseholder,
                 monthlySavingsGoal,
-                mainBanks,
                 null,
                 null,
                 selectedInterestRateOptions

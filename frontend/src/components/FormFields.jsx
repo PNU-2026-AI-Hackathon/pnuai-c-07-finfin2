@@ -1,5 +1,5 @@
-const baseInput = "border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-teal-400";
-const baseSelect = "border border-[#454545] rounded-sm px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-teal-400";
+const baseInput = "border border-[#D9D9D9] rounded-[4px] px-3 text-[18px] text-[#454545] focus:outline-none focus:border-[#03BFA5]";
+const baseSelect = "border border-[#D9D9D9] rounded-[4px] px-3 text-[18px] text-[#454545] focus:outline-none focus:border-[#03BFA5]";
 
 export function FormInput({ className = "", ...props }) {
   return <input className={`${baseInput} ${className}`} {...props} />;

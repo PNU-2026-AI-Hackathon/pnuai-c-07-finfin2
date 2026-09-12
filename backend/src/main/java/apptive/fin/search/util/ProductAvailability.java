@@ -17,8 +17,4 @@ public final class ProductAvailability {
                 ? ProductApplyStatus.AVAILABLE
                 : ProductApplyStatus.RECRUIT_CLOSED;
     }
-
-    public static String applyUrl(ProductProperty property) {
-        return isJoinable(property) ? property.resolvedApplyUrl() : null;
-    }
 }

@@ -52,7 +52,7 @@ import static org.mockito.Mockito.verify;
 )
 class SearchServiceIntegrationTest extends IntegrationTestSupport {
 
-    // data.sql의 category_option 삽입 순서로 결정되는 옵션 id (다른 테스트도 같은 방식으로 하드코딩한다)
+    // V2 migration의 category_option 삽입 순서로 결정되는 옵션 id (다른 테스트도 같은 방식으로 하드코딩한다)
     private static final Long BUSAN_REGION_OPTION_ID = 2L;          // REGION_BUSAN
     private static final Long AROUND_1_YEAR_PERIOD_OPTION_ID = 24L; // TERM_AROUND_1_YEAR
     private static final Long MAX_INTEREST_BENEFIT_OPTION_ID = 25L; // BENEFIT_MAX_INTEREST
@@ -392,7 +392,6 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                         true,
                         null,
                         50L,
-                        null,
                         List.of()
                 )
         );
@@ -410,7 +409,7 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                 new DetailedOptionsDto(
                         LocalDate.now().minusYears(27),
                         30_000_000L, 3, 100, 12, null, true, null,
-                        null, List.of(), List.of(), List.of(), List.of()
+                        null, List.of(), List.of(), List.of()
                 )
         );
 
@@ -428,7 +427,7 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                 new DetailedOptionsDto(
                         LocalDate.now().minusYears(27),
                         30_000_000L, 3, 100, 12, null, true, null,
-                        50L, List.of(), List.of(), List.of(), List.of()
+                        50L, List.of(), List.of(), List.of()
                 )
         );
 
@@ -450,7 +449,7 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                 new DetailedOptionsDto(
                         LocalDate.now().minusYears(27),
                         30_000_000L, 3, 100, 12, null, true, null,
-                        50L, List.of(), List.of(), List.of(), List.of()
+                        50L, List.of(), List.of(), List.of()
                 )
         );
 
@@ -475,6 +474,41 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
+    void 약관동의전_사용자는_입력을_완료해도_탭B를_비활성화한다() {
+        ProductSearchResultDto result = searchService.search(
+                createRequest(50, List.of()),
+                user(UserRole.BEFORE_AGREED)
+        );
+
+        assertThat(result.tabs().tabAEnabled()).isTrue();
+        assertThat(result.tabs().tabBEnabled()).isFalse();
+        assertThat(result.governmentRanked()).isNotEmpty();
+        assertThat(result.bankRanked()).isNotEmpty();
+        assertThat(result.governmentRateRanked()).isEmpty();
+        assertThat(result.bankRateRanked()).isEmpty();
+        assertThat(result.subscriptionProducts()).isEmpty();
+        assertThat(result.productCardSummaries())
+                .isNotEmpty()
+                .allSatisfy(summary -> {
+                    assertThat(summary.achievableRate()).isNull();
+                    assertThat(summary.expectedTotalContribution()).isNull();
+                    assertThat(summary.effectiveMonthlyDeposit()).isNull();
+                });
+    }
+
+    @Test
+    void 관리자는_입력을_완료하면_탭B를_사용할수있다() {
+        ProductSearchResultDto result = searchService.search(
+                createRequest(50, List.of()),
+                user(UserRole.ADMIN)
+        );
+
+        assertThat(result.tabs().tabBEnabled()).isTrue();
+        assertThat(result.governmentRateRanked()).isNotEmpty();
+        assertThat(result.bankRateRanked()).isNotEmpty();
+    }
+
+    @Test
     void 로그인해도_2단계_필수정보가_미완료면_탭B를_비활성화한다() {
         SearchRequestDto request = new SearchRequestDto(
                 requiredStep1Options(List.of(new OptionRequestDto(CategoryIdEnum.REGION.getId(), 2L))),
@@ -488,7 +522,6 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                         true,
                         null,
                         50L,
-                        null,
                         List.of(),
                         List.of(),
                         List.of()
@@ -547,7 +580,6 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
                         true,
                         null,
                         monthlySavingsGoal,
-                        List.of(),
                         List.of(),
                         List.of(),
                         List.of()
@@ -618,7 +650,11 @@ class SearchServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     private AuthUserDetails authenticatedUser() {
-        return new AuthUserDetails(1L, UserRole.RECOMMENDATION);
+        return user(UserRole.RECOMMENDATION);
+    }
+
+    private AuthUserDetails user(UserRole role) {
+        return new AuthUserDetails(1L, role);
     }
 
     // 청년우대적금에 36개월·고금리 옵션 추가.

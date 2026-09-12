@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.offset;
 @Sql(scripts = "/sql/cleanup-product-fixtures.sql", executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
 
-    // data.sql의 category_option 삽입 순서로 결정되는 옵션 id
+    // V2 migration의 category_option 삽입 순서로 결정되는 옵션 id
     private static final Long AROUND_1_YEAR_PERIOD_OPTION_ID = 24L; // TERM_AROUND_1_YEAR
     private static final Long MAX_INTEREST_BENEFIT_OPTION_ID = 25L; // BENEFIT_MAX_INTEREST
     private static final Long FIRST_TRANSACTION_OPTION_ID = 31L;    // BANK_FIRST_TRANSACTION
@@ -69,7 +69,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 정부상품_상세는_비로그인시_수익지표를_잠근다() {
+    void 정부상품_상세는_비로그인시_개인화지표만_잠근다() {
         Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
 
         ProductDetailResponseDto detail = productDetailService.getProductDetail(
@@ -79,8 +79,40 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         assertThat(detail.lockMessage()).isNotBlank();
         assertThat(detail.government()).isNull();
         assertThat(detail.bank()).isNull();
-        assertThat(detail.rateTable()).isNull();
+        assertThat(detail.rateTable())
+                .singleElement()
+                .satisfies(row -> {
+                    assertThat(row.baseRate()).isEqualTo(10.0);
+                    assertThat(row.maxRate()).isEqualTo(10.0);
+                });
         assertThat(detail.providerName()).isEqualTo("금융위원회"); // 공개 정보는 노출
+    }
+
+    @Test
+    void 비로그인_은행상품은_공시금리만_반환한다() {
+        Long productId = productId("SEARCH_YOUTH_SAVING");
+        Long propertyId = propertyId("SEARCH_YOUTH_SAVING");
+        jdbcTemplate.update("""
+                INSERT INTO product_preferential_rates
+                    (product_property_id, keyword_code, rate, description)
+                VALUES (?, 'BANK_ETC', 0.70, '기타 우대조건')
+                """, propertyId);
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId, request(propertyId, 100L), null);
+
+        assertThat(detail.metricsLocked()).isTrue();
+        assertThat(detail.bank()).isNotNull();
+        assertThat(detail.bank().baseRate()).isEqualTo(3.8);
+        assertThat(detail.bank().maxRate()).isEqualTo(4.5);
+        assertThat(detail.bank().achievableRate()).isNull();
+        assertThat(detail.bank().metConditions()).isEmpty();
+        assertThat(detail.bank().unmetConditions()).isEmpty();
+        assertThat(detail.rateTable())
+                .singleElement()
+                .satisfies(row -> assertThat(row.preferentialRates())
+                        .extracting(condition -> condition.description())
+                        .containsExactly("기타 우대조건"));
     }
 
     @Test
@@ -94,7 +126,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         assertThat(detail.lockMessage()).isNotBlank();
         assertThat(detail.government()).isNull();
         assertThat(detail.bank()).isNull();
-        assertThat(detail.rateTable()).isNull();
+        assertThat(detail.rateTable()).hasSize(1);
     }
 
     @Test
@@ -107,7 +139,41 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         assertThat(detail.metricsLocked()).isTrue();
         assertThat(detail.government()).isNull();
         assertThat(detail.bank()).isNull();
-        assertThat(detail.rateTable()).isNull();
+        assertThat(detail.rateTable()).hasSize(1);
+    }
+
+    @Test
+    void 약관동의전_사용자는_입력을_완료해도_수익지표를_잠근다() {
+        Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
+        Long propertyId = propertyId("SEARCH_YOUTH_EMPLOYMENT");
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId,
+                request(propertyId, 100L),
+                user(UserRole.BEFORE_AGREED)
+        );
+
+        assertThat(detail.metricsLocked()).isTrue();
+        assertThat(detail.lockMessage()).isNotBlank();
+        assertThat(detail.government()).isNull();
+        assertThat(detail.bank()).isNull();
+        assertThat(detail.rateTable()).hasSize(1);
+    }
+
+    @Test
+    void 관리자는_입력을_완료하면_수익지표를_조회할수있다() {
+        Long productId = productId("SEARCH_YOUTH_EMPLOYMENT");
+        Long propertyId = propertyId("SEARCH_YOUTH_EMPLOYMENT");
+
+        ProductDetailResponseDto detail = productDetailService.getProductDetail(
+                productId,
+                request(propertyId, 100L),
+                user(UserRole.ADMIN)
+        );
+
+        assertThat(detail.metricsLocked()).isFalse();
+        assertThat(detail.lockMessage()).isNull();
+        assertThat(detail.government()).isNotNull();
     }
 
     @Test
@@ -148,7 +214,10 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         assertThat(detail.bank().unmetConditions()).isEmpty();
         assertThat(detail.keywords())
                 .contains(KeywordValueEnum.STATUS_MILITARY, KeywordValueEnum.REGION_BUSAN);
-        assertThat(detail.applyUrl()).isEqualTo("https://bank.example/apply"); // FSS → provider 대표 URL
+        // 상품 자체 신청 URL이 없으면 applyUrl은 null, 기관 공식 채널 URL로 대체 안내한다(버튼 라벨은 providerName).
+        assertThat(detail.applyUrl()).isNull();
+        assertThat(detail.officialChannelUrl()).isEqualTo("https://bank.example/apply"); // FSS → provider 대표 URL
+        assertThat(detail.providerName()).isEqualTo("국민은행"); // 모달 버튼 문구용 기관명 = providerName (SEARCH_BANK_B)
     }
 
     @Test
@@ -190,7 +259,9 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         ProductDetailResponseDto detail = productDetailService.getProductDetail(
                 productId, request(propertyId, 100L), authenticatedUser());
 
+        // 상품 자체 신청 URL이 있으면 그걸 applyUrl로 내려주고 공식 채널은 비운다(상호배타).
         assertThat(detail.applyUrl()).isEqualTo("https://product.example/apply");
+        assertThat(detail.officialChannelUrl()).isNull();
     }
 
     @Test
@@ -211,7 +282,10 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
         ProductDetailResponseDto detail = productDetailService.getProductDetail(
                 productId, request(propertyId, 100L), authenticatedUser());
 
-        assertThat(detail.applyUrl()).isEqualTo("https://provider.example/apply");
+        // 선택 property에 자체 URL이 없으면 다른 property URL을 쓰지 않고 기관 공식 채널로 폴백한다.
+        assertThat(detail.applyUrl()).isNull();
+        assertThat(detail.officialChannelUrl()).isEqualTo("https://provider.example/apply");
+        assertThat(detail.providerName()).isEqualTo("금융위원회"); // 모달 버튼 문구용 기관명 = providerName (SEARCH_GOV)
     }
 
     @Test
@@ -489,11 +563,11 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
 
         DetailedOptionsDto usedBank = new DetailedOptionsDto(
                 null, null, null, null, null, null, null, null,
-                null, null, List.of("SEARCH_BANK_B"), List.of(), List.of()
+                null, List.of("SEARCH_BANK_B"), List.of(), List.of()
         );
         DetailedOptionsDto unusedBank = new DetailedOptionsDto(
                 null, null, null, null, null, null, null, null,
-                null, null, List.of(), List.of(), List.of()
+                null, List.of(), List.of(), List.of()
         );
 
         ProductDetailResponseDto withHistory = productDetailService.getProductDetail(
@@ -509,7 +583,10 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
 
         for (ProductDetailResponseDto detail : List.of(withHistory, withoutHistory)) {
             assertThat(detail.providerName()).isEqualTo("공개대표은행");
-            assertThat(detail.applyUrl()).isEqualTo("https://public.example/apply");
+            // 대표 property에 자체 신청 URL이 없으면 applyUrl은 null, 기관 공식 채널로 대체 안내.
+            assertThat(detail.applyUrl()).isNull();
+            assertThat(detail.officialChannelUrl()).isEqualTo("https://public.example/apply");
+            // 버튼 문구용 기관명은 위에서 검증한 providerName("공개대표은행")을 사용.
             assertThat(detail.metricsLocked()).isTrue();
         }
     }
@@ -540,8 +617,10 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
                 productId, request(null, null), authenticatedUser());
 
         assertThat(detail.metricsLocked()).isTrue();
-        assertThat(detail.bank()).isNull();
-        assertThat(detail.rateTable()).isNull();
+        assertThat(detail.bank().baseRate()).isEqualTo(3.8);
+        assertThat(detail.bank().maxRate()).isEqualTo(4.5);
+        assertThat(detail.bank().achievableRate()).isNull();
+        assertThat(detail.rateTable()).hasSize(1);
         assertThat(detail.saveTrms()).containsExactly(12);
         assertThat(detail.keywords()).doesNotContain(KeywordValueEnum.STATUS_MILITARY);
     }
@@ -606,16 +685,21 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
                 productId, request(null, null), null);
 
         assertThat(detail.applyStatus()).isEqualTo(ProductApplyStatus.RECRUIT_CLOSED);
+        // 마감 상품은 신청 URL·공식 채널 모두 숨긴다(provider 대표 URL이 있어도).
         assertThat(detail.applyUrl()).isNull();
+        assertThat(detail.officialChannelUrl()).isNull();
         assertThat(detail.metricsLocked()).isTrue();
-        assertThat(detail.bank()).isNull();
-        assertThat(detail.rateTable()).isNull();
+        assertThat(detail.bank().maxRate()).isEqualTo(9.9);
+        assertThat(detail.bank().achievableRate()).isNull();
+        assertThat(detail.rateTable()).hasSize(2);
         assertThat(detail.saveTrms()).containsExactly(12, 24);
         assertThat(locked.applyStatus()).isEqualTo(ProductApplyStatus.RECRUIT_CLOSED);
         assertThat(locked.applyUrl()).isNull();
+        assertThat(locked.officialChannelUrl()).isNull();
         assertThat(locked.metricsLocked()).isTrue();
-        assertThat(locked.bank()).isNull();
-        assertThat(locked.rateTable()).isNull();
+        assertThat(locked.bank().maxRate()).isEqualTo(9.9);
+        assertThat(locked.bank().achievableRate()).isNull();
+        assertThat(locked.rateTable()).hasSize(2);
     }
 
     @Test
@@ -651,6 +735,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
 
         assertThat(detail.applyStatus()).isEqualTo(ProductApplyStatus.RECRUIT_CLOSED);
         assertThat(detail.applyUrl()).isNull();
+        assertThat(detail.officialChannelUrl()).isNull();
         assertThat(detail.bank().maxRate()).isEqualTo(9.9);
         assertThat(detail.saveTrms()).containsExactly(24);
         assertThat(detail.rateTable())
@@ -703,7 +788,11 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
     }
 
     private AuthUserDetails authenticatedUser() {
-        return new AuthUserDetails(1L, UserRole.RECOMMENDATION);
+        return user(UserRole.RECOMMENDATION);
+    }
+
+    private AuthUserDetails user(UserRole role) {
+        return new AuthUserDetails(1L, role);
     }
 
     private ProductDetailRequestDto request(Long productPropertyId, Long monthlySavingsGoal) {
@@ -713,7 +802,7 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
                 new DetailedOptionsDto(
                         LocalDate.now().minusYears(27),
                         30_000_000L, 3, 100, 12, null, true, null,
-                        monthlySavingsGoal, List.of(),
+                        monthlySavingsGoal,
                         List.of(),
                         List.of(),
                         List.of()
@@ -727,17 +816,17 @@ class ProductDetailServiceIntegrationTest extends IntegrationTestSupport {
                 requiredStep1Options(),
                 new DetailedOptionsDto(
                         null, null, null, null, null, null, null, null,
-                        monthlySavingsGoal, null, List.of()
+                        monthlySavingsGoal, List.of()
                 )
         );
     }
 
-    // 거래 이력 3종을 null이 아닌 값으로 채워 개인화 접근 조건과 맞춘다.
+    // 거래 이력 2종을 null이 아닌 값으로 채워 개인화 접근 조건과 맞춘다.
     private DetailedOptionsDto detailedOptions(long monthlySavingsGoal) {
         return new DetailedOptionsDto(
                 LocalDate.now().minusYears(27),
                 30_000_000L, 3, 100, 12, null, true, null,
-                monthlySavingsGoal, List.of(),
+                monthlySavingsGoal,
                 List.of(),
                 List.of(),
                 List.of()

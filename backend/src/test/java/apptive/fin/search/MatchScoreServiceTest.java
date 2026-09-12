@@ -53,7 +53,7 @@ class MatchScoreServiceTest {
                 List.of(),
                 new DetailedOptionsDto(
                         null, null, null, null, null,
-                        null, null, null, null, null, List.of()
+                        null, null, null, null, List.of()
                 )
         );
 
@@ -1107,7 +1107,7 @@ class MatchScoreServiceTest {
                 List.of(),
                 new DetailedOptionsDto(
                         birthdate, null, null, null, null,
-                        null, null, null, monthlySavingsGoal, null,
+                        null, null, null, monthlySavingsGoal,
                         neverUsedBanks, maturedSavingBanks, List.of()
                 )
         );

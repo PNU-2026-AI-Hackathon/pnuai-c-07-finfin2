@@ -90,7 +90,6 @@ public class UserProfileService {
                 .map(CategoryOption::getValue)
                 .toList();
 
-        // 주거래 은행(mainBanks)은 정책상 표시 제외 — 첫거래/재예치만 해소.
         Map<String, String> bankNameByCode = resolveBankNames(
                 p.getNeverUsedBanks(), p.getMaturedSavingBanks());
 
@@ -116,7 +115,6 @@ public class UserProfileService {
                 p.getIsHomeless(),
                 p.getIsHouseholder(),
                 p.getMonthlySavingsGoal(),
-                p.getMainBanks(),
                 p.getNeverUsedBanks(),
                 p.getMaturedSavingBanks(),
                 p.getSelectedOptionIds(),

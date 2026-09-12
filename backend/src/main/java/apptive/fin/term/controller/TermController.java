@@ -8,6 +8,7 @@ import apptive.fin.term.dto.UserTermRequestDto;
 import apptive.fin.user.UserRole;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -15,6 +16,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/term")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class TermController {
 
     private final TermService termService;

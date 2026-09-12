@@ -29,7 +29,9 @@ public class SearchRequestPolicy {
             ResolvedKeywords keywords,
             AuthUserDetails userDetails
     ) {
-        if (userDetails == null || !isStep1Complete(request, keywords)) {
+        if (userDetails == null
+                || !userDetails.getRole().canUseRecommendation()
+                || !isStep1Complete(request, keywords)) {
             return false;
         }
 
@@ -39,7 +41,6 @@ public class SearchRequestPolicy {
                 && detail.annualIncome() != null
                 && detail.householdSize() != null
                 && detail.householdIncomePercent() != null
-                && detail.mainBanks() != null
                 && detail.neverUsedBanks() != null
                 && detail.maturedSavingBanks() != null;
     }

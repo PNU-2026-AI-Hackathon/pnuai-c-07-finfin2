@@ -8,12 +8,14 @@ import apptive.fin.search.dto.SearchRequestDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/favorites")
+@PreAuthorize("hasAnyAuthority('RECOMMENDATION', 'ADMIN')")
 public class MyFinController {
 
     private final MyFinService myFinService;
@@ -24,7 +26,7 @@ public class MyFinController {
             @RequestBody(required = false) SearchRequestDto request,
             @AuthenticationPrincipal AuthUserDetails userDetails
     ) {
-        return ResponseEntity.ok(myFinService.getFavorites(userDetails.getId(), request));
+        return ResponseEntity.ok(myFinService.getFavorites(userDetails.getId(), request, userDetails));
     }
 
     // 찜 목록 조회 (기본)

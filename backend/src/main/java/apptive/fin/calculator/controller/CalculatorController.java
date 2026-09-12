@@ -7,12 +7,14 @@ import apptive.fin.calculator.service.CalculatorService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/calculator")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyAuthority('RECOMMENDATION', 'ADMIN')")
 public class CalculatorController {
     private final CalculatorService calculatorService;
 

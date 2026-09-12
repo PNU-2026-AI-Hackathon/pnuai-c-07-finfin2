@@ -97,7 +97,7 @@ function MatchingScoreSection() {
         {/* 사용자 프로필 */}
         <div
           data-fade="item"
-          className="opacity-0 translate-y-6 transition-all duration-700 ease-out font-inter bg-[#F9FAFB] rounded-[3rem] p-10 flex flex-col"
+          className="opacity-0 translate-y-6 transition-all duration-700 ease-out font-pretendard bg-[#F9FAFB] rounded-[3rem] p-10 flex flex-col"
         >
           <h3 className="text-center text-lg font-bold text-[#555] mb-8">사용자 프로필</h3>
           <div className="space-y-4">
@@ -112,7 +112,7 @@ function MatchingScoreSection() {
         {/* 매칭점수 */}
         <div
           data-fade="item"
-          className="opacity-0 translate-y-6 transition-all duration-700 ease-out font-inter relative bg-white rounded-[3rem] p-12 flex flex-col items-center justify-center shadow-[0_20px_50px_rgba(226,226,226,0.7) scale-105 z-10"
+          className="opacity-0 translate-y-6 transition-all duration-700 ease-out font-pretendard relative bg-white rounded-[3rem] p-12 flex flex-col items-center justify-center shadow-[0_20px_50px_rgba(226,226,226,0.7) scale-105 z-10"
         >
           <h3 className="text-lg font-bold text-[#454545] mb-8">매칭점수</h3>
           <div className="relative w-48 h-48 flex items-center justify-center">
@@ -134,7 +134,7 @@ function MatchingScoreSection() {
         {/* 추천상품 상세 */}
         <div
           data-fade="item"
-          className="opacity-0 translate-y-6 transition-all duration-700 ease-out font-inter bg-[#F8FAFB] rounded-[3rem] p-10 flex flex-col"
+          className="opacity-0 translate-y-6 transition-all duration-700 ease-out font-pretendard bg-[#F8FAFB] rounded-[3rem] p-10 flex flex-col"
         >
           <h3 className="text-[17px] text-center font-bold text-[#454545] mb-8">
             추천상품 : 부산 청년 기쁨두배 통장 <span className="text-gray-400 font-normal text-xs ml-1">(최대 연 5.8%)</span>
@@ -202,7 +202,7 @@ function SummarySection() {
       {/*메인 요약 카드 박스*/}
       <div
         data-fade="item"
-        className="opacity-0 translate-y-6 transition-all duration-700 ease-out font-inter max-w-5xl w-full px-6"
+        className="opacity-0 translate-y-6 transition-all duration-700 ease-out font-pretendard max-w-5xl w-full px-6"
       >
         <div className="border-3 border-[#03BFA5] rounded-[2.6rem] p-1 overflow-hidden shadow-sm">
           <div className="bg-[#EFFFFD] rounded-[2.2rem] overflow-hidden">
@@ -350,7 +350,7 @@ function TopProductsSection() {
 
 function ProductCard({ agency, badges, subTitle, title, desc, rate, subDesc, isHighlighted, buttonText }) {
   return (
-    <div className={`font-inter p-10 rounded-[2.5rem] border-2 flex flex-col h-full
+    <div className={`font-pretendard p-10 rounded-[2.5rem] border-2 flex flex-col h-full
       ${isHighlighted ? 'border-[#2DD4BF] bg-[#EFFFFD]' : 'border-[#E2E8F0] bg-[#FFFFFF] shadow-sm'}`}>
       {/*기관 및 뱃지 */}
       <div className="flex justify-between items-center mb-10">
@@ -430,7 +430,7 @@ function MagazineSection() {
 
 function MagazineCard({ title, imgUrl }) {
   return (
-    <div className="font-inter overflow-hidden rounded-[35px] border-[3.8px] border-[#B6D6D2] shadow-sm">
+    <div className="font-pretendard overflow-hidden rounded-[35px] border-[3.8px] border-[#B6D6D2] shadow-sm">
       <div className="aspect-[19/13] bg-gray-100 overflow-hidden">
         <img src={imgUrl} alt="image" className="w-full h-full object-cover" />
       </div>

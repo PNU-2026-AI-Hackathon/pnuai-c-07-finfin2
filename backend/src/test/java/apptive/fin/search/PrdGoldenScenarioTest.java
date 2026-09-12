@@ -719,7 +719,6 @@ class PrdGoldenScenarioTest {
                         null,
                         null,
                         monthlySavingsGoal,
-                        null,
                         neverUsedBanks,
                         maturedSavingBanks,
                         List.of()

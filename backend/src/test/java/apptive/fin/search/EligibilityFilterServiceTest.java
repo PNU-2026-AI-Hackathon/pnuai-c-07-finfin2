@@ -48,7 +48,6 @@ class EligibilityFilterServiceTest {
                         null,
                         null,
                         null,
-                        null,
                         List.of()
                 )
         );
@@ -106,7 +105,6 @@ class EligibilityFilterServiceTest {
                         false,
                         true,
                         500_000L,
-                        null,
                         List.of()
                 )
         );
@@ -148,7 +146,6 @@ class EligibilityFilterServiceTest {
                         false,
                         true,
                         500_000L,
-                        null,
                         List.of()
                 )
         );
@@ -190,7 +187,6 @@ class EligibilityFilterServiceTest {
                         null,
                         null,
                         300_000L,
-                        null,
                         List.of()
                 )
         );
@@ -249,7 +245,6 @@ class EligibilityFilterServiceTest {
                         null,
                         null,
                         300_000L,
-                        null,
                         List.of()
                 )
         );

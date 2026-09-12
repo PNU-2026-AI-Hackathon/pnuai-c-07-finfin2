@@ -220,7 +220,6 @@ class EligibilityFilterServiceIntegrationTest extends IntegrationTestSupport {
                         isHomeless,
                         null,
                         null,
-                        null,
                         List.of()
                 )
         );

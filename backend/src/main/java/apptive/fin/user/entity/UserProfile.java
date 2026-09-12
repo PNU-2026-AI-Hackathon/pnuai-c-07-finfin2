@@ -63,10 +63,6 @@ public class UserProfile extends BaseTimeEntity {
     private Long monthlySavingsGoal;
 
     @Convert(converter = StringListJsonConverter.class)
-    @Column(name = "main_banks", columnDefinition = "TEXT")
-    private List<String> mainBanks;
-
-    @Convert(converter = StringListJsonConverter.class)
     @Column(name = "never_used_banks", columnDefinition = "TEXT")
     private List<String> neverUsedBanks;
 
@@ -95,7 +91,6 @@ public class UserProfile extends BaseTimeEntity {
         this.isHomeless = request.isHomeless();
         this.isHouseholder = request.isHouseholder();
         this.monthlySavingsGoal = request.monthlySavingsGoal();
-        this.mainBanks = request.mainBanks();
         this.neverUsedBanks = request.neverUsedBanks();
         this.maturedSavingBanks = request.maturedSavingBanks();
         this.selectedOptionIds = request.selectedOptionIds();

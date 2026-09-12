@@ -3,6 +3,7 @@ package apptive.fin.search.service;
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.global.error.BusinessException;
 import apptive.fin.search.SearchErrorCode;
+import apptive.fin.search.dto.ApplyLink;
 import apptive.fin.search.dto.BankDetailDto;
 import apptive.fin.search.dto.EligibleProductOption;
 import apptive.fin.search.dto.GovernmentDetailDto;
@@ -17,6 +18,7 @@ import apptive.fin.search.entity.ProductProperty;
 import apptive.fin.search.entity.ProductSource;
 import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.repository.ProductRepository;
+import apptive.fin.search.util.ApplyLinkResolver;
 import apptive.fin.search.util.ProductAvailability;
 import apptive.fin.search.dto.OptionRequestDto;
 import lombok.RequiredArgsConstructor;
@@ -135,16 +137,27 @@ public class ProductDetailService {
         }
 
         GovernmentDetailDto governmentDetail = null;
-        BankDetailDto bankDetail = null;
-        List<RateTableRowDto> rateTable = null;
+        BankDetailDto bankDetail = !government && !subscription && selected != null
+                ? new BankDetailDto(
+                        selected.getBaseRate() != null ? selected.getBaseRate().doubleValue() : null,
+                        selected.getMaxRate() != null ? selected.getMaxRate().doubleValue() : null,
+                        null,
+                        List.of(),
+                        List.of()
+                )
+                : null;
+        List<RateTableRowDto> rateTable = subscription
+                ? null
+                : buildRateTable(detailProperties, government);
         if (showMetrics) {
             if (government) {
                 governmentDetail = rateCalculatorService.governmentDetail(selected, calcRequest);
             } else {
                 bankDetail = rateCalculatorService.bankDetail(selected, calcRequest, keywords);
             }
-            rateTable = buildRateTable(detailProperties, government);
         }
+
+        ApplyLink applyLink = ApplyLinkResolver.resolve(selected);
 
         return ProductDetailResponseDto.builder()
                 .productId(product.getId())
@@ -176,7 +189,9 @@ public class ProductDetailService {
                 .reserveTypeName(selected != null && selected.getReserveType() != null
                         ? selected.getReserveType().getLabel() : null)
                 .applyStatus(ProductAvailability.applyStatus(selected))
-                .applyUrl(ProductAvailability.applyUrl(selected))
+                .applyUrl(applyLink.applyUrl())
+                // 상세는 버튼 문구용 기관명으로 providerName을 쓰므로 officialChannelName은 노출하지 않는다.
+                .officialChannelUrl(applyLink.officialChannelUrl())
                 .metricsLocked(metricsLocked)
                 .lockMessage(metricsLocked ? METRICS_LOCK_MESSAGE : null)
                 .government(governmentDetail)

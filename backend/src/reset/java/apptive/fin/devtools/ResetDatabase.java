@@ -1,5 +1,6 @@
 package apptive.fin.devtools;
 
+import org.flywaydb.core.Flyway;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.support.EncodedResource;
 import org.springframework.jdbc.datasource.init.ScriptUtils;
@@ -15,8 +16,6 @@ public class ResetDatabase {
     private static final String DEFAULT_PASSWORD = "password";
 
     private static final List<String> SQL_FILES = List.of(
-            "schema.sql",
-            "data.sql",
             "seed/01-providers.sql",
             "seed/02-products.sql",
             "seed/03-product-properties.sql",
@@ -32,19 +31,23 @@ public class ResetDatabase {
         List<String> argList = List.of(args);
         boolean noSeed = argList.contains("--no-seed");
 
-        try (Connection connection = DriverManager.getConnection(url, username, password)) {
-            connection.setAutoCommit(true);
-            
-            
+        Flyway flyway = Flyway.configure()
+                .dataSource(url, username, password)
+                .cleanDisabled(false)
+                .load();
+        flyway.clean();
+        flyway.migrate();
 
-            for (String sqlFile : SQL_FILES) {
-                if (noSeed && sqlFile.startsWith("seed"))
-                    continue;
-                System.out.println("Running " + sqlFile);
-                ScriptUtils.executeSqlScript(
-                        connection,
-                        new EncodedResource(new ClassPathResource(sqlFile), "UTF-8")
-                );
+        if (!noSeed) {
+            try (Connection connection = DriverManager.getConnection(url, username, password)) {
+                connection.setAutoCommit(true);
+                for (String sqlFile : SQL_FILES) {
+                    System.out.println("Running " + sqlFile);
+                    ScriptUtils.executeSqlScript(
+                            connection,
+                            new EncodedResource(new ClassPathResource(sqlFile), "UTF-8")
+                    );
+                }
             }
         }
 

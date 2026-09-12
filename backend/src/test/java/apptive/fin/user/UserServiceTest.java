@@ -102,6 +102,25 @@ class UserServiceTest {
     }
 
     @Test
+    void 회원탈퇴_성공() {
+        when(userRepository.findById(1L))
+                .thenReturn(Optional.of(user));
+
+        userService.deleteUser(1L);
+
+        verify(userRepository).delete(user);
+    }
+
+    @Test
+    void 회원탈퇴_실패_USER_NOT_FOUND() {
+        when(userRepository.findById(1L))
+                .thenReturn(Optional.empty());
+
+        assertThrows(BusinessException.class, () -> userService.deleteUser(1L));
+        verify(userRepository, never()).delete(any());
+    }
+
+    @Test
     void 유저권한_기본값_BEFORE_AGREED() {
         User newUser = User.builder()
                 .name("newUser")

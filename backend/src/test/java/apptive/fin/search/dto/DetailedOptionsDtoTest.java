@@ -11,7 +11,7 @@ class DetailedOptionsDtoTest {
     // birthdate만 지정하고 나머지는 null인 상세옵션을 만든다.
     private DetailedOptionsDto withBirthdate(LocalDate birthdate) {
         return new DetailedOptionsDto(
-                birthdate, null, null, null, null, null, null, null, null, null, null
+                birthdate, null, null, null, null, null, null, null, null, null
         );
     }
 
