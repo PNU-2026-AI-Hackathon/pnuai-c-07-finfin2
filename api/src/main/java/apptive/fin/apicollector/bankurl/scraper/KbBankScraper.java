@@ -12,11 +12,17 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 public class KbBankScraper extends AbstractBankProductScraper {
 
-    private static final String SEARCH_URL = "https://obank.kbstar.com/quics?page=C111087";
+    private static final String SEARCH_URL = "https://obank.kbstar.com/quics?page=C016528";
+    private static final String RESULT_SELECTOR = "div.area1 a.title";
+    private static final Pattern PRODUCT_CODE_PATTERN = Pattern.compile(
+            "productDtlSear\\(\\s*['\"]([^'\"]+)"
+    );
 
     @Override
     public String providerCode() {
@@ -34,20 +40,31 @@ public class KbBankScraper extends AbstractBankProductScraper {
         for (String query : queryVariants(productName)) {
             try (Page page = context.newPage()) {
                 navigate(page, SEARCH_URL);
-                Locator input = page.locator("#keyword").first();
-                if (input.count() > 0) {
-                    input.fill(query);
-                    input.press("Enter");
-                    settle(page);
+                Locator input = page.locator("#searchWord:visible").first();
+                if (input.count() == 0) {
+                    continue;
                 }
-                Locator productTab = page.locator("#tb3").first();
-                if (productTab.count() > 0) {
-                    try {
-                        productTab.click();
-                        settle(page);
-                    } catch (PlaywrightException ignored) {
-                        // Results can already be visible without opening the tab.
-                    }
+                List<String> previousResults = page.locator(RESULT_SELECTOR).allTextContents();
+                input.fill(query);
+                Locator searchButton = page.locator(".btn-icon1.ic3:visible").first();
+                if (searchButton.count() > 0) {
+                    searchButton.click();
+                } else {
+                    input.press("Enter");
+                }
+                try {
+                    page.waitForFunction("""
+                                    previous => {
+                                      const current = Array.from(document.querySelectorAll('div.area1 a.title'))
+                                        .map(anchor => anchor.textContent.trim());
+                                      return current.length > 0
+                                        && JSON.stringify(current) !== JSON.stringify(previous);
+                                    }
+                                    """,
+                            previousResults,
+                            new Page.WaitForFunctionOptions().setTimeout(10_000));
+                } catch (PlaywrightException ignored) {
+                    // Extract any results that were rendered before the timeout.
                 }
                 for (PageContent content : pageContents(page)) {
                     candidates.addAll(extractSearchResults(
@@ -64,13 +81,13 @@ public class KbBankScraper extends AbstractBankProductScraper {
 
     List<ProductCandidate> extractSearchResults(Document document, String currentUrl) {
         List<ProductCandidate> candidates = new ArrayList<>();
-        for (Element row : document.select("#procList li,.procList li,li")) {
-            String name = bestName(row, List.of("strong > a", "strong", ".tit a", ".tit", "a"));
+        for (Element row : document.select("#procList li,.procList li,div.area1")) {
+            String name = bestName(row, List.of("a.title", "strong > a", "strong", ".tit a", ".tit", "a"));
             if (!looksLikeProductName(name)) {
                 continue;
             }
             for (Element anchor : row.select("a")) {
-                String url = urlFromAnchor(anchor, currentUrl);
+                String url = kbProductUrl(anchor, currentUrl);
                 if (!url.isBlank()) {
                     candidates.add(new ProductCandidate(name, url));
                     break;
@@ -78,5 +95,13 @@ public class KbBankScraper extends AbstractBankProductScraper {
             }
         }
         return dedupe(candidates);
+    }
+
+    private String kbProductUrl(Element anchor, String currentUrl) {
+        Matcher matcher = PRODUCT_CODE_PATTERN.matcher(anchor.attr("onclick"));
+        if (matcher.find()) {
+            return absoluteUrl("/quics?page=C016613&prcode=" + matcher.group(1), currentUrl);
+        }
+        return urlFromAnchor(anchor, currentUrl);
     }
 }

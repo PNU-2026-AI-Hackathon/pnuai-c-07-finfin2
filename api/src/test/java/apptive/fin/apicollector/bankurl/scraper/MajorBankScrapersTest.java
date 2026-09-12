@@ -19,6 +19,21 @@ class MajorBankScrapersTest {
     }
 
     @Test
+    void kbBuildsDetailUrlFromProductSearchResult() {
+        var result = new KbBankScraper().extractSearchResults(Jsoup.parse("""
+                <div class="area1">
+                  <a href="#none" class="title"
+                     onclick="productDtlSear('DP01000942','01','적금')">KB맑은하늘적금</a>
+                </div>
+                """), "https://obank.kbstar.com/quics?page=C016528");
+
+        assertThat(result).containsExactly(new ProductCandidate(
+                "KB맑은하늘적금",
+                "https://obank.kbstar.com/quics?page=C016613&prcode=DP01000942"
+        ));
+    }
+
+    @Test
     void hanaExtractsOnlyProductInfoBlocks() {
         var result = new HanaBankScraper().extractSearchResults(Jsoup.parse("""
                 <div class="resultDiv"><div class="productInfo"><h5>

@@ -2,12 +2,8 @@ package apptive.fin.apicollector.bankurl.scraper;
 
 import com.microsoft.playwright.BrowserContext;
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.ObjectMapper;
-
-import java.util.List;
-import java.util.function.BiFunction;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -84,14 +80,45 @@ class InternetBankScrapersTest {
     }
 
     @Test
-    void imBankUsesProductOnlySearchUrlAsNavigableProductLink() {
-        var result = new StubImBankScraper().search(null, "iM함께예금");
+    void imBankBuildsMobileUrlFromProductApiResponse() {
+        var result = new ImBankScraper(new ObjectMapper()).extractProductsFromApi("""
+                {
+                  "REC1": [{
+                    "PD_NM": "iM함께예금",
+                    "PD_CD": "10511008001166004"
+                  }]
+                }
+                """);
 
         assertThat(result).containsExactly(new ProductCandidate(
                 "iM함께예금",
-                "https://www.imbank.co.kr/dcz_ebz_10010_0010.act?kwd="
-                        + "iM%ED%95%A8%EA%BB%98%EC%98%88%EA%B8%88&category=PRODUCT"
+                "https://mbanking.imbank.co.kr/com_ebz_mbs_00001.act"
+                        + "?svcId=fis_ebz_sbs_21030_depo&PD_CD=10511008001166004"
         ));
+    }
+
+    @Test
+    void imBankSearchesProductApiInsteadOfBlockedWebPage() {
+        var result = new StubImBankScraper().search(null, "iM함께적금");
+
+        assertThat(result).containsExactly(new ProductCandidate(
+                "iM함께적금",
+                "https://mbanking.imbank.co.kr/com_ebz_mbs_00001.act"
+                        + "?svcId=fis_ebz_sbs_21030_depo&PD_CD=10521001001166004"
+        ));
+    }
+
+    @Test
+    void imBankDoesNotReopenMobileUrlInAutomationBrowser() {
+        var candidate = new ProductCandidate(
+                "iM함께예금",
+                "https://mbanking.imbank.co.kr/com_ebz_mbs_00001.act"
+                        + "?svcId=fis_ebz_sbs_21030_depo&PD_CD=10511008001166004"
+        );
+
+        var result = new ImBankScraper(new ObjectMapper()).collect(null, candidate);
+
+        assertThat(result).isEqualTo(new ScrapedProduct(candidate.name(), candidate.url()));
     }
 
     @Test
@@ -107,18 +134,20 @@ class InternetBankScrapersTest {
 
     private static class StubImBankScraper extends ImBankScraper {
 
+        private StubImBankScraper() {
+            super(new ObjectMapper());
+        }
+
         @Override
-        protected List<ProductCandidate> searchPages(
-                BrowserContext context,
-                String productName,
-                List<String> urlTemplates,
-                BiFunction<Document, String, List<ProductCandidate>> extractor,
-                boolean searchOnPage
-        ) {
-            return List.of(new ProductCandidate(
-                    productName,
-                    "https://www.imbank.co.kr/com_ebz_fpm_main.act?pd_cd=test"
-            ));
+        String requestProducts(BrowserContext context, String productName) {
+            return """
+                    {
+                      "REC1": [{
+                        "PD_NM": "iM함께적금",
+                        "PD_CD": "10521001001166004"
+                      }]
+                    }
+                    """;
         }
     }
 }

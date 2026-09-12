@@ -1,20 +1,35 @@
 package apptive.fin.apicollector.bankurl.scraper;
 
+import com.microsoft.playwright.APIResponse;
 import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.options.FormData;
+import com.microsoft.playwright.options.RequestOptions;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Component
 public class ImBankScraper extends AbstractBankProductScraper {
 
-    // 상품 상세 화면은 내부 AJAX가 서버 세션에 FNM_DETAIL_DATA를 저장한 뒤 공통 프레임을 연다.
-    // pd_cd를 붙인 직접 GET은 빈 화면이므로, 바로 열 수 있는 상품 검색 결과 URL을 저장한다.
-    private static final String SEARCH_URL =
-            "https://www.imbank.co.kr/dcz_ebz_10010_0010.act?kwd={q}&category=PRODUCT";
+    private static final String PRODUCT_API =
+            "https://www.imbank.co.kr/fnp_ebz_21010_depo_d001.jct";
+    private static final String MOBILE_DETAIL_URL =
+            "https://mbanking.imbank.co.kr/com_ebz_mbs_00001.act"
+                    + "?svcId=fis_ebz_sbs_21030_depo&PD_CD=";
+
+    private final ObjectMapper objectMapper;
+
+    public ImBankScraper(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public String providerCode() {
@@ -28,22 +43,61 @@ public class ImBankScraper extends AbstractBankProductScraper {
 
     @Override
     protected List<ProductCandidate> search(BrowserContext context, String productName) {
-        List<ProductCandidate> candidates = searchPages(
-                context, productName, List.of(SEARCH_URL), this::extractProducts, false
+        return extractProductsFromApi(requestProducts(context, productName));
+    }
+
+    String requestProducts(BrowserContext context, String productName) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("HMPG_PD_CLACD", "02");
+        payload.put("MALL_INQ_DVCD", "1");
+        payload.put("DPO_BPD_JN_PURP_CN", "99");
+        payload.put("DPO_BPD_TRGET_AGE_CN", "99");
+        payload.put("DPO_JN_AMT_DVCD", "99");
+        payload.put("DPO_SVNG_PRID_DVCD", "99");
+        payload.put("DPO_DV_INQ_CNT", 0);
+        payload.put("PD_NM", productName);
+        payload.put("VLD_VAL", "01");
+        payload.put("SMRT_LNUP_DV", "favor");
+        payload.put("EBZ_WEB_WORK_COMM", Map.of("INQ_SEQ", "1", "INQ_NCSE", 20));
+
+        String encodedPayload = URLEncoder.encode(
+                objectMapper.writeValueAsString(payload), StandardCharsets.UTF_8
         );
-        if (candidates.isEmpty()) {
+        APIResponse response = context.request().post(PRODUCT_API, RequestOptions.create()
+                .setForm(FormData.create().set("_JSON_", encodedPayload))
+                .setHeader("Accept", "application/json")
+                .setHeader("Referer", "https://www.imbank.co.kr/district/fnp_ebz_21010_depo.act")
+                .setTimeout(30_000));
+        try {
+            if (!response.ok()) {
+                throw new IllegalStateException("iM Bank product API returned HTTP " + response.status());
+            }
+            return response.text();
+        } finally {
+            response.dispose();
+        }
+    }
+
+    List<ProductCandidate> extractProductsFromApi(String responseBody) {
+        List<ProductCandidate> candidates = new ArrayList<>();
+        JsonNode products = objectMapper.readTree(responseBody).path("REC1");
+        if (!products.isArray()) {
             return candidates;
         }
-        String directlyNavigableSearchUrl = SEARCH_URL.replace(
-                "{q}", URLEncoder.encode(productName, StandardCharsets.UTF_8)
-        );
-        return candidates.stream()
-                .map(candidate -> new ProductCandidate(candidate.name(), directlyNavigableSearchUrl))
-                .toList();
+        for (JsonNode product : products) {
+            String name = cleanText(product.path("PD_NM").asString(""));
+            String code = cleanText(product.path("PD_CD").asString(""));
+            if (!name.isBlank() && !code.isBlank()) {
+                candidates.add(new ProductCandidate(name, MOBILE_DETAIL_URL + code));
+            }
+        }
+        return dedupe(candidates);
     }
 
     @Override
-    protected double settleMillis() {
-        return 5_000;
+    protected ScrapedProduct collect(BrowserContext context, ProductCandidate selected) {
+        // pnp4web redirects automation browsers to warning.jsp. The URL is built only from
+        // the official API's product code and was verified in a regular browser.
+        return new ScrapedProduct(selected.name(), selected.url());
     }
 }
