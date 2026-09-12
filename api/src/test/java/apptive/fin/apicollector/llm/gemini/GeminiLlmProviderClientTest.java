@@ -41,7 +41,8 @@ class GeminiLlmProviderClientTest {
                 objectMapper,
                 properties(0.1),
                 new GeminiEnrichmentSchema(objectMapper),
-                responseParser
+                responseParser,
+                2048
         );
 
         server.expect(requestTo("http://localhost/v1beta/interactions"))
@@ -59,6 +60,8 @@ class GeminiLlmProviderClientTest {
                     assertThat(json.path("input").asText()).isEqualTo("한국어 가입 조건을 요약해줘");
                     assertThat(json.path("generation_config").path("temperature").asDouble())
                             .isEqualTo(0.1);
+                    assertThat(json.path("generation_config").path("max_output_tokens").asInt())
+                            .isEqualTo(2048);
                     assertThat(json.path("response_format").path("type").asText())
                             .isEqualTo("text");
                     assertThat(json.path("response_format").path("schema").isObject())
@@ -85,12 +88,14 @@ class GeminiLlmProviderClientTest {
         LlmProductEnrichment expected = emptyEnrichment();
         when(responseParser.parse(any(JsonNode.class))).thenReturn(expected);
 
+        // temperature 미설정 + 상한 0 이면 generation_config 자체를 안 붙인다.
         GeminiLlmProviderClient client = new GeminiLlmProviderClient(
                 restClientBuilder.build(),
                 objectMapper,
                 properties(null),
                 new GeminiEnrichmentSchema(objectMapper),
-                responseParser
+                responseParser,
+                0
         );
 
         server.expect(requestTo("http://localhost/v1beta/interactions"))

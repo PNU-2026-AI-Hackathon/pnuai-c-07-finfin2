@@ -54,6 +54,10 @@ collector:
     schema-version: 15
     chunk-size: ${LLM_CHUNK_SIZE:10}
     max-concurrency: ${LLM_MAX_CONCURRENCY:3}
-    temperature: ${LLM_TEMPERATURE:0}
+    # temperature=0은 특정 입력에서 모델이 출력을 최대치까지 폭주 생성하는 결정적 루프에 빠졌다.
+    # 0.3으로 루프를 깨 정상 생성을 유도한다.
+    temperature: ${LLM_TEMPERATURE:0.3}
+    # 폭주 생성 안전망. 정상 enrichment 출력은 수백 토큰이라 이 상한을 넘으면 비정상으로 보고 잘라낸다.
+    max-output-tokens: ${LLM_MAX_OUTPUT_TOKENS:2048}
     base-url: https://generativelanguage.googleapis.com
     api-key: ${GEMINI_API_KEY:}
