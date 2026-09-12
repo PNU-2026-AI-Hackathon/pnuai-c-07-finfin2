@@ -19,6 +19,8 @@ import java.util.regex.Pattern;
 public class KbBankScraper extends AbstractBankProductScraper {
 
     private static final String SEARCH_URL = "https://obank.kbstar.com/quics?page=C016528";
+    private static final String DEPOSIT_DETAIL_PATH =
+            "/quics?page=C016613&cc=b061496:b061645&QSL=F&prcode=";
     private static final String RESULT_SELECTOR = "div.area1 a.title";
     private static final Pattern PRODUCT_CODE_PATTERN = Pattern.compile(
             "productDtlSear\\(\\s*['\"]([^'\"]+)"
@@ -100,7 +102,7 @@ public class KbBankScraper extends AbstractBankProductScraper {
     private String kbProductUrl(Element anchor, String currentUrl) {
         Matcher matcher = PRODUCT_CODE_PATTERN.matcher(anchor.attr("onclick"));
         if (matcher.find()) {
-            return absoluteUrl("/quics?page=C016613&prcode=" + matcher.group(1), currentUrl);
+            return absoluteUrl(DEPOSIT_DETAIL_PATH + matcher.group(1), currentUrl);
         }
         return urlFromAnchor(anchor, currentUrl);
     }

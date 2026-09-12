@@ -29,7 +29,8 @@ class MajorBankScrapersTest {
 
         assertThat(result).containsExactly(new ProductCandidate(
                 "KB맑은하늘적금",
-                "https://obank.kbstar.com/quics?page=C016613&prcode=DP01000942"
+                "https://obank.kbstar.com/quics?page=C016613"
+                        + "&cc=b061496:b061645&QSL=F&prcode=DP01000942"
         ));
     }
 
