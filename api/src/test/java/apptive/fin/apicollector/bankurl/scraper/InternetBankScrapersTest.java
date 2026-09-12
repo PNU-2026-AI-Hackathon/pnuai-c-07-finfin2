@@ -80,6 +80,29 @@ class InternetBankScrapersTest {
     }
 
     @Test
+    void kbankMergesProductsMissingFromStructuredData() {
+        var result = new KbankScraper(new ObjectMapper()).extractProductLinks(Jsoup.parse("""
+                <script type="application/ld+json">
+                {
+                  "@type": "FinancialProduct",
+                  "name": "기분통장",
+                  "url": "https://www.kbanknow.com/web/product/deposit/feeling"
+                }
+                </script>
+                <a href="/web/product/deposit/rolling-farm">데굴데굴농장</a>
+                """), "https://www.kbanknow.com/web/product/info/list?tab=deposit");
+
+        assertThat(result).containsExactly(
+                new ProductCandidate(
+                        "기분통장", "https://www.kbanknow.com/web/product/deposit/feeling"
+                ),
+                new ProductCandidate(
+                        "데굴데굴농장", "https://www.kbanknow.com/web/product/deposit/rolling-farm"
+                )
+        );
+    }
+
+    @Test
     void imBankBuildsMobileUrlFromProductApiResponse() {
         var result = new ImBankScraper(new ObjectMapper()).extractProductsFromApi("""
                 {

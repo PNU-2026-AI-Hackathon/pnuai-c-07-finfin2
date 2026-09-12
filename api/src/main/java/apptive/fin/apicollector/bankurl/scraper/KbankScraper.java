@@ -39,20 +39,21 @@ public class KbankScraper extends AbstractBankProductScraper {
     }
 
     List<ProductCandidate> extractProductLinks(Document document, String currentUrl) {
-        List<ProductCandidate> structuredProducts = extractStructuredProducts(document);
-        if (!structuredProducts.isEmpty()) {
-            return dedupe(structuredProducts);
-        }
-
-        List<ProductCandidate> candidates = new ArrayList<>();
-        for (Element anchor : document.select("a[href*=/web/product/]")) {
+        List<ProductCandidate> candidates = new ArrayList<>(extractStructuredProducts(document));
+        for (Element anchor : document.select("a[href*=/web/product/deposit/]")) {
             String url = urlFromAnchor(anchor, currentUrl);
             String name = cleanText(anchor.text());
-            if (!url.isBlank() && looksLikeProductName(name)) {
+            if (!url.isBlank() && isProductLinkName(name)) {
                 candidates.add(new ProductCandidate(name, url));
             }
         }
         return dedupe(candidates);
+    }
+
+    private boolean isProductLinkName(String name) {
+        return !name.isBlank()
+                && name.length() <= 90
+                && !Set.of("상세보기", "자세히 보기").contains(name);
     }
 
     private List<ProductCandidate> extractStructuredProducts(Document document) {
