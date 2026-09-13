@@ -1,6 +1,7 @@
 package apptive.fin.search.service;
 
 import apptive.fin.search.enums.ContributionType;
+import apptive.fin.search.enums.InterestRateType;
 import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.dto.BankDetailDto;
@@ -23,6 +24,9 @@ import java.util.Set;
 
 @Service
 public class RateCalculatorService {
+
+    // 이자소득세율 (소득세 14% + 지방소득세 1.4% = 15.4%)
+    private static final double TAX_RATE = 0.154;
 
     // 정부 수익률 혹은 적용금리를 계산
     public ProductRateDto calculate(
@@ -178,10 +182,17 @@ public class RateCalculatorService {
             SearchRequestDto request
     ) {
         Double yield = calculateGovernmentYield(property, request);
+        Long netReturn = calculateGovernmentNetReturn(product, property, request);
+        Long principal = calculateGovernmentPrincipal(property, request);
+
         if (yield == null) {
             return baseDto(product, property)
                     .rateComparable(false)
                     .isSubscription(false)
+                    .netReturn(netReturn)
+                    .principal(principal)
+                    .saveTrm(contributionMonths(property))
+                    .productType(product.getType() != null ? product.getType().name() : null)
                     .build();
         }
 
@@ -190,7 +201,31 @@ public class RateCalculatorService {
                 .achievableRate(yield)
                 .rateComparable(true)
                 .isSubscription(false)
+                .netReturn(netReturn)
+                .principal(principal)
+                .saveTrm(contributionMonths(property))
+                .productType(product.getType() != null ? product.getType().name() : null)
                 .build();
+    }
+
+    // 정부상품 원금 계산
+    private Long calculateGovernmentPrincipal(ProductProperty property, SearchRequestDto request) {
+        if (property == null) {
+            return null;
+        }
+
+        Long monthlyGoal = request.monthlySavingsGoal();
+        if (monthlyGoal == null || monthlyGoal <= 0) {
+            return null;
+        }
+
+        Integer months = contributionMonths(property);
+        if (months == null || months <= 0) {
+            return null;
+        }
+
+        Long effectiveMonthly = effectiveMonthlyDeposit(monthlyGoal, property.getMaxMonthlyLimit());
+        return effectiveMonthly * months;
     }
 
     // 은행상품 금리 계산해 반환
@@ -200,12 +235,44 @@ public class RateCalculatorService {
             SearchRequestDto request,
             ResolvedKeywords keywords
     ) {
+        Long netReturn = calculateBankNetReturn(product, property, request, keywords);
+        Long principal = calculatePrincipal(product, property, request);
+
         return baseDto(product, property)
                 .baseRate(baseRate(property))
                 .achievableRate(achievableBankRate(property, request, keywords))
                 .rateComparable(true)
                 .isSubscription(false)
+                .netReturn(netReturn)
+                .principal(principal)
+                .saveTrm(property != null ? property.getSaveTrm() : null)
+                .productType(product.getType() != null ? product.getType().name() : null)
                 .build();
+    }
+
+    // 원금 계산
+    private Long calculatePrincipal(Product product, ProductProperty property, SearchRequestDto request) {
+        if (property == null) {
+            return null;
+        }
+
+        Integer months = property.getSaveTrm();
+        if (months == null || months <= 0) {
+            return null;
+        }
+
+        ProductType type = product.getType();
+        if (type == ProductType.DEPOSIT) {
+            return request.depositAmount();
+        } else if (type == ProductType.SAVING) {
+            Long monthlyGoal = request.monthlySavingsGoal();
+            if (monthlyGoal == null || monthlyGoal <= 0) {
+                return null;
+            }
+            Long effectiveMonthly = effectiveMonthlyDeposit(monthlyGoal, property.getMaxMonthlyLimit());
+            return effectiveMonthly * months;
+        }
+        return null;
     }
 
     // ProductRateDto의 기본형태를 반환하는 헬퍼함수
@@ -361,5 +428,160 @@ public class RateCalculatorService {
         }
 
         return BankConditionMatcher.matchesYouthRange(rate);
+    }
+
+    // ===== 세후 실수령액 계산 (PRD 개정) =====
+
+    /**
+     * 세후 실수령액 계산.
+     * @param productType 상품유형 (DEPOSIT=예금, SAVING=적금)
+     * @param principal 원금 (예금: 예치액, 적금: 월납입액 × 개월)
+     * @param monthlyDeposit 월납입액 (적금용)
+     * @param rate 연이율 (%)
+     * @param months 저축기간 (개월)
+     * @param isCompound 복리 여부
+     * @return 세후 실수령액 (원)
+     */
+    public Long calculateNetReturn(
+            ProductType productType,
+            Long principal,
+            Long monthlyDeposit,
+            double rate,
+            int months,
+            boolean isCompound
+    ) {
+        if (principal == null || principal <= 0 || rate <= 0 || months <= 0) {
+            return null;
+        }
+
+        double interest = switch (productType) {
+            case DEPOSIT -> calculateDepositInterest(principal, rate, months, isCompound);
+            case SAVING -> calculateSavingInterest(monthlyDeposit, rate, months, isCompound);
+            default -> 0.0;
+        };
+
+        double tax = interest * TAX_RATE;
+        double netReturn = principal + interest - tax;
+        return Math.round(netReturn);
+    }
+
+    /**
+     * 예금 이자 계산 (일시 예치).
+     * - 단리: 원금 × 연이율 × (개월/12)
+     * - 복리: 원금 × ((1 + 연이율/12)^개월 - 1)
+     */
+    private double calculateDepositInterest(long principal, double rate, int months, boolean isCompound) {
+        double annualRate = rate / 100.0;
+
+        if (isCompound) {
+            // 월복리
+            double monthlyRate = annualRate / 12.0;
+            return principal * (Math.pow(1 + monthlyRate, months) - 1);
+        } else {
+            // 단리
+            return principal * annualRate * months / 12.0;
+        }
+    }
+
+    /**
+     * 적금 이자 계산 (정액적립).
+     * - 단리: 월납입 × 연이율 × n(n+1)/24 (n=개월수)
+     * - 복리: Σ(월납입 × (1 + 월이율)^(n-i+1) - 월납입) for i=1..n
+     */
+    private double calculateSavingInterest(Long monthlyDeposit, double rate, int months, boolean isCompound) {
+        if (monthlyDeposit == null || monthlyDeposit <= 0) {
+            return 0.0;
+        }
+
+        double annualRate = rate / 100.0;
+
+        if (isCompound) {
+            // 월복리 적금
+            double monthlyRate = annualRate / 12.0;
+            double totalAmount = 0.0;
+            for (int i = 1; i <= months; i++) {
+                // i번째 월 납입금이 (months - i + 1)개월 동안 복리
+                totalAmount += monthlyDeposit * Math.pow(1 + monthlyRate, months - i + 1);
+            }
+            long totalPrincipal = monthlyDeposit * months;
+            return totalAmount - totalPrincipal;
+        } else {
+            // 단리 적금: 월납입 × 연이율 × n(n+1)/24
+            return monthlyDeposit * annualRate * months * (months + 1) / 24.0;
+        }
+    }
+
+    /**
+     * 은행상품 세후 실수령액 계산.
+     */
+    public Long calculateBankNetReturn(
+            Product product,
+            ProductProperty property,
+            SearchRequestDto request,
+            ResolvedKeywords keywords
+    ) {
+        if (property == null || property.getSaveTrm() == null) {
+            return null;
+        }
+
+        double achievable = achievableBankRate(property, request, keywords);
+        int months = property.getSaveTrm();
+        boolean isCompound = property.getIntrRateType() == InterestRateType.COMPOUND_INTEREST;
+
+        ProductType type = product.getType();
+        if (type == ProductType.DEPOSIT) {
+            // 예금: depositAmount 사용
+            Long depositAmount = request.depositAmount();
+            if (depositAmount == null || depositAmount <= 0) {
+                return null;
+            }
+            return calculateNetReturn(type, depositAmount, null, achievable, months, isCompound);
+        } else if (type == ProductType.SAVING) {
+            // 적금: monthlySavingsGoal 사용
+            Long monthlyGoal = request.monthlySavingsGoal();
+            if (monthlyGoal == null || monthlyGoal <= 0) {
+                return null;
+            }
+            Long effectiveMonthly = effectiveMonthlyDeposit(monthlyGoal, property.getMaxMonthlyLimit());
+            Long principal = effectiveMonthly * months;
+            return calculateNetReturn(type, principal, effectiveMonthly, achievable, months, isCompound);
+        }
+
+        return null;
+    }
+
+    /**
+     * 정부상품 세후 실수령액 계산.
+     * 정부 기여금은 비과세이므로 본인 납입금 이자에만 세금 적용.
+     */
+    public Long calculateGovernmentNetReturn(
+            Product product,
+            ProductProperty property,
+            SearchRequestDto request
+    ) {
+        if (property == null) {
+            return null;
+        }
+
+        Long monthlyGoal = request.monthlySavingsGoal();
+        if (monthlyGoal == null || monthlyGoal <= 0) {
+            return null;
+        }
+
+        Integer months = contributionMonths(property);
+        if (months == null || months <= 0) {
+            return null;
+        }
+
+        Long effectiveMonthly = effectiveMonthlyDeposit(monthlyGoal, property.getMaxMonthlyLimit());
+        Long principal = effectiveMonthly * months;
+        Long contribution = expectedTotalContribution(property, monthlyGoal);
+
+        // 정부상품: 본인 원금 + 정부 기여금 (비과세)
+        // 실수령액 = 원금 + 기여금 (은행 이자 계산은 별도)
+        if (contribution != null) {
+            return principal + contribution;
+        }
+        return principal;
     }
 }
