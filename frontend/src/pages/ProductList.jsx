@@ -282,30 +282,32 @@ export default function ProductList() {
                   if (sectionProducts.length === 0) return null;
 
                   return (
-                    <div key={sec.name} className="mt-8">
-                      <h2 className="text-[19px] font-bold text-[#333333] mb-3 ml-1">
+                    <section key={sec.name} className="mt-8 flex h-[672px] flex-col">
+                      <h2 className="mb-3 ml-1 shrink-0 text-[19px] font-bold text-[#333333]">
                         {sec.name}
                       </h2>
-                      <div>
-                        {sectionProducts.map((product) => (
-                          <ListItem
-                            key={product.id}
-                            title={product.title}
-                            subtitle={product.subtitle}
-                            baseRate={product.baseRate}
-                            maxRate={product.maxRate}
-                            myRate={product.myRate}
-                            tags={product.tags}
-                            isLoggedIn={rateTabEnabled}
-                            variant={sec.name === "정부 청년 상품" ? "contribution" : "rate"}
-                            contributionRate={product.contributionRate}
-                            maturityContribution={product.maturityContribution}
-                            contributionCaption={product.contributionCaption}
-                            onClick={() => goToProductDetail(product.id)}
-                          />
-                        ))}
+                      <div className="min-h-0 flex-1 overflow-y-auto pr-2 [scrollbar-gutter:stable]">
+                        <div className="pb-3">
+                          {sectionProducts.map((product) => (
+                            <ListItem
+                              key={product.id}
+                              title={product.title}
+                              subtitle={product.subtitle}
+                              baseRate={product.baseRate}
+                              maxRate={product.maxRate}
+                              myRate={product.myRate}
+                              tags={product.tags}
+                              isLoggedIn={rateTabEnabled}
+                              variant={sec.name === "정부 청년 상품" ? "contribution" : "rate"}
+                              contributionRate={product.contributionRate}
+                              maturityContribution={product.maturityContribution}
+                              contributionCaption={product.contributionCaption}
+                              onClick={() => goToProductDetail(product.id)}
+                            />
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    </section>
                   );
                 })}
                 </div>

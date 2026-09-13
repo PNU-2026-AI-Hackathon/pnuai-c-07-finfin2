@@ -6,6 +6,7 @@ import apptive.fin.myfin.MyFinErrorCode;
 import apptive.fin.myfin.dto.MyfinResponseDto;
 import apptive.fin.myfin.entity.MyFin;
 import apptive.fin.myfin.repository.MyFinRepository;
+import apptive.fin.search.dto.ApplyLink;
 import apptive.fin.search.dto.BankDetailDto;
 import apptive.fin.search.dto.EligibleProductOption;
 import apptive.fin.search.dto.GovernmentDetailDto;
@@ -23,6 +24,7 @@ import apptive.fin.search.service.MatchScoreService;
 import apptive.fin.search.service.RateCalculatorService;
 import apptive.fin.search.service.ResolveKeywordService;
 import apptive.fin.search.service.SearchRequestPolicy;
+import apptive.fin.search.util.ApplyLinkResolver;
 import apptive.fin.search.util.ProductAvailability;
 import apptive.fin.user.entity.User;
 import apptive.fin.user.repository.UserRepository;
@@ -170,8 +172,8 @@ public class MyFinService {
         // 신청 상태 확인
         ProductApplyStatus applyStatus = ProductAvailability.applyStatus(pp);
 
-        // 신청 URL
-        String applyUrl = ProductAvailability.applyUrl(pp);
+        // 신청 CTA 링크(상품 자체 신청 URL / 없으면 기관 공식 채널 URL·이름) — 상세 API와 동일 resolver
+        ApplyLink applyLink = ApplyLinkResolver.resolve(pp);
 
         return new MyfinResponseDto.Item(
                 myFin.getId(),
@@ -187,7 +189,9 @@ public class MyFinService {
                 calcBasisCaption,
                 pp.getExcludeFromRateComparison(),
                 applyStatus,
-                applyUrl
+                applyLink.applyUrl(),
+                applyLink.officialChannelUrl(),
+                applyLink.officialChannelName()
         );
     }
 

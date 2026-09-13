@@ -305,6 +305,9 @@ function buildProductView(id, indices, monthlySavingsGoal) {
     rateConditions: buildRateConditionRows(detail?.bank, detail?.rateTable),
     recruitPeriod: detail?.recruitmentPeriod || "취급기관 상시 확인 필요",
     applyUrl: detail?.applyUrl || null,
+    providerName: detail?.providerName || providerName || null,
+    officialChannelUrl: detail?.officialChannelUrl || null,
+    officialChannelName: detail?.officialChannelName || null,
     calculator: buildCalculatorConfig({ detail, baseRateNum, achievableRateNum, monthlySavingsGoal }),
 
     detail,

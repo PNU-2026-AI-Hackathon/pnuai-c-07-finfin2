@@ -1,12 +1,12 @@
 spring:
   sql:
     init:
-      mode: always          # 컨테이너에 schema.sql 로드 (api엔 data.sql/seed 없음)
+      mode: never           # 컨테이너는 운영과 같은 Flyway migration으로 초기화
   jpa:
     hibernate:
-      ddl-auto: validate    # schema.sql이 테이블 생성 → Hibernate는 검증만 (dev와 동일)
+      ddl-auto: validate    # Flyway가 테이블 생성 → Hibernate는 검증만 (dev와 동일)
   batch:
     jdbc:
-      initialize-schema: always   # BATCH_* 메타데이터 테이블 생성 (schema.sql엔 없음)
+      initialize-schema: always   # BATCH_* 메타데이터 테이블은 Spring Batch가 관리
     job:
       enabled: false        # 컨텍스트 로드 시 financialProductSyncJob 자동 실행 방지 (dev는 true)

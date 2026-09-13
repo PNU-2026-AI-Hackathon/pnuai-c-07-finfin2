@@ -8,11 +8,16 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
     Optional<Product> findBySourceAndProductCode(ProductSource source, String productCode);
+
+    // 디스플레이 이름 중복 판정은 사용자에게 실제로 보이는(가입 가능한 property가 하나 이상인) 상품끼리만 한다.
+    @Query("select distinct p from Product p join p.properties pp where pp.isJoinable = true")
+    List<Product> findAllWithJoinableProperty();
 
     @Query("""
         update ProductProperty pp
