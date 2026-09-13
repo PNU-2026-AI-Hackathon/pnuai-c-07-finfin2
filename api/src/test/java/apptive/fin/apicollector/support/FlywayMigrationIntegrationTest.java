@@ -20,7 +20,7 @@ class FlywayMigrationIntegrationTest extends IntegrationTestSupport {
                 String.class
         );
 
-        assertThat(versions).contains("1", "2", "3", "4");
+        assertThat(versions).contains("1", "2", "3", "4", "5");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT to_regclass('public.product_raw')::text",
                 String.class
