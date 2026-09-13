@@ -1,6 +1,7 @@
 package apptive.fin.search;
 
 import apptive.fin.search.enums.ContributionType;
+import apptive.fin.search.enums.InterestRateType;
 import apptive.fin.search.enums.KeywordValueEnum;
 import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.dto.BankDetailDto;
@@ -704,5 +705,187 @@ class RateCalculatorServiceTest {
 
     private ResolvedKeywords keywords(List<KeywordValueEnum> bankConditions) {
         return new ResolvedKeywords(List.of(), List.of(), null, List.of(), bankConditions);
+    }
+
+    // ===== 세후 실수령액 (PRD 개정) =====
+
+    @Test
+    void 예금_단리_세후실수령액_계산() {
+        // 예금 100만원, 연 3%, 12개월, 단리
+        // 이자 = 100만 × 0.03 × 1 = 3만원
+        // 세금 = 3만 × 0.154 = 4,620원
+        // 세후 실수령액 = 100만 + 3만 - 4,620 = 1,025,380원
+        Long netReturn = rateCalculatorService.calculateNetReturn(
+                ProductType.DEPOSIT,
+                1_000_000L,
+                null,
+                3.0,
+                12,
+                false
+        );
+
+        assertThat(netReturn).isEqualTo(1_025_380L);
+    }
+
+    @Test
+    void 예금_복리_세후실수령액_계산() {
+        // 예금 100만원, 연 3%, 12개월, 월복리
+        // 이자 = 100만 × ((1 + 0.03/12)^12 - 1) ≈ 30,416원
+        // 세금 = 30,416 × 0.154 ≈ 4,684원
+        // 세후 실수령액 ≈ 100만 + 30,416 - 4,684 ≈ 1,025,732원
+        Long netReturn = rateCalculatorService.calculateNetReturn(
+                ProductType.DEPOSIT,
+                1_000_000L,
+                null,
+                3.0,
+                12,
+                true
+        );
+
+        assertThat(netReturn).isCloseTo(1_025_732L, org.assertj.core.data.Offset.offset(10L));
+    }
+
+    @Test
+    void 적금_단리_세후실수령액_계산() {
+        // 적금 월 10만원, 연 4%, 12개월, 단리
+        // 원금 = 10만 × 12 = 120만원
+        // 이자 = 10만 × 0.04 × 12 × 13 / 24 = 26,000원
+        // 세금 = 26,000 × 0.154 = 4,004원
+        // 세후 실수령액 = 120만 + 26,000 - 4,004 = 1,221,996원
+        Long netReturn = rateCalculatorService.calculateNetReturn(
+                ProductType.SAVING,
+                1_200_000L,
+                100_000L,
+                4.0,
+                12,
+                false
+        );
+
+        assertThat(netReturn).isEqualTo(1_221_996L);
+    }
+
+    @Test
+    void 적금_복리_세후실수령액_계산() {
+        // 적금 월 10만원, 연 4%, 12개월, 월복리
+        Long netReturn = rateCalculatorService.calculateNetReturn(
+                ProductType.SAVING,
+                1_200_000L,
+                100_000L,
+                4.0,
+                12,
+                true
+        );
+
+        // 복리는 단리보다 이자가 약간 더 높음
+        assertThat(netReturn).isGreaterThan(1_221_996L);
+    }
+
+    @Test
+    void 은행적금_세후실수령액이_DTO에_포함된다() {
+        Product product = createProduct("BANK_NET_RETURN", "net return product", "FSS");
+        ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "4.00");
+        ReflectionTestUtils.setField(property, "saveTrm", 12);
+        ReflectionTestUtils.setField(property, "maxMonthlyLimit", 500_000L);
+        ReflectionTestUtils.setField(property, "intrRateType", InterestRateType.SINGLE_INTEREST);
+        ReflectionTestUtils.setField(product, "type", ProductType.SAVING);
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        SearchRequestDto request = new SearchRequestDto(
+                List.of(),
+                new DetailedOptionsDto(
+                        null, null, null, null, null,
+                        null, null, null, 100_000L,
+                        null, null, null, null, List.of()
+                )
+        );
+
+        ProductRateDto result = rateCalculatorService.calculate(
+                product,
+                property,
+                request,
+                ResolvedKeywords.emptyKeywords()
+        );
+
+        assertThat(result.netReturn()).isNotNull();
+        assertThat(result.principal()).isEqualTo(1_200_000L); // 10만 × 12
+        assertThat(result.saveTrm()).isEqualTo(12);
+        assertThat(result.productType()).isEqualTo("SAVING");
+    }
+
+    @Test
+    void 은행예금_세후실수령액이_DTO에_포함된다() {
+        Product product = createProduct("DEPOSIT_NET_RETURN", "deposit net return product", "FSS");
+        ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.00", "3.50");
+        ReflectionTestUtils.setField(property, "saveTrm", 12);
+        ReflectionTestUtils.setField(property, "intrRateType", InterestRateType.SINGLE_INTEREST);
+        ReflectionTestUtils.setField(product, "type", ProductType.DEPOSIT);
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        SearchRequestDto request = new SearchRequestDto(
+                List.of(),
+                new DetailedOptionsDto(
+                        null, null, null, null, null,
+                        null, null, null, null,
+                        1_000_000L, 12,
+                        null, null, List.of()
+                )
+        );
+
+        ProductRateDto result = rateCalculatorService.calculate(
+                product,
+                property,
+                request,
+                ResolvedKeywords.emptyKeywords()
+        );
+
+        assertThat(result.netReturn()).isNotNull();
+        assertThat(result.principal()).isEqualTo(1_000_000L);
+        assertThat(result.saveTrm()).isEqualTo(12);
+        assertThat(result.productType()).isEqualTo("DEPOSIT");
+    }
+
+    @Test
+    void 정부상품_세후실수령액이_DTO에_포함된다() {
+        Product product = createProduct("GOV_NET_RETURN", "government net return product", "ONTONG");
+        ProductProperty property = createProperty(10L, "GOV", "정책기관", null, null);
+        ReflectionTestUtils.setField(property, "govContributionType", ContributionType.RATIO);
+        ReflectionTestUtils.setField(property, "govMatchingRatio", new BigDecimal("1.0000"));
+        ReflectionTestUtils.setField(property, "govContributionPeriodMonths", 24);
+        ReflectionTestUtils.setField(property, "maxMonthlyLimit", 500_000L);
+        ReflectionTestUtils.setField(product, "type", ProductType.POLICY);
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        ProductRateDto result = rateCalculatorService.calculate(
+                product,
+                property,
+                createRequest(100_000L),
+                ResolvedKeywords.emptyKeywords()
+        );
+
+        // 정부상품: 원금 + 기여금 (비과세)
+        assertThat(result.netReturn()).isNotNull();
+        assertThat(result.netReturn()).isEqualTo(4_800_000L); // 원금 240만 + 기여금 240만
+        assertThat(result.principal()).isEqualTo(2_400_000L); // 10만 × 24
+        assertThat(result.saveTrm()).isEqualTo(24);
+        assertThat(result.productType()).isEqualTo("POLICY");
+    }
+
+    @Test
+    void 월저축목표가_없으면_세후실수령액은_null이다() {
+        Product product = createProduct("BANK_NO_GOAL", "no goal product", "FSS");
+        ProductProperty property = createProperty(10L, "KB", "KB국민은행", "3.50", "4.00");
+        ReflectionTestUtils.setField(property, "saveTrm", 12);
+        ReflectionTestUtils.setField(product, "type", ProductType.SAVING);
+        ReflectionTestUtils.setField(product, "properties", new ArrayList<>(List.of(property)));
+
+        ProductRateDto result = rateCalculatorService.calculate(
+                product,
+                property,
+                createRequest(),
+                ResolvedKeywords.emptyKeywords()
+        );
+
+        assertThat(result.netReturn()).isNull();
+        assertThat(result.principal()).isNull();
     }
 }
