@@ -1,5 +1,5 @@
 export function getProductApplyUrl(product) {
-  const directUrl = product?.applyUrl || product?.applicationUrl || product?.officialUrl;
+  const directUrl = product?.applyUrl || product?.applicationUrl;
 
   if (directUrl) {
     return {
@@ -8,13 +8,16 @@ export function getProductApplyUrl(product) {
     };
   }
 
-  const query = [product?.title, product?.institution, "신청"]
-    .filter(Boolean)
-    .join(" ");
-
   return {
-    url: `https://www.google.com/search?q=${encodeURIComponent(query || "청년 금융상품 신청")}`,
+    url: product?.officialChannelUrl || null,
     isFallback: true,
+  };
+}
+
+export function getProductOfficialChannel(product) {
+  return {
+    name: product?.providerName || product?.officialChannelName || product?.institution || "기관 공식 채널",
+    url: product?.officialChannelUrl || null,
   };
 }
 
@@ -33,5 +36,14 @@ export function getProductApplicationBadgeVariant(product) {
 
 export function openProductApplication(product) {
   const { url } = getProductApplyUrl(product);
+  if (!url) return false;
   window.open(url, "_blank", "noopener,noreferrer");
+  return true;
+}
+
+export function openOfficialChannel(product) {
+  const { url } = getProductOfficialChannel(product);
+  if (!url) return false;
+  window.open(url, "_blank", "noopener,noreferrer");
+  return true;
 }
