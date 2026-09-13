@@ -2,6 +2,7 @@ package apptive.fin.search.service;
 
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ProductCategoryEnum;
 
 import apptive.fin.search.dto.*;
 import apptive.fin.search.entity.ProductProperty;
@@ -40,11 +41,141 @@ public class SearchService {
         return search(request, null);
     }
 
-    // 상품 검색 결과를 반환하는 메서드
+    /**
+     * 통합 검색 (대분류 라우팅).
+     * saveTrmExact 또는 savingPeriod 키워드에 따라 대분류를 결정하고 해당 파이프라인 실행.
+     */
+    public UnifiedSearchResultDto searchUnified(SearchRequestDto request, AuthUserDetails userDetails) {
+        ResolvedKeywords resolvedKeywords = resolveKeywordService.resolveKeywords(request.options());
+        ProductCategoryEnum category = determineCategory(request, resolvedKeywords);
+
+        if (category == ProductCategoryEnum.SHORT_TERM) {
+            ShortTermResultDto shortTermResult = searchShortTerm(request, userDetails, resolvedKeywords);
+            return UnifiedSearchResultDto.fromShortTerm(shortTermResult);
+        } else {
+            ProductSearchResultDto longTermResult = searchLongTerm(request, userDetails, resolvedKeywords);
+            return UnifiedSearchResultDto.fromLongTerm(longTermResult);
+        }
+    }
+
+    public UnifiedSearchResultDto searchUnified(SearchRequestDto request) {
+        return searchUnified(request, null);
+    }
+
+    /**
+     * 대분류 결정 로직.
+     * 1순위: saveTrmExact (정확한 개월 수)
+     * 2순위: savingPeriod 키워드 (레거시 호환)
+     * 기본값: LONG_TERM (목돈만들기)
+     */
+    private ProductCategoryEnum determineCategory(SearchRequestDto request, ResolvedKeywords resolvedKeywords) {
+        // 1순위: saveTrmExact
+        Integer saveTrmExact = request.saveTrmExact();
+        if (saveTrmExact != null) {
+            return ProductCategoryEnum.fromSaveTrm(saveTrmExact);
+        }
+
+        // 2순위: savingPeriod 키워드
+        KeywordValueEnum savingPeriod = resolvedKeywords.savingPeriod();
+        if (savingPeriod != null) {
+            return ProductCategoryEnum.fromKeyword(savingPeriod);
+        }
+
+        // 기본값
+        return ProductCategoryEnum.LONG_TERM;
+    }
+
+    /**
+     * 단기예치 검색 파이프라인.
+     * - 파킹통장 탭: 최고금리순, 비로그인 허용
+     * - 예적금 탭: 세후 실수령액순, 로그인 필요
+     */
+    public ShortTermResultDto searchShortTerm(SearchRequestDto request, AuthUserDetails userDetails, ResolvedKeywords resolvedKeywords) {
+        // 검증 (단기예치는 별도 정책 적용 가능)
+        // searchRequestPolicy.validateForShortTerm(request, resolvedKeywords);
+
+        // 가입 가능 상품 필터링
+        List<EligibleProductOption> eligible = eligibilityFilterService.filterEligibleOptions(request, resolvedKeywords);
+
+        // 은행 상품만 (단기예치는 은행 예적금 + 파킹통장)
+        List<EligibleProductOption> bankList = eligible.stream()
+                .filter(option -> option.product().isBank())
+                .toList();
+
+        // 저축기간 필터 (선택된 기간과 일치하는 상품만)
+        Integer targetSaveTrm = request.saveTrmExact();
+        List<EligibleProductOption> filteredByTerm = targetSaveTrm != null
+                ? bankList.stream()
+                        .filter(option -> targetSaveTrm.equals(option.property().getSaveTrm()))
+                        .toList()
+                : bankList;
+
+        // TODO: 파킹통장 분리 로직 (현재는 빈 리스트, 추후 파킹통장 서비스 구현 시 연동)
+        List<ParkingProductDto> parkingProducts = List.of();
+
+        // tabB (예적금 탭) 활성화 여부
+        boolean tabBEnabled = searchRequestPolicy.canUsePersonalization(request, resolvedKeywords, userDetails);
+
+        // 예적금 탭: 세후 실수령액순 정렬
+        List<ProductRateDto> depositSavingsProducts = tabBEnabled
+                ? filteredByTerm.stream()
+                        .map(option -> rateCalculatorService.calculate(
+                                option.product(),
+                                option.property(),
+                                request,
+                                resolvedKeywords
+                        ))
+                        .collect(Collectors.collectingAndThen(
+                                Collectors.toMap(
+                                        ProductRateDto::productId,
+                                        Function.identity(),
+                                        (left, right) -> left.achievableRate() >= right.achievableRate() ? left : right
+                                ),
+                                map -> sortedByAchievableRate(map.values())
+                        ))
+                : List.of();
+
+        // 탭 활성화 상태
+        TabAvailabilityDto tabs = TabAvailabilityDto.builder()
+                .tabAEnabled(true)  // 파킹통장 탭 (비로그인 허용)
+                .tabBEnabled(tabBEnabled)  // 예적금 탭 (로그인 필요)
+                .tabBDisabledReason(tabBEnabled ? null : "로그인 후 상세 정보를 입력하면 예적금 탭을 확인할 수 있어요.")
+                .build();
+
+        // 카드 요약 (단기예치용)
+        List<ProductCardSummaryDto> productCardSummaries = List.of(); // TODO: 단기예치용 카드 요약 구현
+
+        return ShortTermResultDto.builder()
+                .tabs(tabs)
+                .parkingProducts(parkingProducts)
+                .depositSavingsProducts(depositSavingsProducts)
+                .productCardSummaries(productCardSummaries)
+                .eligibleProductCount(
+                        filteredByTerm.stream()
+                                .map(o -> o.product().getId())
+                                .distinct()
+                                .count()
+                )
+                .build();
+    }
+
+    /**
+     * 목돈만들기 검색 파이프라인 (기존 search 로직).
+     */
+    public ProductSearchResultDto searchLongTerm(SearchRequestDto request, AuthUserDetails userDetails, ResolvedKeywords resolvedKeywords) {
+        searchRequestPolicy.validateForRecommendation(request, resolvedKeywords);
+        return searchInternal(request, userDetails, resolvedKeywords);
+    }
+
+    // 상품 검색 결과를 반환하는 메서드 (레거시 호환)
     public ProductSearchResultDto search(SearchRequestDto request, AuthUserDetails userDetails) {
-        // 프론트에서 전송된 List<OptionRequestDto>를 ResolvedKeywords로 변환
         ResolvedKeywords resolvedKeywords = resolveKeywordService.resolveKeywords(request.options());
         searchRequestPolicy.validateForRecommendation(request, resolvedKeywords);
+        return searchInternal(request, userDetails, resolvedKeywords);
+    }
+
+    // 내부 검색 로직 (키워드 해석 완료 후 호출)
+    private ProductSearchResultDto searchInternal(SearchRequestDto request, AuthUserDetails userDetails, ResolvedKeywords resolvedKeywords) {
 
         // 사용자가 가입 가능한 상품 필터링
         List<EligibleProductOption> eligible = eligibilityFilterService.filterEligibleOptions(
