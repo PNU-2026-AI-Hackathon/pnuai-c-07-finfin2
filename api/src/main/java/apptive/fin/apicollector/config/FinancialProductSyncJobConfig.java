@@ -5,6 +5,7 @@ import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.enrich.FssLlmProductDraftEnricher;
 import apptive.fin.apicollector.raw.ProductRaw;
 import apptive.fin.apicollector.tasklet.FetchManualRawTasklet;
+import apptive.fin.apicollector.tasklet.ResolveProductDisplayNameTasklet;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.job.Job;
 import org.springframework.batch.core.job.builder.FlowBuilder;
@@ -79,12 +80,14 @@ public class FinancialProductSyncJobConfig {
     public Flow fssSyncFlow(
             Step fetchFssRawStep,
             Step normalizeFssRawProductStep,
-            Step deactivateMissingProductStep
+            Step deactivateMissingProductStep,
+            Step resolveProductDisplayNameStep
     ) {
         return new FlowBuilder<Flow>("fssSyncFlow")
                 .start(fetchFssRawStep)
                 .next(normalizeFssRawProductStep)
                 .next(deactivateMissingProductStep)
+                .next(resolveProductDisplayNameStep)
                 .build();
     }
 
@@ -92,12 +95,14 @@ public class FinancialProductSyncJobConfig {
     public Flow ontongYouthSyncFlow(
             Step fetchManualRawStep,
             Step normalizeOntongRawProductStep,
-            Step deactivateMissingProductStep
+            Step deactivateMissingProductStep,
+            Step resolveProductDisplayNameStep
     ) {
         return new FlowBuilder<Flow>("ontongYouthSyncFlow")
                 .start(fetchManualRawStep)
                 .next(normalizeOntongRawProductStep)
                 .next(deactivateMissingProductStep)
+                .next(resolveProductDisplayNameStep)
                 .build();
     }
 
@@ -107,7 +112,8 @@ public class FinancialProductSyncJobConfig {
             Step fetchFssRawStep,
             Step normalizeOntongRawProductStep,
             Step normalizeFssRawProductStep,
-            Step deactivateMissingProductStep
+            Step deactivateMissingProductStep,
+            Step resolveProductDisplayNameStep
     ) {
         return new FlowBuilder<Flow>("allSyncFlow")
                 .start(fetchManualRawStep)
@@ -115,6 +121,7 @@ public class FinancialProductSyncJobConfig {
                 .next(normalizeOntongRawProductStep)
                 .next(normalizeFssRawProductStep)
                 .next(deactivateMissingProductStep)
+                .next(resolveProductDisplayNameStep)
                 .build();
     }
 
@@ -193,6 +200,17 @@ public class FinancialProductSyncJobConfig {
     ) {
         return new StepBuilder("deactivateMissingProductStep", jobRepository)
                 .tasklet(deactivateMissingProductTasklet, transactionManager)
+                .build();
+    }
+
+    @Bean
+    public Step resolveProductDisplayNameStep(
+            JobRepository jobRepository,
+            PlatformTransactionManager transactionManager,
+            ResolveProductDisplayNameTasklet resolveProductDisplayNameTasklet
+    ) {
+        return new StepBuilder("resolveProductDisplayNameStep", jobRepository)
+                .tasklet(resolveProductDisplayNameTasklet, transactionManager)
                 .build();
     }
 
