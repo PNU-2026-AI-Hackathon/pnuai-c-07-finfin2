@@ -126,13 +126,14 @@ public class SearchService {
                                 request,
                                 resolvedKeywords
                         ))
+                        .filter(dto -> dto.netReturn() != null)  // 세후 실수령액 계산 가능한 상품만
                         .collect(Collectors.collectingAndThen(
                                 Collectors.toMap(
                                         ProductRateDto::productId,
                                         Function.identity(),
-                                        (left, right) -> left.achievableRate() >= right.achievableRate() ? left : right
+                                        (left, right) -> compareNetReturn(left, right) >= 0 ? left : right
                                 ),
-                                map -> sortedByAchievableRate(map.values())
+                                map -> sortedByNetReturn(map.values())
                         ))
                 : List.of();
 
@@ -384,6 +385,21 @@ public class SearchService {
         return products.stream()
                 .sorted(Comparator.comparingDouble(ProductRateDto::achievableRate).reversed())
                 .toList();
+    }
+
+    // 세후 실수령액 기준 내림차순 정렬
+    private List<ProductRateDto> sortedByNetReturn(Collection<ProductRateDto> products) {
+        return products.stream()
+                .sorted(Comparator.comparingLong((ProductRateDto dto) ->
+                        dto.netReturn() != null ? dto.netReturn() : 0L).reversed())
+                .toList();
+    }
+
+    // 세후 실수령액 비교 (null-safe)
+    private int compareNetReturn(ProductRateDto left, ProductRateDto right) {
+        Long leftReturn = left.netReturn() != null ? left.netReturn() : 0L;
+        Long rightReturn = right.netReturn() != null ? right.netReturn() : 0L;
+        return Long.compare(leftReturn, rightReturn);
     }
 		
     // 상품에서 매칭되는 지역 있는지 확인하는 함수
