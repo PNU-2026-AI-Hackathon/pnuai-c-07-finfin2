@@ -6,7 +6,7 @@ import {
   findProductViewById,
   getActiveRecommendationResult,
 } from "../utils/recommendationResult";
-import { getProductApplicationBadge, getProductApplicationBadgeVariant, getProductApplyUrl, openProductApplication } from "../utils/productApplyLink";
+import { getProductApplicationBadge, getProductApplicationBadgeVariant, getProductApplyUrl, getProductOfficialChannel, openOfficialChannel, openProductApplication } from "../utils/productApplyLink";
 import applicationFallbackSearchIcon from "../assets/application-fallback/search.svg";
 import applicationFallbackInstitutionIcon from "../assets/application-fallback/institution.svg";
 import applicationFallbackCopyIcon from "../assets/application-fallback/copy.svg";
@@ -267,19 +267,19 @@ function BankRateSummary({ product, isLoggedIn }) {
 
 function ContributionSummary({ product }) {
   return (
-    <div className="flex min-h-[242px] w-full max-w-[699px] flex-col items-center justify-center rounded-[10px] border border-[#D5D5D5] px-6 py-8 lg:px-[32px] lg:py-[36px]">
+    <div className="flex h-[238px] w-full max-w-[620px] flex-col items-center justify-center rounded-[10px] border border-[#D5D5D5] px-6 py-8 lg:px-[28px] lg:py-[32px]">
       <div className="grid w-full grid-cols-1 items-center justify-items-center gap-7 md:grid-cols-[1fr_1px_1fr] md:gap-0">
         <div className="w-fit max-w-full text-left">
-          <p className="whitespace-nowrap text-[24.7px] font-medium leading-[1.2] text-[#454545]">기여금 환산 수익률</p>
-          <p className="mt-[11px] whitespace-nowrap text-[49.4px] font-bold leading-[1.2] text-[#454545]">{product.contributionRate}</p>
+          <p className="whitespace-nowrap text-[21px] font-medium leading-[1.2] text-[#454545]">기여금 환산 수익률</p>
+          <p className="mt-[8px] whitespace-nowrap text-[42px] font-bold leading-[1.2] text-[#454545]">{product.contributionRate}</p>
         </div>
-        <div className="hidden h-[108px] w-px bg-[#D5D5D5] md:block" />
+        <div className="hidden h-[121px] w-px bg-[#D5D5D5] md:block" />
         <div className="w-fit max-w-full text-left">
-          <p className="whitespace-nowrap text-[24.7px] font-medium leading-[1.2] text-[#454545]">예상 만기 기여금 총액</p>
-          <p className="mt-[11px] whitespace-nowrap text-[49.4px] font-bold leading-[1.2] text-[#03BFA5]">{product.maturityContribution}</p>
+          <p className="whitespace-nowrap text-[21px] font-medium leading-[1.2] text-[#454545]">예상 만기 기여금 총액</p>
+          <p className="mt-[8px] whitespace-nowrap text-[42px] font-bold leading-[1.2] text-[#03BFA5]">{product.maturityContribution}</p>
         </div>
       </div>
-      <p className="mt-[22px] w-full text-center text-[23.1px] font-medium leading-[1.2] text-[#606060]">{product.contributionCaption}</p>
+      <p className="mt-[16px] w-full text-center text-[18px] font-medium leading-[1.3] text-[#606060]">{product.contributionCaption}</p>
     </div>
   );
 }
@@ -291,10 +291,11 @@ function ProductSummary({ product, isBankProduct, isLoggedIn }) {
 function ApplicationFallbackModal({ product, onClose, onOpenInstitutionPage }) {
   const [isCopied, setIsCopied] = useState(false);
   const isGovernmentProduct = getProductApplicationBadgeVariant(product) === "government";
-  const channelLabel = isGovernmentProduct ? "복지로에서 검색하기" : `${product.institution} 홈페이지에서 검색하기`;
+  const officialChannel = getProductOfficialChannel(product);
+  const channelLabel = `${officialChannel.name}에서 검색하기`;
   const institutionDescription = isGovernmentProduct
     ? "담당 기관 ∙ 읍∙면∙동 행정복지센터 / 복지로"
-    : `담당 기관 ∙ ${product.institution}`;
+    : `담당 기관 ∙ ${officialChannel.name}`;
 
   const handleCopy = async () => {
     try {
@@ -330,7 +331,7 @@ function ApplicationFallbackModal({ product, onClose, onOpenInstitutionPage }) {
         <h2 id="application-fallback-title" className="mt-5 text-[26px] font-semibold leading-[1.22] text-[#373737]">기관 공식 채널에서 신청해 주세요</h2>
         <p className="mt-4 text-[18px] leading-[1.44] text-[#6B7571]">직접 연결 링크가 확인되지 않아<br />담당 기관 안내로 대체해 드려요.</p>
 
-        <div className="mt-10 rounded-[10px] bg-[#F0FFFE] px-[22px] py-[30px] text-left">
+        <div className="mt-8 rounded-[10px] bg-[#F0FFFE] px-[22px] py-[30px] text-left">
           <div className="flex items-end justify-between gap-4 border-b border-[#D0DDDC] pb-[23px]">
             <div>
               <p className="text-[17px] font-medium text-[#6F7975]">상품명</p>
@@ -439,12 +440,12 @@ function RightPanel({ product, onEditRate, onApply, onFavorite, isLoggedIn, isFa
         )}
 
         {!isBankProduct && (
-          <div className="mt-[32px] flex flex-col">
-            <div className="flex items-center gap-[10px] text-black">
-              <CalendarIcon className="size-[30px]" />
-              <h2 className="text-[26px] font-medium leading-[1.2]">모집 기간</h2>
+          <div className="mt-[24px] flex flex-col">
+            <div className="flex items-center gap-[8px] text-[#454545]">
+              <CalendarIcon className="size-[23px]" />
+              <h2 className="text-[20px] font-medium leading-[1.2]">모집 기간</h2>
             </div>
-            <div className="mt-[18px] flex h-[80px] items-center justify-center rounded-[10px] border-2 border-[#03BFA5] bg-[#F7FFFE] px-[34px] text-center text-[30px] font-medium leading-[1.2] text-[#03BFA5]">
+            <div className="mt-[12px] flex h-[64px] items-center justify-center rounded-[10px] border-2 border-[#03BFA5] bg-[#F7FFFE] px-[24px] text-center text-[22px] font-medium leading-[1.2] text-[#03BFA5]">
               {product.recruitPeriod}
             </div>
           </div>
@@ -672,7 +673,7 @@ export default function ProductDetail() {
           product={product}
           onClose={() => setIsApplicationFallbackOpen(false)}
           onOpenInstitutionPage={() => {
-            openProductApplication(product);
+            openOfficialChannel(product);
             setIsApplicationFallbackOpen(false);
           }}
         />
