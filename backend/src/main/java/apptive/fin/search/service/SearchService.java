@@ -92,8 +92,8 @@ public class SearchService {
      * - 예적금 탭: 세후 실수령액순, 로그인 필요
      */
     public ShortTermResultDto searchShortTerm(SearchRequestDto request, AuthUserDetails userDetails, ResolvedKeywords resolvedKeywords) {
-        // 검증 (단기예치는 별도 정책 적용 가능)
-        // searchRequestPolicy.validateForShortTerm(request, resolvedKeywords);
+        // 단기예치 검증 (파킹통장 탭은 예치액만 필수, 은행조건 불필요)
+        searchRequestPolicy.validateForShortTerm(request);
 
         // 가입 가능 상품 필터링
         List<EligibleProductOption> eligible = eligibilityFilterService.filterEligibleOptions(request, resolvedKeywords);
@@ -114,8 +114,8 @@ public class SearchService {
         // 파킹통장 목록 (최고금리순, 비로그인 허용)
         List<ParkingProductDto> parkingProducts = parkingProductService.findParkingProducts(request);
 
-        // tabB (예적금 탭) 활성화 여부
-        boolean tabBEnabled = searchRequestPolicy.canUsePersonalization(request, resolvedKeywords, userDetails);
+        // tabB (예적금 탭) 활성화 여부 - 단기예치 정책 사용
+        boolean tabBEnabled = searchRequestPolicy.canUseShortTermPersonalization(request, userDetails);
 
         // 예적금 탭: 세후 실수령액순 정렬
         List<ProductRateDto> depositSavingsProducts = tabBEnabled
