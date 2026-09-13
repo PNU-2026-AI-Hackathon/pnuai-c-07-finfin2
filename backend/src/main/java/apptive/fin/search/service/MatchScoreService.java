@@ -171,16 +171,33 @@ public class MatchScoreService {
         return propertyKeywords.contains(keyword);
     }
 
-    // 저축기간 점수 계산
+    // 저축기간 점수 계산 (개정: 정확한 save_trm 매칭)
     private double calcPeriodScore(KeywordValueEnum selected, ProductProperty property) {
         // 선택된 키워드가 없거나 상품 속성의 saveTrm이 null이면 0점
         if (selected == null || property.getSaveTrm() == null) return 0.0;
 
-        
-        int[] range = periodRange(selected); // 사용자가 선택한 키워드의 범위
-        int saveTrm = property.getSaveTrm(); // 상품 속성의 저축기간 
-        if (saveTrm >= range[0] && saveTrm <= range[1]) return 1.0;  // 범위 내이면 100%
-        return isAdjacentOption(property, selected) ? 0.5 : 0.0;     // 범위 밖이고 인접기간이면 50%, 아니면 0%
+        Integer targetTrm = selected.toSaveTrm();
+        if (targetTrm == null) return 0.0;
+
+        int saveTrm = property.getSaveTrm();
+
+        // 정확 매칭: 선택한 기간과 상품 기간이 일치하면 100%
+        if (saveTrm == targetTrm) return 1.0;
+
+        // 레거시 범위 키워드 하위 호환: 범위 내 또는 인접이면 부분 점수
+        if (isLegacyPeriodKeyword(selected)) {
+            int[] range = periodRange(selected);
+            if (saveTrm >= range[0] && saveTrm <= range[1]) return 1.0;
+            return isAdjacentOption(property, selected) ? 0.5 : 0.0;
+        }
+
+        // 신규 정확 매칭 키워드: 불일치시 0점
+        return 0.0;
+    }
+
+    // 레거시 범위 키워드 여부
+    private boolean isLegacyPeriodKeyword(KeywordValueEnum kw) {
+        return kw == TERM_AROUND_1_YEAR || kw == TERM_2_TO_3_YEARS || kw == TERM_OVER_3_YEARS;
     }
 
     // 신분 특화도 계산

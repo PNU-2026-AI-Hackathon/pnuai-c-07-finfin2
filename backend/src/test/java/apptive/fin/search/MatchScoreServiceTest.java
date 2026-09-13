@@ -968,6 +968,118 @@ class MatchScoreServiceTest {
         assertThat(result.benefitScore()).isZero();
     }
 
+    // ===== [F] 신규 저축기간 정확 매칭 =====
+
+    @Test
+    void 신규_저축기간은_정확한_개월수만_매칭된다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        Product product = createProduct("FSS", createProperty(
+                10L,
+                "test-bank",
+                500_000L,
+                12,  // 12개월 상품
+                KeywordValueEnum.BENEFIT_EASY_CONDITION
+        ));
+
+        // TERM_12_MONTH 선택 → 12개월 상품 매칭 → 기간 점수 100%
+        ProductMatchDto exactMatch = matchScoreService.score(
+                product,
+                product.getProperties().get(0),
+                createRequest(300_000L),
+                new ResolvedKeywords(
+                        List.of(), List.of(),
+                        KeywordValueEnum.TERM_12_MONTH,
+                        List.of(KeywordValueEnum.BENEFIT_EASY_CONDITION),
+                        List.of()
+                ),
+                false
+        );
+
+        assertThat(exactMatch.periodScore()).isGreaterThan(0.0);
+    }
+
+    @Test
+    void 신규_저축기간은_불일치시_0점이다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        Product product = createProduct("FSS", createProperty(
+                10L,
+                "test-bank",
+                500_000L,
+                24,  // 24개월 상품
+                KeywordValueEnum.BENEFIT_EASY_CONDITION
+        ));
+
+        // TERM_12_MONTH 선택 → 24개월 상품 불일치 → 기간 점수 0%
+        ProductMatchDto mismatch = matchScoreService.score(
+                product,
+                product.getProperties().get(0),
+                createRequest(300_000L),
+                new ResolvedKeywords(
+                        List.of(), List.of(),
+                        KeywordValueEnum.TERM_12_MONTH,
+                        List.of(KeywordValueEnum.BENEFIT_EASY_CONDITION),
+                        List.of()
+                ),
+                false
+        );
+
+        assertThat(mismatch.periodScore()).isZero();
+    }
+
+    @Test
+    void 단기예치_1개월_저축기간_정확_매칭() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        Product product = createProduct("FSS", createProperty(
+                10L,
+                "test-bank",
+                500_000L,
+                1,  // 1개월 상품
+                KeywordValueEnum.BENEFIT_EASY_CONDITION
+        ));
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                product.getProperties().get(0),
+                createRequest(300_000L),
+                new ResolvedKeywords(
+                        List.of(), List.of(),
+                        KeywordValueEnum.TERM_1_MONTH,
+                        List.of(KeywordValueEnum.BENEFIT_EASY_CONDITION),
+                        List.of()
+                ),
+                false
+        );
+
+        assertThat(result.periodScore()).isGreaterThan(0.0);
+    }
+
+    @Test
+    void 단기예치_3개월_저축기간_정확_매칭() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        Product product = createProduct("FSS", createProperty(
+                10L,
+                "test-bank",
+                500_000L,
+                3,  // 3개월 상품
+                KeywordValueEnum.BENEFIT_EASY_CONDITION
+        ));
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                product.getProperties().get(0),
+                createRequest(300_000L),
+                new ResolvedKeywords(
+                        List.of(), List.of(),
+                        KeywordValueEnum.TERM_3_MONTH,
+                        List.of(KeywordValueEnum.BENEFIT_EASY_CONDITION),
+                        List.of()
+                ),
+                false
+        );
+
+        assertThat(result.periodScore()).isGreaterThan(0.0);
+    }
+
     @Test
     void 임계값이_null이면_최고이율은_정적태그_방식으로_판정한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
