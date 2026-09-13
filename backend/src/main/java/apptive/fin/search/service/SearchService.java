@@ -36,6 +36,7 @@ public class SearchService {
     private final ProductRepository productRepository;
     private final ProductCardSummaryService productCardSummaryService;
     private final SearchRequestPolicy searchRequestPolicy;
+    private final ParkingProductService parkingProductService;
 
     public ProductSearchResultDto search(SearchRequestDto request) {
         return search(request, null);
@@ -110,8 +111,8 @@ public class SearchService {
                         .toList()
                 : bankList;
 
-        // TODO: 파킹통장 분리 로직 (현재는 빈 리스트, 추후 파킹통장 서비스 구현 시 연동)
-        List<ParkingProductDto> parkingProducts = List.of();
+        // 파킹통장 목록 (최고금리순, 비로그인 허용)
+        List<ParkingProductDto> parkingProducts = parkingProductService.findParkingProducts(request);
 
         // tabB (예적금 탭) 활성화 여부
         boolean tabBEnabled = searchRequestPolicy.canUsePersonalization(request, resolvedKeywords, userDetails);
