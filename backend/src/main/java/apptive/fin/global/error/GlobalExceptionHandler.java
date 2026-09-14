@@ -1,0 +1,88 @@
+package apptive.fin.global.error;
+
+import apptive.fin.auth.AuthErrorCode;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+@RestControllerAdvice
+@Slf4j
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(BusinessException.class)
+    protected ResponseEntity<ErrorResponseDto> handleBusinessException(BusinessException e) {
+        return ErrorResponseDto.toResponseEntity(e.getErrorCode());
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    protected ResponseEntity<ErrorResponseDto> handleAccessDeniedException(AccessDeniedException e) {
+        return ErrorResponseDto.toResponseEntity(AuthErrorCode.FORBIDDEN);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    protected ResponseEntity<ErrorResponseDto> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException e) {
+        return ErrorResponseDto.toResponseEntity(CommonErrorCode.NOT_FOUND);
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    protected ResponseEntity<ErrorResponseDto> handleNoResourceFoundException(NoResourceFoundException e) {
+        return ErrorResponseDto.toResponseEntity(CommonErrorCode.NOT_FOUND);
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    protected ResponseEntity<ErrorResponseDto> handleHttpMessageNotReadableException(
+            HttpMessageNotReadableException e
+    ) {
+        return ErrorResponseDto.toResponseEntity(CommonErrorCode.INVALID_INPUT_VALUE);
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    protected ResponseEntity<ErrorResponseDto> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {
+        // 여러 개의 검증 실패 중 첫 번째 에러 메시지를 가져옴
+        FieldError fieldError = e.getBindingResult().getFieldError();
+        String errorMessage = (fieldError != null) ?
+                fieldError.getDefaultMessage() : CommonErrorCode.INVALID_INPUT_VALUE.getMessage();
+
+        ErrorResponseDto dto = ErrorResponseDto.of(CommonErrorCode.INVALID_INPUT_VALUE, errorMessage);
+        return ResponseEntity
+                .status(CommonErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
+                .body(dto);
+    }
+
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    protected ResponseEntity<ErrorResponseDto> handleIllegalArgumentException(IllegalArgumentException e) {
+        ErrorResponseDto dto = ErrorResponseDto.of(CommonErrorCode.INVALID_INPUT_VALUE, e.getMessage());
+        return ResponseEntity
+                .status(CommonErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
+                .body(dto);
+    }
+
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    protected ResponseEntity<ErrorResponseDto> handleMissingServletRequestParameterException(
+            MissingServletRequestParameterException e) {
+        ErrorResponseDto dto = ErrorResponseDto.of(
+                CommonErrorCode.INVALID_INPUT_VALUE,
+                "필수 파라미터 '" + e.getParameterName() + "'이(가) 누락되었습니다."
+        );
+        return ResponseEntity
+                .status(CommonErrorCode.INVALID_INPUT_VALUE.getHttpStatus())
+                .body(dto);
+    }
+
+    @ExceptionHandler(Exception.class)
+    protected ResponseEntity<ErrorResponseDto> handleException(Exception e) {
+        log.error("[치명적 에러]", e);
+        return ErrorResponseDto.toResponseEntity(CommonErrorCode.INTERNAL_SERVER_ERROR);
+    }
+}

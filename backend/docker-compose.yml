@@ -1,0 +1,18 @@
+services:
+  postgres:
+    # 일반 postgres 대신 vector 확장이 포함된 이미지 사용 (PostgreSQL 16 기준)
+    image: pgvector/pgvector:pg16
+    container_name: fin-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: user         # 접속할 DB 계정 이름
+      POSTGRES_PASSWORD: password # 계정 비밀번호
+      POSTGRES_DB: database       # 기본으로 생성될 데이터베이스 이름
+      TZ: Asia/Seoul                # 타임존 설정
+    ports:
+      - "5678:5432"                 # 호스트 포트 : 컨테이너 포트
+#    volumes:
+#      - :/var/lib/postgresql/data # 데이터 영구 저장을 위한 볼륨 매핑
+#
+#volumes:
+#  postgres_data:
