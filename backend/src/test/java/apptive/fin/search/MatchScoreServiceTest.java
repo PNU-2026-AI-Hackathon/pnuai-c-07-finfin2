@@ -27,6 +27,22 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.offset;
 
+/**
+ * MatchScoreService V1 테스트 (레거시).
+ *
+ * <h3>V1 → V2 마이그레이션 노트</h3>
+ * <p>PRD 개정으로 SAW 가중치가 변경되었습니다:</p>
+ * <ul>
+ *   <li><b>V1 (5축)</b>: 혜택, 기간, 신분특화, 납입, 은행조건</li>
+ *   <li><b>V2 (3축)</b>: 혜택 50, 기간 30, 납입 20 (신분특화/은행조건 제거)</li>
+ * </ul>
+ *
+ * <p>V1 기대값을 사용하는 테스트는 {@code @Disabled}로 비활성화되었습니다.
+ * V2 가중치 테스트는 {@link MatchScoreServiceV2Test}를 참조하세요.</p>
+ *
+ * @see MatchScoreServiceV2Test V2 가중치 테스트
+ * @see apptive.fin.search.enums.ScoreWeightEnum 가중치 정의
+ */
 class MatchScoreServiceTest {
 
     private static final String KB_PROVIDER_CODE = "0010927";
