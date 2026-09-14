@@ -220,7 +220,7 @@ public class SearchService {
 
                     return ProductNameSearchDto.builder()
                             .productId(p.getId())
-                            .productName(p.getProductName())
+                            .productName(p.getDisplayProductName())
                             .source(p.getSource().getCode())
                             .providerName(bestProperty != null ? bestProperty.providerName() : null)
                             .baseRate(bestProperty != null && bestProperty.getBaseRate() != null

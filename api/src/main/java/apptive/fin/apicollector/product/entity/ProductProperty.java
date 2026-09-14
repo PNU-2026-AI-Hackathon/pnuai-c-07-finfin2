@@ -117,7 +117,7 @@ public class ProductProperty {
             ProductPropertyDraft propertyDraft
     ) {
         this.product = product;
-        applyDraft(provider, propertyDraft);
+        applyDraft(provider, propertyDraft, false);
     }
 
     public static ProductProperty create(
@@ -133,10 +133,22 @@ public class ProductProperty {
      * 자연키(provider, intrRateType, reserveType, saveTrm)로 매칭된 property에만 호출된다.
      */
     public void updateFrom(Provider provider, ProductPropertyDraft propertyDraft) {
-        applyDraft(provider, propertyDraft);
+        applyDraft(provider, propertyDraft, false);
     }
 
-    private void applyDraft(Provider provider, ProductPropertyDraft propertyDraft) {
+    public void updateFrom(
+            Provider provider,
+            ProductPropertyDraft propertyDraft,
+            boolean preserveExistingApplyUrl
+    ) {
+        applyDraft(provider, propertyDraft, preserveExistingApplyUrl);
+    }
+
+    private void applyDraft(
+            Provider provider,
+            ProductPropertyDraft propertyDraft,
+            boolean preserveExistingApplyUrl
+    ) {
         this.provider = provider;
         this.baseRate = propertyDraft.baseRate();
         this.maxRate = propertyDraft.maxRate();
@@ -158,7 +170,9 @@ public class ProductProperty {
         this.requiresHomeless = propertyDraft.requiresHomeless();
         this.requiresHouseholder = propertyDraft.requiresHouseholder();
         this.isJoinable = true;
-        this.applyUrl = propertyDraft.applyUrl();
+        if (!preserveExistingApplyUrl || propertyDraft.applyUrl() != null) {
+            this.applyUrl = propertyDraft.applyUrl();
+        }
         this.intrRateType = InterestRateType.fromCode(propertyDraft.intrRateType());
         this.reserveType = ReserveType.fromApiCode(propertyDraft.reserveType());
         this.saveTrm = propertyDraft.saveTerm();
