@@ -15,6 +15,8 @@ public enum SearchErrorCode implements ErrorCode {
     MONTHLY_SAVINGS_GOAL_REQUIRED(HttpStatus.BAD_REQUEST, "004", "월 납입 희망액을 입력해주세요."),
     SAVING_PERIOD_REQUIRED(HttpStatus.BAD_REQUEST, "005", "저축 기간을 선택해주세요."),
     BANK_CONDITION_REQUIRED(HttpStatus.BAD_REQUEST, "006", "은행 거래 조건을 선택해주세요."),
+    DEPOSIT_AMOUNT_REQUIRED(HttpStatus.BAD_REQUEST, "007", "예치 금액을 입력해주세요."),
+    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "008", "잘못된 요청입니다."),
     ;
 
     private final String codePrefix = "S";
