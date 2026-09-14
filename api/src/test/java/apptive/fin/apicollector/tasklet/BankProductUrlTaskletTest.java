@@ -66,7 +66,7 @@ class BankProductUrlTaskletTest {
                 1L, "P1", "테스트정기예금", ProductType.DEPOSIT, "TEST", "테스트은행"
         );
         ScrapeResult result = new ScrapeResult(
-                target, "FakeScraper", ScrapeStatus.PASS, target.productName(),
+                target, "FakeScraper", ScrapeStatus.PASS, target.originalName(),
                 "https://example.com/product", 1.0, "", 10, 1
         );
         when(repository.findActiveFssTargets()).thenReturn(List.of(target));

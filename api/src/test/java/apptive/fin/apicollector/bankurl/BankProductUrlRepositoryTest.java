@@ -27,9 +27,11 @@ class BankProductUrlRepositoryTest extends IntegrationTestSupport {
                 values (?, 'TEST_BANK_URL', '테스트은행')
                 returning id
                 """, Long.class, sourceId);
+        // 디스플레이명(product_name)은 괄호가 떼인 이름, 원본(original_name)은 괄호를 포함한 이름.
+        // 수집기는 원본을 검색어로 써야 하므로 original_name이 조회돼야 한다.
         Long productId = jdbcTemplate.queryForObject("""
-                insert into product(source_id, type, product_code, product_name)
-                values (?, 'DEPOSIT', 'TEST_URL_PRODUCT', '테스트정기예금')
+                insert into product(source_id, type, product_code, product_name, original_name)
+                values (?, 'DEPOSIT', 'TEST_URL_PRODUCT', '테스트정기예금', '테스트정기예금(개인/자유적립식)')
                 returning id
                 """, Long.class, sourceId);
         jdbcTemplate.update("""
@@ -45,7 +47,7 @@ class BankProductUrlRepositoryTest extends IntegrationTestSupport {
         );
 
         assertThat(targets).singleElement().satisfies(target ->
-                assertThat(target.productName()).isEqualTo("테스트정기예금")
+                assertThat(target.originalName()).isEqualTo("테스트정기예금(개인/자유적립식)")
         );
         assertThat(updated).isEqualTo(2);
         assertThat(jdbcTemplate.queryForObject("""

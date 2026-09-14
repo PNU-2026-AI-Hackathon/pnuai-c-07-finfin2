@@ -75,7 +75,7 @@ public class BankProductUrlScrapeService {
 
         return results.stream().sorted(Comparator
                 .comparing((ScrapeResult result) -> result.target().providerName())
-                .thenComparing(result -> result.target().productName())
+                .thenComparing(result -> result.target().originalName())
                 .thenComparing(result -> result.target().productId()))
                 .toList();
     }
@@ -178,7 +178,7 @@ public class BankProductUrlScrapeService {
             try {
                 ScrapedProduct product = worker.scrape(scraper, target);
                 ValidationOutcome outcome = validator.validate(
-                        target.productName(), product.candidateName(), product.productUrl(), scraper.allowedDomains()
+                        target.originalName(), product.candidateName(), product.productUrl(), scraper.allowedDomains()
                 );
                 return new ScrapeResult(
                         target,

@@ -58,7 +58,7 @@ public class BankProductUrlTasklet implements Tasklet {
                         "Bank product URL {}. provider={}, product={}, candidate={}, url={}, similarity={}, error={}",
                         result.status(),
                         result.target().providerName(),
-                        result.target().productName(),
+                        result.target().originalName(),
                         result.candidateName(),
                         result.productUrl(),
                         result.similarity(),
@@ -71,7 +71,7 @@ public class BankProductUrlTasklet implements Tasklet {
                     "Bank product URL detail. status={}, provider={}, product={}, candidate={}, similarity={}",
                     result.status(),
                     result.target().providerName(),
-                    result.target().productName(),
+                    result.target().originalName(),
                     result.candidateName(),
                     result.similarity()
             ));

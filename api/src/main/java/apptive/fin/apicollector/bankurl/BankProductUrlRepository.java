@@ -14,7 +14,7 @@ public interface BankProductUrlRepository extends Repository<ProductProperty, Lo
         select distinct new apptive.fin.apicollector.bankurl.BankProductUrlTarget(
             p.id,
             p.productCode,
-            p.productName,
+            p.originalName,
             p.type,
             provider.code,
             provider.name
@@ -25,7 +25,7 @@ public interface BankProductUrlRepository extends Repository<ProductProperty, Lo
         where p.source.code = 'FSS'
           and property.isJoinable = true
           and provider.code is not null
-        order by provider.code, p.productName, p.id
+        order by provider.code, p.originalName, p.id
         """)
     List<BankProductUrlTarget> findActiveFssTargets();
 

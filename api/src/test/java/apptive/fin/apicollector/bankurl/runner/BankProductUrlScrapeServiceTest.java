@@ -34,7 +34,7 @@ class BankProductUrlScrapeServiceTest {
                 if (attempts.incrementAndGet() == 1) {
                     throw new IllegalStateException("temporary");
                 }
-                return new ScrapedProduct(target.productName(), "https://example.com/product");
+                return new ScrapedProduct(target.originalName(), "https://example.com/product");
             }
 
             @Override
@@ -108,7 +108,7 @@ class BankProductUrlScrapeServiceTest {
                     } catch (Exception exception) {
                         throw new IllegalStateException("worker " + workerId + " scraped alone", exception);
                     }
-                    return new ScrapedProduct(target.productName(), "https://example.com/product");
+                    return new ScrapedProduct(target.originalName(), "https://example.com/product");
                 }
 
                 @Override
@@ -385,7 +385,7 @@ class BankProductUrlScrapeServiceTest {
             @Override
             public ScrapedProduct scrape(BankProductScraper ignored, BankProductUrlTarget target) {
                 scrapedProductIds.add(target.productId());
-                return new ScrapedProduct(target.productName(), "https://example.com/product");
+                return new ScrapedProduct(target.originalName(), "https://example.com/product");
             }
 
             @Override

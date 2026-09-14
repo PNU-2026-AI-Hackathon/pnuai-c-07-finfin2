@@ -55,7 +55,7 @@ class PlaywrightBankScrapeWorkerFactory implements BankScrapeWorkerFactory {
 
         @Override
         public ScrapedProduct scrape(BankProductScraper scraper, BankProductUrlTarget target) {
-            return scraper.scrape(browser, target.productName(), timeoutMillis);
+            return scraper.scrape(browser, target.originalName(), timeoutMillis);
         }
 
         @Override
