@@ -126,22 +126,25 @@ class FssProductNormalizerTest {
 
         ProductDraft draft = normalizer.normalize(raw);
 
-        // 내부 개행은 공백으로 축약되지만(스마일드림 \n정기예금 -> 스마일드림 정기예금),
+        // 내부 개행은 공백으로 축약되지만(스마일드림 \n정기예금\n(개인) -> 스마일드림 정기예금 (개인)),
         // 이름 끝 괄호 "(개인)"은 원천 정보라 그대로 둔다.
+        // 끝 괄호 제거는 normalizer가 하지 않는다(집합 단위 판정이 필요해 DisplayNameResolver가 담당).
         assertThat(draft.productName()).isEqualTo("스마일드림 정기예금 (개인)");
     }
 
     @Test
     void keepsTrailingParenSoScrapersCanTellProductsApart() {
-        // 이름 끝 괄호는 적립·지급 방식을 담고 있고, 은행 URL 스크래퍼가 상품을 구분하는 유일한 근거다.
-        // 표시용으로 떼는 것은 backend 의 Product.getDisplayProductName() 책임이다.
+        // normalizer는 원본 이름을 그대로 담는다(공백만 축약). 이름 끝 괄호는 적립·지급 방식을 담고 있고,
+        // 은행 URL 스크래퍼가 상품을 구분하는 유일한 근거다. 끝 괄호 제거는 DisplayNameResolver 몫이다.
         assertThat(normalizedName("JB 다이렉트적금(자유적립식)")).isEqualTo("JB 다이렉트적금(자유적립식)");
         assertThat(normalizedName("제주Dream\\n정기예금\\n(개인/만기\\n지급식)"))
                 .isEqualTo("제주Dream 정기예금 (개인/만기 지급식)");
+        // 개행은 공백으로 축약되므로 "적금\n(정액적립식)" -> "적금 (정액적립식)"
         assertThat(normalizedName("Sh해양플라스틱Zero!적금\\n(정액적립식)"))
                 .isEqualTo("Sh해양플라스틱Zero!적금 (정액적립식)");
         assertThat(normalizedName("The든든예금(시즌2)")).isEqualTo("The든든예금(시즌2)");
         // 중간 브랜드 괄호도 당연히 그대로
+        assertThat(normalizedName("헤이(Hey)적금\\n(자유적립식)")).isEqualTo("헤이(Hey)적금 (자유적립식)");
         assertThat(normalizedName("더(The) 특판 정기예금")).isEqualTo("더(The) 특판 정기예금");
     }
 

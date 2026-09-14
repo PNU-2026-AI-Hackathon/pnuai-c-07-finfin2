@@ -93,7 +93,7 @@ export default function useRecommendForm() {
     fetchCategories();
   }, [accessToken, mockMode]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async ({ saveProfile = false } = {}) => {
     const request = buildRecommendationRequest(formData, cats);
 
     if (mockMode) {
@@ -101,10 +101,8 @@ export default function useRecommendForm() {
     }
 
     const recommendationPromise = runProductSearch(request, accessToken);
-    const profileSavePromise = accessToken
-      ? client
-          .put("/user/me/profile", buildProfileUpdateFromRequest(request), withAuth(accessToken))
-          .catch((e) => console.error("프로필 저장 실패:", e))
+    const profileSavePromise = saveProfile && accessToken
+      ? client.put("/user/me/profile", buildProfileUpdateFromRequest(request), withAuth(accessToken))
       : Promise.resolve();
 
     const [recommendation] = await Promise.all([recommendationPromise, profileSavePromise]);

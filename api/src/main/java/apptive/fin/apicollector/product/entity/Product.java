@@ -49,8 +49,13 @@ public class Product extends BaseTimeEntity {
 
     private String productCode;
 
+    // 괄호가 제거된 디스플레이 이름. normalize 이후 DisplayNameResolver가 최종 확정한다.
     @Column(nullable = false)
     private String productName;
+
+    // 수집 원본 이름(괄호 포함). productName과 분리 보관해, 괄호 제거 시 이름이 겹치면 되돌릴 수 있게 한다.
+    @Column(name = "original_name")
+    private String originalName;
 
     @Column(columnDefinition = "TEXT")
     private String content;
@@ -97,6 +102,9 @@ public class Product extends BaseTimeEntity {
 
     public void updateFrom(ProductDraft draft) {
         this.type = draft.type();
+        // normalizer는 괄호를 떼지 않은 원본 이름을 draft.productName()에 담아 보낸다.
+        // 여기서는 원본을 그대로 양쪽에 세팅하고, 디스플레이(productName)는 이후 resolve 단계에서 확정한다.
+        this.originalName = draft.productName();
         this.productName = draft.productName();
         this.content = draft.content();
         this.contentSummary = draft.contentSummary();
@@ -104,6 +112,11 @@ public class Product extends BaseTimeEntity {
         this.eligibilityText = draft.eligibilityText();
         this.cautionText = draft.cautionText();
         this.recruitmentPeriod = draft.recruitmentPeriod();
+    }
+
+    // resolve 단계에서 집합 전체를 보고 확정한 디스플레이 이름을 반영한다. originalName은 건드리지 않는다.
+    public void applyDisplayName(String displayName) {
+        this.productName = displayName;
     }
 
     /**

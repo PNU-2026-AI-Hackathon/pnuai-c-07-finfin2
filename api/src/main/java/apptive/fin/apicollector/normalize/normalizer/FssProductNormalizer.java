@@ -60,9 +60,9 @@ public class FssProductNormalizer implements ProductNormalizer {
         String joinMethod = JsonNodes.text(base, "join_way");
         String eligibilityText = JsonNodes.text(base, "join_member");
         String cautionText = JsonNodes.text(base, "etc_note");
-        // 금감원이 준 이름을 그대로 보존한다. 이름 끝 괄호(적립·지급 방식, 시즌 표기)는 은행 URL 스크래퍼가
-        // 상품을 구분하는 유일한 근거라, 여기서 떼면 전북 자유/정액적립식 같은 상품을 갈라낼 수 없다.
-        // 표시용 이름은 backend 의 Product.getDisplayProductName() 이 응답을 만들 때 가공한다.
+        // 금감원이 준 이름을 그대로 보존한다(공백만 정리). 이름 끝 괄호(적립·지급 방식, 시즌 표기)는
+        // 은행 URL 스크래퍼가 상품을 구분하는 유일한 근거라 여기서 떼면 안 된다.
+        // 괄호 제거(디스플레이 이름)는 집합 전체를 봐야 하므로 이후 DisplayNameResolver가 확정한다.
         String productName = collapseWhitespace(JsonNodes.firstText(base, "fin_prdt_nm"));
         List<ProductPropertyDraft> propertyDrafts = properties(raw, base);
 
@@ -140,5 +140,4 @@ public class FssProductNormalizer implements ProductNormalizer {
         String collapsed = value.replaceAll("\\s+", " ").trim();
         return collapsed.isEmpty() ? null : collapsed;
     }
-
 }

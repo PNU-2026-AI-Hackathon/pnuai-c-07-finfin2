@@ -1,6 +1,7 @@
 package apptive.fin.apicollector.product.service;
 
 import apptive.fin.apicollector.Source;
+import apptive.fin.apicollector.normalize.DisplayNameResolver;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.dto.ProductPropertyDraft;
 import apptive.fin.apicollector.product.entity.Product;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -26,12 +28,43 @@ public class ProductSyncService {
     private final ProviderRepository providerRepository;
     private final ProductRepository productRepository;
     private final ProductRawRepository productRawRepository;
+    private final DisplayNameResolver displayNameResolver;
 
     @Transactional
     public void sync(List<? extends ProductDraft> drafts) {
         for (ProductDraft draft : drafts) {
             sync(draft);
         }
+    }
+
+    /**
+     * 정규화가 끝난 뒤 활성 상품 전체를 대상으로 디스플레이 이름(product_name)을 확정한다.
+     * FSS 상품의 끝 괄호를 떼되, 떼면 다른 상품과 겹치는 경우 원본(괄호)을 유지한다.
+     *
+     * @return product_name이 실제로 바뀐 상품 수
+     */
+    @Transactional
+    public int resolveDisplayNames() {
+        List<Product> products = productRepository.findAllWithJoinableProperty();
+        List<DisplayNameResolver.Item> items = products.stream()
+                .map(product -> new DisplayNameResolver.Item(
+                        product.getId(),
+                        Source.FSS.name().equals(product.getSource().getCode()) ? Source.FSS : Source.ONTONG,
+                        product.getOriginalName()
+                ))
+                .toList();
+
+        Map<Long, String> displayById = displayNameResolver.resolve(items);
+
+        int updated = 0;
+        for (Product product : products) {
+            String display = displayById.get(product.getId());
+            if (display != null && !display.equals(product.getProductName())) {
+                product.applyDisplayName(display);
+                updated++;
+            }
+        }
+        return updated;
     }
 
     @Transactional

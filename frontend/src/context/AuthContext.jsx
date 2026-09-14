@@ -1,6 +1,6 @@
 // AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from "react";
-import client, { withAuth } from "../api/client";
+import client, { withAuth, registerAuthHandlers } from "../api/client";
 
 const AuthContext = createContext(null);
 
@@ -12,6 +12,10 @@ export function AuthProvider({ children }) {
   // setState로 관리하면, accessToken이 막 바뀐 바로 그 렌더에서는 아직 반영 전이라 한 틱 새어나간다.
   // 렌더 중에 값을 직접 비교해서 계산하면 그 틈이 생기지 않는다.
   const [resolvedToken, setResolvedToken] = useState(null);
+
+  useEffect(() => {
+    registerAuthHandlers({ setAccessToken });
+  }, []);
 
   useEffect(() => {
     client.post('/auth/refresh', {})
