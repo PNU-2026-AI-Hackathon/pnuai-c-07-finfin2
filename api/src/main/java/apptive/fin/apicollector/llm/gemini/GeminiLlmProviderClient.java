@@ -5,6 +5,7 @@ import apptive.fin.apicollector.llm.LlmProductEnrichment;
 import apptive.fin.apicollector.llm.LlmProductEnrichmentRequest;
 import apptive.fin.apicollector.llm.LlmProviderClient;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -23,19 +24,24 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
     private final CollectorProperties properties;
     private final GeminiEnrichmentSchema enrichmentSchema;
     private final GeminiResponseParser responseParser;
+    // 특정 입력에서 모델이 출력을 최대치(65536)까지 폭주 생성해 타임아웃/비용 낭비가 난다.
+    // 정상 enrichment 출력은 수백 토큰이라 상한을 둬 폭주를 잘라낸다.
+    private final int maxOutputTokens;
 
     public GeminiLlmProviderClient(
             @Qualifier("geminiRestClient") RestClient restClient,
             ObjectMapper objectMapper,
             CollectorProperties properties,
             GeminiEnrichmentSchema enrichmentSchema,
-            GeminiResponseParser responseParser
+            GeminiResponseParser responseParser,
+            @Value("${collector.llm.max-output-tokens:2048}") int maxOutputTokens
     ) {
         this.restClient = restClient;
         this.objectMapper = objectMapper;
         this.properties = properties;
         this.enrichmentSchema = enrichmentSchema;
         this.responseParser = responseParser;
+        this.maxOutputTokens = maxOutputTokens;
     }
 
     @Override
@@ -63,10 +69,15 @@ public class GeminiLlmProviderClient implements LlmProviderClient {
         body.put("model", request.model());
         body.put("input", request.prompt());
 
+        ObjectNode generationConfig = objectMapper.createObjectNode();
         Double temperature = properties.llm().temperature();
         if (temperature != null) {
-            ObjectNode generationConfig = objectMapper.createObjectNode();
             generationConfig.put("temperature", temperature);
+        }
+        if (maxOutputTokens > 0) {
+            generationConfig.put("max_output_tokens", maxOutputTokens);
+        }
+        if (!generationConfig.isEmpty()) {
             body.set("generation_config", generationConfig);
         }
 
