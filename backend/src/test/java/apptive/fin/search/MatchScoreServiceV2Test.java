@@ -21,7 +21,22 @@ import static org.assertj.core.api.Assertions.offset;
 
 /**
  * V2 가중치 테스트 (PRD 개정: 3축 - 혜택50, 기간30, 납입20).
- * 신분특화, 은행조건 점수는 제거됨.
+ *
+ * <p>V2 SAW 가중치 체계:</p>
+ * <ul>
+ *   <li><b>혜택 (benefits)</b>: 50점 - 선택한 혜택 키워드 매칭</li>
+ *   <li><b>기간 (period)</b>: 30점 - 저축기간 정확 매칭</li>
+ *   <li><b>납입 (deposit)</b>: 20점 - 납입한도 충족 비율</li>
+ * </ul>
+ *
+ * <p>제거된 축:</p>
+ * <ul>
+ *   <li>신분특화 (identity): 0점 - V2에서 제거</li>
+ *   <li>은행조건 (bankCond): 0점 - V2에서 제거</li>
+ * </ul>
+ *
+ * @see MatchScoreServiceTest V1 레거시 테스트 (비활성화됨)
+ * @see apptive.fin.search.enums.ScoreWeightEnum 가중치 정의
  */
 class MatchScoreServiceV2Test {
 
