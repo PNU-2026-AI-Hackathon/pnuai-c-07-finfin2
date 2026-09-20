@@ -158,6 +158,48 @@ class ParkingProductServiceTest {
         assertThat(result).isEmpty();
     }
 
+    @Test
+    void 동점시_기본금리_그다음_상품명으로_정렬한다() {
+        // Given: 최고금리 동일, 기본금리 다름
+        Product parking1 = createParkingProduct(1L, "B파킹", "3.00", "4.00");
+        Product parking2 = createParkingProduct(2L, "A파킹", "3.20", "4.00");  // 기본금리 높음
+
+        when(productRepository.findByType(ProductType.PARKING))
+                .thenReturn(List.of(parking1, parking2));
+
+        SearchRequestDto request = createRequest();
+
+        // When
+        List<ParkingProductDto> result = parkingProductService.findParkingProducts(request);
+
+        // Then: 최고금리 동일 → 기본금리 높은 순서
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).productName()).isEqualTo("A파킹");  // 기본금리 3.20
+        assertThat(result.get(1).productName()).isEqualTo("B파킹");  // 기본금리 3.00
+    }
+
+    @Test
+    void 동점시_기본금리도_같으면_상품명순으로_정렬한다() {
+        // Given: 최고금리, 기본금리 모두 동일
+        Product parking1 = createParkingProduct(1L, "다파킹", "3.00", "4.00");
+        Product parking2 = createParkingProduct(2L, "가파킹", "3.00", "4.00");
+        Product parking3 = createParkingProduct(3L, "나파킹", "3.00", "4.00");
+
+        when(productRepository.findByType(ProductType.PARKING))
+                .thenReturn(List.of(parking1, parking2, parking3));
+
+        SearchRequestDto request = createRequest();
+
+        // When
+        List<ParkingProductDto> result = parkingProductService.findParkingProducts(request);
+
+        // Then: 상품명 오름차순
+        assertThat(result).hasSize(3);
+        assertThat(result.get(0).productName()).isEqualTo("가파킹");
+        assertThat(result.get(1).productName()).isEqualTo("나파킹");
+        assertThat(result.get(2).productName()).isEqualTo("다파킹");
+    }
+
     // === Helper methods ===
 
     private Product createParkingProduct(Long id, String name, String baseRate, String maxRate) {

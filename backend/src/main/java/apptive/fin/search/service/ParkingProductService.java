@@ -37,11 +37,12 @@ public class ParkingProductService {
         List<Product> parkingProducts = productRepository.findByType(ProductType.PARKING);
 
         // 가입 가능 상품 필터 (isJoinable)
+        // PRD 동점 규칙: 최고금리 → 기본금리 → 상품명
         return parkingProducts.stream()
                 .flatMap(product -> product.getProperties().stream()
                         .filter(ProductProperty::isJoinable)
                         .map(property -> toParkingProductDto(product, property)))
-                .sorted(Comparator.comparingDouble(ParkingProductDto::maxRate).reversed())
+                .sorted(parkingComparator())
                 .toList();
     }
 
@@ -79,6 +80,18 @@ public class ParkingProductService {
                 .officialChannelUrl(null)  // TODO: 공식 채널 URL 필드 추가 시 연동
                 .officialChannelName(property.providerName())
                 .build();
+    }
+
+    /**
+     * 파킹통장 정렬 Comparator.
+     * PRD 동점 규칙: 최고금리 → 기본금리 → 상품명
+     */
+    private Comparator<ParkingProductDto> parkingComparator() {
+        // 내림차순을 위해 음수로 변환
+        return Comparator
+                .comparingDouble((ParkingProductDto dto) -> -(dto.maxRate() != null ? dto.maxRate() : 0.0))
+                .thenComparingDouble((ParkingProductDto dto) -> -(dto.baseRate() != null ? dto.baseRate() : 0.0))
+                .thenComparing(ParkingProductDto::productName, Comparator.nullsLast(Comparator.naturalOrder()));
     }
 
     private Double toDoubleOrNull(BigDecimal value) {
