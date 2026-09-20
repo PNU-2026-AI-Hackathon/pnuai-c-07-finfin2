@@ -338,9 +338,17 @@ public class SearchService {
                                         Function.identity(),
                                         (left, right) -> left // 겹치면 무조건 먼저 들어온 것 선택
                                 ),
-                                map -> map.values().stream().toList() // 정렬없이 바로 리스트화 
+                                map -> map.values().stream().toList() // 정렬없이 바로 리스트화
                         ))
                 : List.of();
+
+        // TOP3 균등 배점 (PRD: 3축 33/33/34)
+        List<ProductMatchDto> governmentTop3 = generateTop3(
+                govList, request, resolvedKeywords, null
+        );
+        List<ProductMatchDto> bankTop3 = generateTop3(
+                bankList, request, resolvedKeywords, bankMaxInterestThreshold
+        );
 
         List<ProductCardSummaryDto> productCardSummaries = productCardSummaryService.build(
                 eligible,
@@ -368,6 +376,8 @@ public class SearchService {
                                 .distinct()
                                 .count()
                 )
+                .governmentTop3(governmentTop3)
+                .bankTop3(bankTop3)
                 .build();
     }
 
@@ -439,7 +449,39 @@ public class SearchService {
                 .tieBreaker(tieBreaker)
                 .build();
     }
-		
+
+    /**
+     * TOP3 균등 배점 리스트 생성 (PRD: 3축 33/33/34).
+     * 상품별 베스트 property 선택 후 적합도순 상위 3개 반환.
+     */
+    private List<ProductMatchDto> generateTop3(
+            List<EligibleProductOption> options,
+            SearchRequestDto request,
+            ResolvedKeywords resolvedKeywords,
+            Double bankMaxInterestThreshold
+    ) {
+        return options.stream()
+                .map(option -> matchScoreService.scoreForTop3(
+                        option.product(),
+                        option.property(),
+                        request,
+                        resolvedKeywords,
+                        bankMaxInterestThreshold
+                ))
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toMap(
+                                ProductMatchDto::productId,
+                                Function.identity(),
+                                (left, right) -> left.totalScore() >= right.totalScore() ? left : right
+                        ),
+                        map -> map.values().stream()
+                                .sorted(Comparator.comparingDouble(ProductMatchDto::totalScore).reversed()
+                                        .thenComparing(ProductMatchDto::productName, Comparator.nullsLast(Comparator.naturalOrder())))
+                                .limit(3)
+                                .toList()
+                ));
+    }
+
     /**
      * 탭B 정부 정렬: 기여금총액(achievableRate) → 환산수익률 → 상품명
      * (정부상품에서 achievableRate는 환산수익률로 사용됨)
@@ -464,11 +506,13 @@ public class SearchService {
                 .toList();
     }
 
-    // 세후 실수령액 기준 내림차순 정렬
+    // 세후 실수령액 기준 내림차순 정렬 (PRD 동점 규칙: 세후실수령액 → 달성가능금리 → 상품명)
     private List<ProductRateDto> sortedByNetReturn(Collection<ProductRateDto> products) {
         return products.stream()
-                .sorted(Comparator.comparingLong((ProductRateDto dto) ->
-                        dto.netReturn() != null ? dto.netReturn() : 0L).reversed())
+                .sorted(Comparator
+                        .comparingLong((ProductRateDto dto) -> dto.netReturn() != null ? dto.netReturn() : 0L).reversed()
+                        .thenComparingDouble(ProductRateDto::achievableRate).reversed()
+                        .thenComparing(ProductRateDto::productName, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
     }
 

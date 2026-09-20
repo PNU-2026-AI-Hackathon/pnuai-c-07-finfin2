@@ -438,6 +438,102 @@ public class MatchScoreService {
         return kw == STATUS_MILITARY;
     }
 
+    // ===== TOP3 균등 배점 (PRD: 3축 33/33/34) =====
+
+    /**
+     * TOP3 카드용 스코어 계산.
+     * 3축 균등 배점: 핵심혜택(33) + 납입한도(33) + 저축기간(34) = 100점
+     * 신분특화, 은행거래 축 제외.
+     */
+    public ProductMatchDto scoreForTop3(
+            Product product,
+            ProductProperty property,
+            SearchRequestDto request,
+            ResolvedKeywords keywords,
+            Double bankMaxInterestThreshold
+    ) {
+        boolean isGov = product.isGovernment();
+        Set<KeywordValueEnum> propertyKeywords = property.keywordCodes();
+
+        // TOP3 가중치 (공통 3축)
+        Map<String, Double> weights = distributeTop3Weights(
+                keywords.coreBenefits(),
+                keywords.savingPeriod(),
+                request.monthlySavingsGoal(),
+                isGov
+        );
+
+        // 3축만 계산 (신분/은행거래 제외)
+        double benefitScore = calcBenefitScore(
+                keywords.coreBenefits(), property, propertyKeywords, isGov, bankMaxInterestThreshold
+        ) * weights.get("benefits");
+
+        double depositScore = calcDepositScore(request.monthlySavingsGoal(), property)
+                * weights.get("deposit");
+
+        double periodScore = calcPeriodScore(keywords.savingPeriod(), property)
+                * weights.get("period");
+
+        double totalScore = benefitScore + depositScore + periodScore;
+
+        return ProductMatchDto.builder()
+                .productId(product.getId())
+                .productPropertyId(property.getId())
+                .productName(product.getProductName())
+                .providerName(property.providerName())
+                .source(product.getSource().getCode())
+                .totalScore(totalScore)
+                .benefitScore(benefitScore)
+                .periodScore(periodScore)
+                .identityScore(0.0)    // TOP3에서 미사용
+                .depositScore(depositScore)
+                .bankCondScore(0.0)    // TOP3에서 미사용
+                .tieBreaker(null)
+                .build();
+    }
+
+    /**
+     * TOP3 가중치 분배.
+     * 미선택 축 제외 후 나머지로 100점 비례 환산.
+     */
+    private Map<String, Double> distributeTop3Weights(
+            List<KeywordValueEnum> coreBenefits,
+            KeywordValueEnum savingPeriod,
+            Long monthlyDeposit,
+            boolean isGov
+    ) {
+        Map<String, Double> weights = new HashMap<>(ScoreWeightEnum.top3Weights());
+        List<String> inactive = new ArrayList<>();
+
+        // 적용 가능한 혜택 키워드가 없으면
+        if (applicableBenefitKeywords(coreBenefits, isGov).isEmpty()) {
+            inactive.add("benefits");
+        }
+
+        // 저축 기간이 없으면
+        if (savingPeriod == null) {
+            inactive.add("period");
+        }
+
+        // 월 납입 희망액이 없으면
+        if (monthlyDeposit == null) {
+            inactive.add("deposit");
+        }
+
+        if (inactive.isEmpty()) return weights;
+
+        // 미선택 축 제외 후 재분배
+        double removedTotal = inactive.stream().mapToDouble(weights::get).sum();
+        inactive.forEach(k -> weights.put(k, 0.0));
+        double activeTotal = weights.values().stream().mapToDouble(Double::doubleValue).sum();
+
+        if (activeTotal > 0) {
+            weights.replaceAll((k, v) -> v > 0 ? v + removedTotal * (v / activeTotal) : 0.0);
+        }
+
+        return weights;
+    }
+
     private record ProductPropertyScore(
             ProductProperty property,
             double totalScore,

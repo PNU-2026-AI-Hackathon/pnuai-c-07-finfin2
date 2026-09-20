@@ -29,6 +29,13 @@ public enum ScoreWeightEnum {
     BANK_PERIOD_V2   ("period",   20.0, false, 2), // 균등: 저축 기간
     BANK_IDENTITY_V2 ("identity",  0.0, false, 2), // 은행상품에 신분특화 미적용
 
+    // === TOP3 균등 배점 (PRD: 3축 균등 33/33/34) ===
+    // 정부/은행 공통: 핵심혜택33 + 납입한도33 + 저축기간34 = 100
+    // 신분특화, 은행거래 축 제외
+    TOP3_BENEFITS("benefits", 33.0, true, 3),
+    TOP3_DEPOSIT ("deposit",  33.0, true, 3),
+    TOP3_PERIOD  ("period",   34.0, true, 3),
+
     // === V1 가중치 (레거시 호환) ===
     // 정부 상품 배점
     GOV_BENEFITS ("benefits", 40.0, true, 1),
@@ -72,6 +79,16 @@ public enum ScoreWeightEnum {
     // V2 가중치 (PRD 개정)
     public static Map<String, Double> baseWeightsV2(boolean isGov) {
         return baseWeights(isGov, 2);
+    }
+
+    // TOP3 균등 가중치 (정부/은행 공통)
+    public static Map<String, Double> top3Weights() {
+        return Arrays.stream(values())
+                .filter(e -> e.version == 3)
+                .collect(Collectors.toMap(
+                        ScoreWeightEnum::getKey,
+                        ScoreWeightEnum::getWeight
+                ));
     }
 
 }

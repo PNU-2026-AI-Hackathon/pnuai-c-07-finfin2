@@ -20,6 +20,8 @@ public record UnifiedSearchResultDto(
         // === 목돈만들기 (LONG_TERM) 결과 ===
         List<ProductMatchDto> governmentRanked,      // 탭A 정부상품 (적합도순)
         List<ProductMatchDto> bankRanked,            // 탭A 은행상품 (적합도순)
+        List<ProductMatchDto> governmentTop3,        // 탭A TOP3 정부상품 (3축 균등 33/33/34)
+        List<ProductMatchDto> bankTop3,              // 탭A TOP3 은행상품 (3축 균등 33/33/34)
         List<ProductRateDto> governmentRateRanked,   // 탭B 정부상품 (실수령액순)
         List<ProductRateDto> bankRateRanked,         // 탭B 은행상품 (실수령액순)
         List<ProductRateDto> subscriptionProducts,   // 청약상품
@@ -45,6 +47,8 @@ public record UnifiedSearchResultDto(
                 .tabs(result.tabs())
                 .governmentRanked(result.governmentRanked())
                 .bankRanked(result.bankRanked())
+                .governmentTop3(result.governmentTop3())
+                .bankTop3(result.bankTop3())
                 .governmentRateRanked(result.governmentRateRanked())
                 .bankRateRanked(result.bankRateRanked())
                 .subscriptionProducts(result.subscriptionProducts())
