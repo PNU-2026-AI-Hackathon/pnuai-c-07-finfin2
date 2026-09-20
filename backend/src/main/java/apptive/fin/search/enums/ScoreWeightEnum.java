@@ -11,23 +11,23 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public enum ScoreWeightEnum {
 
-    // === V2 가중치 (PRD 개정: 3축 통합) ===
-    // 정부/은행 공통: 핵심혜택50, 저축기간30, 납입한도20
-    // 신분특화, 은행조건 축 제거
+    // === V2 가중치 (PRD 개정: 4축 - 고특성 30점, 균등 20점) ===
+    // 정부: 핵심혜택30 + 현재신분30 + 납입한도20 + 저축기간20 = 100
+    // 은행: 은행거래30 + 핵심혜택30 + 납입한도20 + 저축기간20 = 100
 
     // 정부 상품 배점 (V2)
-    GOV_BENEFITS_V2 ("benefits", 50.0, true, 2),
-    GOV_PERIOD_V2   ("period",   30.0, true, 2),
-    GOV_DEPOSIT_V2  ("deposit",  20.0, true, 2),
-    GOV_IDENTITY_V2 ("identity",  0.0, true, 2),  // 제거됨
-    GOV_BANK_COND_V2("bankCond",  0.0, true, 2),  // 제거됨
+    GOV_BENEFITS_V2 ("benefits", 30.0, true, 2),   // 고특성: #정부기여금, #비과세
+    GOV_IDENTITY_V2 ("identity", 30.0, true, 2),   // 고특성: 현재 신분 (특화/포함)
+    GOV_DEPOSIT_V2  ("deposit",  20.0, true, 2),   // 균등: 납입 한도
+    GOV_PERIOD_V2   ("period",   20.0, true, 2),   // 균등: 저축 기간
+    GOV_BANK_COND_V2("bankCond",  0.0, true, 2),   // 정부상품에 은행거래 미적용
 
     // 시중은행 상품 배점 (V2)
-    BANK_BENEFITS_V2 ("benefits", 50.0, false, 2),
-    BANK_PERIOD_V2   ("period",   30.0, false, 2),
-    BANK_DEPOSIT_V2  ("deposit",  20.0, false, 2),
-    BANK_IDENTITY_V2 ("identity",  0.0, false, 2),  // 제거됨
-    BANK_BANK_COND_V2("bankCond",  0.0, false, 2),  // 제거됨
+    BANK_BANK_COND_V2("bankCond", 30.0, false, 2), // 고특성: 은행 거래 우대조건
+    BANK_BENEFITS_V2 ("benefits", 30.0, false, 2), // 고특성: #최고이율_중심, #우대조건_간편
+    BANK_DEPOSIT_V2  ("deposit",  20.0, false, 2), // 균등: 납입 한도
+    BANK_PERIOD_V2   ("period",   20.0, false, 2), // 균등: 저축 기간
+    BANK_IDENTITY_V2 ("identity",  0.0, false, 2), // 은행상품에 신분특화 미적용
 
     // === V1 가중치 (레거시 호환) ===
     // 정부 상품 배점

@@ -68,6 +68,7 @@ public class MatchScoreService {
                 .identityScore(score.identityScore())
                 .depositScore(score.depositScore())
                 .bankCondScore(score.bankCondScore())
+                .tieBreaker(null)  // SearchService에서 설정
                 .build();
     }
 
@@ -106,7 +107,7 @@ public class MatchScoreService {
                 isGov
         );
         
-        // metric 별로 점수계산, 가중치 적용 (V2: 3축)
+        // metric 별로 점수계산, 가중치 적용 (V2: 4축 - 고특성30 + 균등20)
         double benefitScore = calcBenefitScore(coreBenefits, property, propertyKeywords, isGov, bankMaxInterestThreshold)
                 * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_BENEFITS_V2, ScoreWeightEnum.BANK_BENEFITS_V2));
         double periodScore = calcPeriodScore(savingPeriod, property)
@@ -114,11 +115,17 @@ public class MatchScoreService {
         double depositScore = calcDepositScore(monthlyDeposit, property)
                 * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_DEPOSIT_V2, ScoreWeightEnum.BANK_DEPOSIT_V2));
 
-        // V2에서는 신분특화, 은행조건 점수가 제거됨 (가중치 0)
-        double identityScore = 0.0;
-        double bankCondScore = 0.0;
+        // V2: 정부는 신분특화, 은행은 은행거래 조건 점수 적용
+        double identityScore = isGov
+                ? calcIdentityScore(identities, propertyKeywords, isGov)
+                        * weights.get(ScoreWeightEnum.GOV_IDENTITY_V2.getKey())
+                : 0.0;
+        double bankCondScore = !isGov
+                ? calcBankCondScore(activeBankConditions, propertyKeywords, property, request)
+                        * weights.get(ScoreWeightEnum.BANK_BANK_COND_V2.getKey())
+                : 0.0;
 
-        double totalScore = benefitScore + periodScore + depositScore;
+        double totalScore = benefitScore + periodScore + depositScore + identityScore + bankCondScore;
 
         // 점수를 ProductPropertyScore Dto 형태로 반환
         return new ProductPropertyScore(
@@ -322,7 +329,8 @@ public class MatchScoreService {
         return values != null && !values.isEmpty();
     }
 
-    // 가중치 분배 (V2: 3축 - 혜택50, 기간30, 납입20)
+    // 가중치 분배 (V2: 4축 - 고특성30, 균등20)
+    // PRD: 미선택 점수 항목 제외 후 나머지로 100점 비례 환산
     private Map<String, Double> distributeWeights(
             List<KeywordValueEnum> coreBenefits,
             List<KeywordValueEnum> identities,
@@ -332,7 +340,7 @@ public class MatchScoreService {
             ProductProperty property,
             boolean isGov
     ) {
-        // V2 가중치 사용 (PRD 개정: 3축 통합)
+        // V2 가중치 사용 (PRD 개정: 4축)
         Map<String, Double> weights = new HashMap<>(ScoreWeightEnum.baseWeightsV2(isGov));
 
         List<String> inactive = new ArrayList<>();
@@ -352,8 +360,15 @@ public class MatchScoreService {
             inactive.add(weightKey(isGov, ScoreWeightEnum.GOV_DEPOSIT_V2, ScoreWeightEnum.BANK_DEPOSIT_V2));
         }
 
-        // V2에서는 신분특화, 은행조건 축이 제거됨 (가중치 0)
-        // 별도 inactive 처리 불필요 (이미 가중치가 0)
+        // 정부상품: 신분 미선택 시 재배분
+        if (isGov && identities.isEmpty()) {
+            inactive.add(ScoreWeightEnum.GOV_IDENTITY_V2.getKey());
+        }
+
+        // 은행상품: 은행거래 조건 미선택 시 재배분
+        if (!isGov && bankConditions.isEmpty()) {
+            inactive.add(ScoreWeightEnum.BANK_BANK_COND_V2.getKey());
+        }
 
         // inactive 없으면 기본 가중치 바로 반환
         if (inactive.isEmpty()) return weights;
@@ -417,8 +432,10 @@ public class MatchScoreService {
     }
 
     // 특화 키워드 여부를 판별
+    // PRD: 신분특화 만점 (예: #군복무→장병내일준비적금)
+    // 나머지 STATUS_* 는 포함상품으로 절반 점수
     private boolean isSpecializedKeyword(KeywordValueEnum kw) {
-        return kw == STATUS_MILITARY || kw == STATUS_SME_WORKER || kw == STATUS_UNEMPLOYED;
+        return kw == STATUS_MILITARY;
     }
 
     private record ProductPropertyScore(

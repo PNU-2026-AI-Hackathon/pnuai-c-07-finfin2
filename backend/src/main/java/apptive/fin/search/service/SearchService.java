@@ -218,29 +218,53 @@ public class SearchService {
                 .toList();
         Double bankMaxInterestThreshold = BankMaxInterestPolicy.calculateThreshold(bankMaxInterestRates);
 
-        // 정부상품 점수 계산 후 각 상품별로 총점이 가장 높은 (Product, ProductProperty) 쌍만 남긴 뒤 점수순 내림차순 정렬
+        // 정부상품 점수 계산 + tieBreaker(기여금총액) 설정 후 정렬
+        // PRD 동점 규칙: 적합도 → 기여금총액 → 상품명
         List<ProductMatchDto> govRanked = collapseToBestPerProduct(
                 govList.stream()
-                        .map(option -> matchScoreService.score(
-                                option.product(),
-                                option.property(),
-                                request,
-                                resolvedKeywords,
-                                false
-                        ))
+                        .map(option -> {
+                            ProductMatchDto dto = matchScoreService.score(
+                                    option.product(),
+                                    option.property(),
+                                    request,
+                                    resolvedKeywords,
+                                    false
+                            );
+                            // tieBreaker = 기여금총액 (정부상품)
+                            ProductRateDto rateDto = rateCalculatorService.calculate(
+                                    option.product(),
+                                    option.property(),
+                                    request,
+                                    resolvedKeywords
+                            );
+                            Long tieBreaker = rateDto.netReturn();  // 정부: 원금+기여금 = netReturn
+                            return withTieBreaker(dto, tieBreaker);
+                        })
         );
 
-        // 은행상품 점수 계산 후 각 상품별로 총점이 가장 높은 (Product, ProductProperty) 쌍만 남긴 뒤 점수순 내림차순 정렬
+        // 은행상품 점수 계산 + tieBreaker(세후실수령액) 설정 후 정렬
+        // PRD 동점 규칙: 적합도 → 실수령액 → 상품명
         List<ProductMatchDto> bankRanked = collapseToBestPerProduct(
                 bankList.stream()
-                        .map(option -> matchScoreService.score(
-                                option.product(),
-                                option.property(),
-                                request,
-                                resolvedKeywords,
-                                tabBEnabled,
-                                bankMaxInterestThreshold
-                        ))
+                        .map(option -> {
+                            ProductMatchDto dto = matchScoreService.score(
+                                    option.product(),
+                                    option.property(),
+                                    request,
+                                    resolvedKeywords,
+                                    tabBEnabled,
+                                    bankMaxInterestThreshold
+                            );
+                            // tieBreaker = 세후실수령액 (은행상품)
+                            ProductRateDto rateDto = rateCalculatorService.calculate(
+                                    option.product(),
+                                    option.property(),
+                                    request,
+                                    resolvedKeywords
+                            );
+                            Long tieBreaker = rateDto.netReturn();
+                            return withTieBreaker(dto, tieBreaker);
+                        })
         );
 
         // 탭별 활성화여부 계산
@@ -251,7 +275,8 @@ public class SearchService {
                 .build();
 				
 				
-        // tabB가 활성화되어 있으면 정부상품 수익률 높은순으로 내림차순 정렬한 리스트, 비활성화면 빈 리스트				
+        // tabB가 활성화되어 있으면 정부상품 기여금총액(수익률) 높은순으로 정렬, 비활성화면 빈 리스트
+        // PRD 동점 규칙: 기여금총액 → 환산수익률 → 상품명
         List<ProductRateDto> governmentRateRanked = tabBEnabled
                 ? govList.stream()
                         .map(option -> rateCalculatorService.calculate(
@@ -268,12 +293,12 @@ public class SearchService {
                                         Function.identity(),
                                         (left, right) -> left.achievableRate() >= right.achievableRate() ? left : right
                                 ),
-                                map -> sortedByAchievableRate(map.values())
+                                map -> sortedByGovernmentRate(map.values())
                         ))
                 : List.of();
 
-				
-	// tabB가 활성화되어 있으면 은행상품 이자율 높은순으로 내림차순 정렬한 리스트, 비활성화면 빈 리스트
+        // tabB가 활성화되어 있으면 은행상품 세후실수령액순 정렬, 비활성화면 빈 리스트
+        // PRD 동점 규칙: 실수령액 → 최고금리 → 상품명
         List<ProductRateDto> bankRateRanked = tabBEnabled
                 ? bankList.stream()
                         .map(option -> rateCalculatorService.calculate(
@@ -286,9 +311,14 @@ public class SearchService {
                                 Collectors.toMap(
                                         ProductRateDto::productId,
                                         Function.identity(),
-                                        (left, right) -> left.achievableRate() >= right.achievableRate() ? left : right
+                                        // 세후실수령액 기준으로 베스트 선택
+                                        (left, right) -> {
+                                            long leftReturn = left.netReturn() != null ? left.netReturn() : 0L;
+                                            long rightReturn = right.netReturn() != null ? right.netReturn() : 0L;
+                                            return leftReturn >= rightReturn ? left : right;
+                                        }
                                 ),
-                                map -> sortedByAchievableRate(map.values())
+                                map -> sortedByBankRate(map.values())
                         ))
                 : List.of();
 
@@ -375,15 +405,62 @@ public class SearchService {
                         (left, right) -> left.totalScore() >= right.totalScore() ? left : right
                 ),
                 map -> map.values().stream()
-                        .sorted(Comparator.comparingDouble(ProductMatchDto::totalScore).reversed())
+                        .sorted(tabAComparator())
                         .toList()
         ));
     }
+
+    /**
+     * 탭A 동점 규칙: 적합도 → tieBreaker(정부:기여금/은행:실수령액) → 상품명
+     */
+    private static Comparator<ProductMatchDto> tabAComparator() {
+        return Comparator
+                .comparingDouble(ProductMatchDto::totalScore).reversed()
+                .thenComparing((dto) -> dto.tieBreaker() != null ? dto.tieBreaker() : 0L, Comparator.reverseOrder())
+                .thenComparing(ProductMatchDto::productName, Comparator.nullsLast(Comparator.naturalOrder()));
+    }
+
+    /**
+     * ProductMatchDto에 tieBreaker 값을 설정한 새 인스턴스 반환
+     */
+    private static ProductMatchDto withTieBreaker(ProductMatchDto dto, Long tieBreaker) {
+        return ProductMatchDto.builder()
+                .productId(dto.productId())
+                .productPropertyId(dto.productPropertyId())
+                .productName(dto.productName())
+                .providerName(dto.providerName())
+                .source(dto.source())
+                .totalScore(dto.totalScore())
+                .benefitScore(dto.benefitScore())
+                .periodScore(dto.periodScore())
+                .identityScore(dto.identityScore())
+                .depositScore(dto.depositScore())
+                .bankCondScore(dto.bankCondScore())
+                .tieBreaker(tieBreaker)
+                .build();
+    }
 		
-    // 달성 가능 금리 기준 내림차순 정렬
-    private List<ProductRateDto> sortedByAchievableRate(Collection<ProductRateDto> products) {
+    /**
+     * 탭B 정부 정렬: 기여금총액(achievableRate) → 환산수익률 → 상품명
+     * (정부상품에서 achievableRate는 환산수익률로 사용됨)
+     */
+    private List<ProductRateDto> sortedByGovernmentRate(Collection<ProductRateDto> products) {
         return products.stream()
-                .sorted(Comparator.comparingDouble(ProductRateDto::achievableRate).reversed())
+                .sorted(Comparator
+                        .comparingDouble(ProductRateDto::achievableRate).reversed()
+                        .thenComparing(ProductRateDto::productName, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+    }
+
+    /**
+     * 탭B 은행 정렬: 실수령액 → 최고금리(achievableRate) → 상품명
+     */
+    private List<ProductRateDto> sortedByBankRate(Collection<ProductRateDto> products) {
+        return products.stream()
+                .sorted(Comparator
+                        .comparingLong((ProductRateDto dto) -> dto.netReturn() != null ? dto.netReturn() : 0L).reversed()
+                        .thenComparingDouble(ProductRateDto::achievableRate).reversed()
+                        .thenComparing(ProductRateDto::productName, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
     }
 
