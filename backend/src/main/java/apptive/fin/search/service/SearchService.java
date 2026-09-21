@@ -114,33 +114,35 @@ public class SearchService {
         // 파킹통장 목록 (최고금리순, 비로그인 허용)
         List<ParkingProductDto> parkingProducts = parkingProductService.findParkingProducts(request);
 
-        // tabB (예적금 탭) 활성화 여부 - 단기예치 정책 사용
-        boolean tabBEnabled = searchRequestPolicy.canUseShortTermPersonalization(request, userDetails);
+        // 실수령액 표시 여부 (로그인 + 상세정보 입력 시에만)
+        boolean canShowNetReturn = searchRequestPolicy.canUseShortTermPersonalization(request, userDetails);
 
-        // 예적금 탭: 세후 실수령액순 정렬
-        List<ProductRateDto> depositSavingsProducts = tabBEnabled
-                ? filteredByTerm.stream()
-                        .map(option -> rateCalculatorService.calculate(
-                                option.product(),
-                                option.property(),
-                                request,
-                                resolvedKeywords
-                        ))
-                        .filter(dto -> dto.netReturn() != null)  // 세후 실수령액 계산 가능한 상품만
-                        .collect(Collectors.collectingAndThen(
-                                Collectors.toMap(
-                                        ProductRateDto::productId,
-                                        Function.identity(),
-                                        (left, right) -> compareNetReturn(left, right) >= 0 ? left : right
-                                ),
-                                map -> sortedByNetReturn(map.values())
-                        ))
-                : List.of();
+        // 예적금 탭: 항상 실수령액순 정렬, 비로그인 시 실수령액 필드만 마스킹(null)
+        List<ProductRateDto> depositSavingsProducts = filteredByTerm.stream()
+                .map(option -> rateCalculatorService.calculate(
+                        option.product(),
+                        option.property(),
+                        request,
+                        resolvedKeywords
+                ))
+                .filter(dto -> dto.netReturn() != null)  // 실수령액 계산 가능한 상품만
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toMap(
+                                ProductRateDto::productId,
+                                Function.identity(),
+                                (left, right) -> compareNetReturn(left, right) >= 0 ? left : right
+                        ),
+                        map -> sortedByNetReturn(map.values())
+                ))
+                .stream()
+                .map(dto -> canShowNetReturn ? dto : maskNetReturn(dto))  // 비로그인 시 실수령액 마스킹
+                .toList();
 
         // 탭 활성화 상태 (단기예치: tabC=예적금, tabD=파킹통장)
+        // tabC는 항상 활성화, 실수령액 표시 여부만 다름
         TabAvailabilityDto tabs = TabAvailabilityDto.builder()
-                .tabCEnabled(tabBEnabled)  // 예적금 탭 (실수령액순, 로그인 필요)
-                .tabCDisabledReason(tabBEnabled ? null : "로그인 후 상세 정보를 입력하면 예적금 탭을 확인할 수 있어요.")
+                .tabCEnabled(true)  // 예적금 탭 (항상 활성화)
+                .tabCDisabledReason(canShowNetReturn ? null : "로그인 후 상세 정보를 입력하면 예상 실수령액을 확인할 수 있어요.")
                 .tabDEnabled(true)  // 파킹통장 탭 (최고금리순, 비로그인 허용)
                 .build();
 
@@ -534,7 +536,43 @@ public class SearchService {
         Long rightReturn = right.netReturn() != null ? right.netReturn() : 0L;
         return Long.compare(leftReturn, rightReturn);
     }
-		
+
+    // 실수령액 마스킹 (비로그인 시 netReturn만 null 처리)
+    private ProductRateDto maskNetReturn(ProductRateDto dto) {
+        return ProductRateDto.builder()
+                .productId(dto.productId())
+                .productPropertyId(dto.productPropertyId())
+                .productName(dto.productName())
+                .providerName(dto.providerName())
+                .source(dto.source())
+                .baseRate(dto.baseRate())
+                .achievableRate(dto.achievableRate())
+                .rateComparable(dto.rateComparable())
+                .isSubscription(dto.isSubscription())
+                .subscriptionNote(dto.subscriptionNote())
+                .netReturn(null)  // 마스킹
+                .principal(dto.principal())
+                .saveTrm(dto.saveTrm())
+                .productType(dto.productType())
+                .build();
+    }
+
+    // 달성가능금리 기준 내림차순 정렬 (비로그인 시 사용)
+    private List<ProductRateDto> sortedByAchievableRate(Collection<ProductRateDto> products) {
+        return products.stream()
+                .sorted((a, b) -> {
+                    // 1순위: 달성가능금리 내림차순
+                    int cmp = Double.compare(b.achievableRate(), a.achievableRate());
+                    if (cmp != 0) return cmp;
+
+                    // 2순위: 상품명 오름차순
+                    String aName = a.productName() != null ? a.productName() : "";
+                    String bName = b.productName() != null ? b.productName() : "";
+                    return aName.compareTo(bName);
+                })
+                .toList();
+    }
+
     // 상품에서 매칭되는 지역 있는지 확인하는 함수
     private boolean hasMatchingRegion(EligibleProductOption option, List<KeywordValueEnum> selectedRegions) {
         List<KeywordValueEnum> productRegions = option.property().keywordCodes().stream()
