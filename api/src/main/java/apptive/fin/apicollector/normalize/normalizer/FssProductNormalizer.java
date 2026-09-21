@@ -62,6 +62,9 @@ public class FssProductNormalizer implements ProductNormalizer {
         String cautionText = JsonNodes.text(base, "etc_note");
         // 괄호 제거(디스플레이 이름)는 집합 전체를 봐야 하므로 여기서 하지 않는다.
         // 원본 이름만 공백 정리해 담고, 최종 디스플레이는 이후 DisplayNameResolver가 확정한다.
+        // 금감원이 준 이름을 그대로 보존한다(공백만 정리). 이름 끝 괄호(적립·지급 방식, 시즌 표기)는
+        // 은행 URL 스크래퍼가 상품을 구분하는 유일한 근거라 여기서 떼면 안 된다.
+        // 괄호 제거(디스플레이 이름)는 집합 전체를 봐야 하므로 이후 DisplayNameResolver가 확정한다.
         String productName = collapseWhitespace(JsonNodes.firstText(base, "fin_prdt_nm"));
         List<ProductPropertyDraft> propertyDrafts = properties(raw, base);
 

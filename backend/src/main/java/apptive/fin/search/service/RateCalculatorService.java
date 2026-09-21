@@ -166,7 +166,7 @@ public class RateCalculatorService {
         return ProductRateDto.builder()
                 .productId(product.getId())
                 .productPropertyId(null)
-                .productName(product.getProductName())
+                .productName(product.getDisplayProductName())
                 .providerName(null)
                 .source(product.getSource().getCode())
                 .rateComparable(false)
@@ -280,7 +280,7 @@ public class RateCalculatorService {
         return ProductRateDto.builder()
                 .productId(product.getId())
                 .productPropertyId(property != null ? property.getId() : null)
-                .productName(product.getProductName())
+                .productName(product.getDisplayProductName())
                 .providerName(property != null ? property.providerName() : null)
                 .source(product.getSource().getCode());
     }

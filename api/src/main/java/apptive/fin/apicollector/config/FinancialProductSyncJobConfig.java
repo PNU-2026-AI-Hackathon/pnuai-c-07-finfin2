@@ -1,6 +1,7 @@
 package apptive.fin.apicollector.config;
 
 import apptive.fin.apicollector.batch.RawProductItemReader;
+import apptive.fin.apicollector.tasklet.BankProductUrlTasklet;
 import apptive.fin.apicollector.normalize.dto.ProductDraft;
 import apptive.fin.apicollector.normalize.enrich.FssLlmProductDraftEnricher;
 import apptive.fin.apicollector.raw.ProductRaw;
@@ -26,6 +27,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.batch.infrastructure.support.transaction.ResourcelessTransactionManager;
 
 import java.util.concurrent.Future;
 
@@ -81,12 +83,14 @@ public class FinancialProductSyncJobConfig {
             Step fetchFssRawStep,
             Step normalizeFssRawProductStep,
             Step deactivateMissingProductStep,
+            Step bankProductUrlStep,
             Step resolveProductDisplayNameStep
     ) {
         return new FlowBuilder<Flow>("fssSyncFlow")
                 .start(fetchFssRawStep)
                 .next(normalizeFssRawProductStep)
                 .next(deactivateMissingProductStep)
+                .next(bankProductUrlStep)
                 .next(resolveProductDisplayNameStep)
                 .build();
     }
@@ -113,6 +117,7 @@ public class FinancialProductSyncJobConfig {
             Step normalizeOntongRawProductStep,
             Step normalizeFssRawProductStep,
             Step deactivateMissingProductStep,
+            Step bankProductUrlStep,
             Step resolveProductDisplayNameStep
     ) {
         return new FlowBuilder<Flow>("allSyncFlow")
@@ -121,6 +126,7 @@ public class FinancialProductSyncJobConfig {
                 .next(normalizeOntongRawProductStep)
                 .next(normalizeFssRawProductStep)
                 .next(deactivateMissingProductStep)
+                .next(bankProductUrlStep)
                 .next(resolveProductDisplayNameStep)
                 .build();
     }
@@ -200,6 +206,16 @@ public class FinancialProductSyncJobConfig {
     ) {
         return new StepBuilder("deactivateMissingProductStep", jobRepository)
                 .tasklet(deactivateMissingProductTasklet, transactionManager)
+                .build();
+    }
+
+    @Bean
+    public Step bankProductUrlStep(
+            JobRepository jobRepository,
+            BankProductUrlTasklet bankProductUrlTasklet
+    ) {
+        return new StepBuilder("bankProductUrlStep", jobRepository)
+                .tasklet(bankProductUrlTasklet, new ResourcelessTransactionManager())
                 .build();
     }
 

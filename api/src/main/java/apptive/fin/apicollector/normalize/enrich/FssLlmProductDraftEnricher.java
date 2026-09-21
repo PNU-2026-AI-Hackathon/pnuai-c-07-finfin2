@@ -98,6 +98,7 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
             return draft;
         }
 
+        Instant callStart = Instant.now();
         try {
             llmCalls.incrementAndGet();
             LlmProductEnrichment enrichment = providerClient.enrich(new LlmProductEnrichmentRequest(
@@ -108,10 +109,21 @@ public class FssLlmProductDraftEnricher implements ProductDraftEnricher, StepExe
             validator.validate(enrichment);
 
             cacheStore.saveSuccess(cache, requestHash, enrichment);
+            log.info(
+                    "FSS LLM enrichment call. externalId={}, durationMs={}, outcome=SUCCESS",
+                    rawProduct.getExternalId(),
+                    Duration.between(callStart, Instant.now()).toMillis()
+            );
             return merger.merge(rawProduct, draft, enrichment);
         }
         catch (Exception e) {
             llmFailures.incrementAndGet();
+            log.info(
+                    "FSS LLM enrichment call. externalId={}, durationMs={}, outcome=FAILED, exception={}",
+                    rawProduct.getExternalId(),
+                    Duration.between(callStart, Instant.now()).toMillis(),
+                    e.getClass().getSimpleName()
+            );
             log.warn("FSS LLM enrichment failed. rawId={}, externalId={}", rawProduct.getId(), rawProduct.getExternalId(), e);
             cacheStore.saveFailed(cache, requestHash, truncate(e.getMessage()));
             return draft;
