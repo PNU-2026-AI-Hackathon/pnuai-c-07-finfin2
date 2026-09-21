@@ -479,7 +479,7 @@ public class MatchScoreService {
         return ProductMatchDto.builder()
                 .productId(product.getId())
                 .productPropertyId(property.getId())
-                .productName(product.getProductName())
+                .productName(product.getDisplayProductName())
                 .providerName(property.providerName())
                 .source(product.getSource().getCode())
                 .totalScore(totalScore)
