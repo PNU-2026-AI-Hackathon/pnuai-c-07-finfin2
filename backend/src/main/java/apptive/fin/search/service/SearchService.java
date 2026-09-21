@@ -271,7 +271,7 @@ public class SearchService {
         TabAvailabilityDto tabs = TabAvailabilityDto.builder()
                 .tabAEnabled(true)
                 .tabBEnabled(tabBEnabled)
-                .tabBDisabledReason(tabBEnabled ? null : "로그인 후 상세 정보를 입력하면 금리순 정렬을 확인할 수 있어요.")
+                .tabBDisabledReason(tabBEnabled ? null : "로그인 후 상세 정보를 입력하면 실수령액순 정렬을 확인할 수 있어요.")
                 .build();
 				
 				

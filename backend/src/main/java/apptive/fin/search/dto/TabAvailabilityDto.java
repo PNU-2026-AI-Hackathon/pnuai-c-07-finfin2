@@ -5,8 +5,8 @@ import lombok.Builder;
 @Builder
 public record TabAvailabilityDto(
         // 목돈만들기 탭
-        boolean tabAEnabled,          // 추천순
-        boolean tabBEnabled,          // 금리순
+        boolean tabAEnabled,          // 적합도순
+        boolean tabBEnabled,          // 실수령액순
         String tabBDisabledReason,
 
         // 단기예치 탭

@@ -27,8 +27,8 @@ public record UnifiedSearchResultDto(
         List<ProductRateDto> subscriptionProducts,   // 청약상품
 
         // === 단기예치 (SHORT_TERM) 결과 ===
-        List<ParkingProductDto> parkingProducts,     // 파킹통장 탭 (최고금리순)
-        List<ProductRateDto> depositSavingsProducts, // 예적금 탭 (실수령액순)
+        List<ParkingProductDto> parkingProducts,     // 탭D 파킹통장 (최고금리순)
+        List<ProductRateDto> depositSavingsProducts, // 탭C 예적금 (실수령액순)
 
         // === 공통 ===
         List<ProductCardSummaryDto> productCardSummaries,
