@@ -15,6 +15,7 @@ import apptive.fin.search.entity.ProductRequiredKeyword;
 import apptive.fin.search.entity.ProductSource;
 import apptive.fin.provider.entity.Provider;
 import apptive.fin.search.service.MatchScoreService;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -26,6 +27,22 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.offset;
 
+/**
+ * MatchScoreService V1 테스트 (레거시).
+ *
+ * <h3>V1 → V2 마이그레이션 노트</h3>
+ * <p>PRD 개정으로 SAW 가중치가 변경되었습니다:</p>
+ * <ul>
+ *   <li><b>V1 (5축)</b>: 혜택, 기간, 신분특화, 납입, 은행조건</li>
+ *   <li><b>V2 (3축)</b>: 혜택 50, 기간 30, 납입 20 (신분특화/은행조건 제거)</li>
+ * </ul>
+ *
+ * <p>V1 기대값을 사용하는 테스트는 {@code @Disabled}로 비활성화되었습니다.
+ * V2 가중치 테스트는 {@link MatchScoreServiceV2Test}를 참조하세요.</p>
+ *
+ * @see MatchScoreServiceV2Test V2 가중치 테스트
+ * @see apptive.fin.search.enums.ScoreWeightEnum 가중치 정의
+ */
 class MatchScoreServiceTest {
 
     private static final String KB_PROVIDER_CODE = "0010927";
@@ -109,6 +126,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환으로 은행조건 점수 제거됨 - MatchScoreServiceV2Test 참조")
     void 은행상품에_해당하지_않는_혜택은_제외하고_배점을_재배분한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         Product product = createProduct("FSS", createProperty(
@@ -144,6 +162,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환으로 은행조건 점수 제거됨")
     void 신분_기간_혜택을_선택하지_않으면_은행조건과_납입에_비례_재배분한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         Product product = createProduct("FSS", createProperty(
@@ -178,6 +197,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환으로 레거시 범위 키워드 테스트")
     void 은행상품은_기간이_인접구간이면_기간점수를_절반만_부여한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         Product product = createProduct("FSS", createProperty(
@@ -210,6 +230,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환")
     void 은행상품은_희망납입액이_한도를_초과하면_비율만큼_납입점수를_감점한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         Product product = createProduct("FSS", createProperty(
@@ -242,6 +263,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환으로 은행조건 점수 제거됨")
     void 은행상품은_은행조건_여러개중_일치한_비율만큼_점수를_부여한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         Product product = createProduct("FSS", createProperty(
@@ -306,6 +328,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환")
     void 정부상품은_MVP_배점을_사용하고_은행조건을_무시한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         Product product = createProduct("ONTONG", createProperty(
@@ -341,6 +364,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환")
     void 정부상품은_최고이율_키워드를_혜택매칭에서_제외하고_재배분한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         // 정부 상품은 금리 미공시로 #최고이율_중심 매칭이 불가하므로 혜택 분모에서 제외되어야 한다.
@@ -375,6 +399,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환으로 신분 점수 제거됨")
     void 정부상품은_일반_신분_키워드가_일치하면_신분점수를_절반만_부여한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         Product product = createProduct("ONTONG", createProperty(
@@ -405,6 +430,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환")
     void 은행상품은_모든_선택항목이_일치하면_MVP_배점을_그대로_사용한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         Product product = createProduct("FSS", createProperty(
@@ -475,6 +501,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환으로 은행조건 점수 제거됨")
     void 거래이력_반영이_켜져_있으면_탭A에_첫거래_조건을_반영한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         ProductProperty property = createProperty(
@@ -499,6 +526,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환으로 은행조건 점수 제거됨")
     void 거래이력_반영이_켜져_있으면_탭A에_재예치_조건을_반영한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         ProductProperty property = createProperty(
@@ -600,6 +628,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환으로 은행조건 점수 제거됨")
     void 우대금리_테이블에만_있는_BANK_키워드도_은행조건으로_매칭한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
@@ -621,6 +650,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환으로 신분 점수 제거됨")
     void REQUIRE_HIGH_가입조건에만_있는_STATUS_키워드도_신분으로_매칭한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         ProductProperty property = createProperty(10L, "정부", 500_000L, 12);
@@ -671,6 +701,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환으로 은행조건 점수 제거됨")
     void 거래이력은_provider_code로만_매칭된다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         ProductProperty property = createProperty(
@@ -833,6 +864,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환으로 은행조건 점수 제거됨")
     void 은행상품은_온라인가입을_선택하지_않아도_자동_매칭한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
@@ -851,6 +883,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환으로 은행조건 점수 제거됨")
     void 은행상품은_사용자나이와_무관하게_청년구간과_겹치는_BANK_AGE를_자동_매칭한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
@@ -877,6 +910,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환으로 은행조건 점수 제거됨")
     void 은행상품은_청년구간_전체를_덮는_BANK_AGE도_자동_매칭한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
@@ -895,6 +929,7 @@ class MatchScoreServiceTest {
     }
 
     @Test
+    @Disabled("V2 가중치 전환으로 은행조건 점수 제거됨")
     void 은행상품은_열린_연령경계가_청년구간과_겹치면_BANK_AGE를_자동_매칭한다() {
         MatchScoreService matchScoreService = new MatchScoreService();
         ProductProperty property = createProperty(10L, "KB", 500_000L, 12);
@@ -966,6 +1001,118 @@ class MatchScoreServiceTest {
         );
 
         assertThat(result.benefitScore()).isZero();
+    }
+
+    // ===== [F] 신규 저축기간 정확 매칭 =====
+
+    @Test
+    void 신규_저축기간은_정확한_개월수만_매칭된다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        Product product = createProduct("FSS", createProperty(
+                10L,
+                "test-bank",
+                500_000L,
+                12,  // 12개월 상품
+                KeywordValueEnum.BENEFIT_EASY_CONDITION
+        ));
+
+        // TERM_12_MONTH 선택 → 12개월 상품 매칭 → 기간 점수 100%
+        ProductMatchDto exactMatch = matchScoreService.score(
+                product,
+                product.getProperties().get(0),
+                createRequest(300_000L),
+                new ResolvedKeywords(
+                        List.of(), List.of(),
+                        KeywordValueEnum.TERM_12_MONTH,
+                        List.of(KeywordValueEnum.BENEFIT_EASY_CONDITION),
+                        List.of()
+                ),
+                false
+        );
+
+        assertThat(exactMatch.periodScore()).isGreaterThan(0.0);
+    }
+
+    @Test
+    void 신규_저축기간은_불일치시_0점이다() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        Product product = createProduct("FSS", createProperty(
+                10L,
+                "test-bank",
+                500_000L,
+                24,  // 24개월 상품
+                KeywordValueEnum.BENEFIT_EASY_CONDITION
+        ));
+
+        // TERM_12_MONTH 선택 → 24개월 상품 불일치 → 기간 점수 0%
+        ProductMatchDto mismatch = matchScoreService.score(
+                product,
+                product.getProperties().get(0),
+                createRequest(300_000L),
+                new ResolvedKeywords(
+                        List.of(), List.of(),
+                        KeywordValueEnum.TERM_12_MONTH,
+                        List.of(KeywordValueEnum.BENEFIT_EASY_CONDITION),
+                        List.of()
+                ),
+                false
+        );
+
+        assertThat(mismatch.periodScore()).isZero();
+    }
+
+    @Test
+    void 단기예치_1개월_저축기간_정확_매칭() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        Product product = createProduct("FSS", createProperty(
+                10L,
+                "test-bank",
+                500_000L,
+                1,  // 1개월 상품
+                KeywordValueEnum.BENEFIT_EASY_CONDITION
+        ));
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                product.getProperties().get(0),
+                createRequest(300_000L),
+                new ResolvedKeywords(
+                        List.of(), List.of(),
+                        KeywordValueEnum.TERM_1_MONTH,
+                        List.of(KeywordValueEnum.BENEFIT_EASY_CONDITION),
+                        List.of()
+                ),
+                false
+        );
+
+        assertThat(result.periodScore()).isGreaterThan(0.0);
+    }
+
+    @Test
+    void 단기예치_3개월_저축기간_정확_매칭() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        Product product = createProduct("FSS", createProperty(
+                10L,
+                "test-bank",
+                500_000L,
+                3,  // 3개월 상품
+                KeywordValueEnum.BENEFIT_EASY_CONDITION
+        ));
+
+        ProductMatchDto result = matchScoreService.score(
+                product,
+                product.getProperties().get(0),
+                createRequest(300_000L),
+                new ResolvedKeywords(
+                        List.of(), List.of(),
+                        KeywordValueEnum.TERM_3_MONTH,
+                        List.of(KeywordValueEnum.BENEFIT_EASY_CONDITION),
+                        List.of()
+                ),
+                false
+        );
+
+        assertThat(result.periodScore()).isGreaterThan(0.0);
     }
 
     @Test

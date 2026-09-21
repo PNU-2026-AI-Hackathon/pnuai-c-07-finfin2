@@ -2,6 +2,7 @@ package apptive.fin.search.service;
 
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ProductCategoryEnum;
 
 import apptive.fin.search.dto.*;
 import apptive.fin.search.entity.ProductProperty;
@@ -35,16 +36,150 @@ public class SearchService {
     private final ProductRepository productRepository;
     private final ProductCardSummaryService productCardSummaryService;
     private final SearchRequestPolicy searchRequestPolicy;
+    private final ParkingProductService parkingProductService;
 
     public ProductSearchResultDto search(SearchRequestDto request) {
         return search(request, null);
     }
 
-    // 상품 검색 결과를 반환하는 메서드
+    /**
+     * 통합 검색 (대분류 라우팅).
+     * saveTrmExact 또는 savingPeriod 키워드에 따라 대분류를 결정하고 해당 파이프라인 실행.
+     */
+    public UnifiedSearchResultDto searchUnified(SearchRequestDto request, AuthUserDetails userDetails) {
+        ResolvedKeywords resolvedKeywords = resolveKeywordService.resolveKeywords(request.options());
+        ProductCategoryEnum category = determineCategory(request, resolvedKeywords);
+
+        if (category == ProductCategoryEnum.SHORT_TERM) {
+            ShortTermResultDto shortTermResult = searchShortTerm(request, userDetails, resolvedKeywords);
+            return UnifiedSearchResultDto.fromShortTerm(shortTermResult);
+        } else {
+            ProductSearchResultDto longTermResult = searchLongTerm(request, userDetails, resolvedKeywords);
+            return UnifiedSearchResultDto.fromLongTerm(longTermResult);
+        }
+    }
+
+    public UnifiedSearchResultDto searchUnified(SearchRequestDto request) {
+        return searchUnified(request, null);
+    }
+
+    /**
+     * 대분류 결정 로직.
+     * 1순위: saveTrmExact (정확한 개월 수)
+     * 2순위: savingPeriod 키워드 (레거시 호환)
+     * 기본값: LONG_TERM (목돈만들기)
+     */
+    private ProductCategoryEnum determineCategory(SearchRequestDto request, ResolvedKeywords resolvedKeywords) {
+        // 1순위: saveTrmExact
+        Integer saveTrmExact = request.saveTrmExact();
+        if (saveTrmExact != null) {
+            return ProductCategoryEnum.fromSaveTrm(saveTrmExact);
+        }
+
+        // 2순위: savingPeriod 키워드
+        KeywordValueEnum savingPeriod = resolvedKeywords.savingPeriod();
+        if (savingPeriod != null) {
+            return ProductCategoryEnum.fromKeyword(savingPeriod);
+        }
+
+        // 기본값
+        return ProductCategoryEnum.LONG_TERM;
+    }
+
+    /**
+     * 단기예치 검색 파이프라인.
+     * - 파킹통장 탭: 최고금리순, 비로그인 허용
+     * - 예적금 탭: 세후 실수령액순, 로그인 필요
+     */
+    public ShortTermResultDto searchShortTerm(SearchRequestDto request, AuthUserDetails userDetails, ResolvedKeywords resolvedKeywords) {
+        // 단기예치 검증 (파킹통장 탭은 예치액만 필수, 은행조건 불필요)
+        searchRequestPolicy.validateForShortTerm(request);
+
+        // 가입 가능 상품 필터링
+        List<EligibleProductOption> eligible = eligibilityFilterService.filterEligibleOptions(request, resolvedKeywords);
+
+        // 은행 상품만 (단기예치는 은행 예적금 + 파킹통장)
+        List<EligibleProductOption> bankList = eligible.stream()
+                .filter(option -> option.product().isBank())
+                .toList();
+
+        // 저축기간 필터 (선택된 기간과 일치하는 상품만)
+        Integer targetSaveTrm = request.saveTrmExact();
+        List<EligibleProductOption> filteredByTerm = targetSaveTrm != null
+                ? bankList.stream()
+                        .filter(option -> targetSaveTrm.equals(option.property().getSaveTrm()))
+                        .toList()
+                : bankList;
+
+        // 파킹통장 목록 (최고금리순, 비로그인 허용)
+        List<ParkingProductDto> parkingProducts = parkingProductService.findParkingProducts(request);
+
+        // 실수령액 표시 여부 (로그인 + 상세정보 입력 시에만)
+        boolean canShowNetReturn = searchRequestPolicy.canUseShortTermPersonalization(request, userDetails);
+
+        // 예적금 탭: 항상 실수령액순 정렬, 비로그인 시 실수령액 필드만 마스킹(null)
+        List<ProductRateDto> depositSavingsProducts = filteredByTerm.stream()
+                .map(option -> rateCalculatorService.calculate(
+                        option.product(),
+                        option.property(),
+                        request,
+                        resolvedKeywords
+                ))
+                .filter(dto -> dto.netReturn() != null)  // 실수령액 계산 가능한 상품만
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toMap(
+                                ProductRateDto::productId,
+                                Function.identity(),
+                                (left, right) -> compareNetReturn(left, right) >= 0 ? left : right
+                        ),
+                        map -> sortedByNetReturn(map.values())
+                ))
+                .stream()
+                .map(dto -> canShowNetReturn ? dto : maskNetReturn(dto))  // 비로그인 시 실수령액 마스킹
+                .toList();
+
+        // 탭 활성화 상태 (단기예치: tabC=예적금, tabD=파킹통장)
+        // tabC는 항상 활성화, 실수령액 표시 여부만 다름
+        TabAvailabilityDto tabs = TabAvailabilityDto.builder()
+                .tabCEnabled(true)  // 예적금 탭 (항상 활성화)
+                .tabCDisabledReason(canShowNetReturn ? null : "로그인 후 상세 정보를 입력하면 예상 실수령액을 확인할 수 있어요.")
+                .tabDEnabled(true)  // 파킹통장 탭 (최고금리순, 비로그인 허용)
+                .build();
+
+        // 카드 요약 (단기예치용)
+        List<ProductCardSummaryDto> productCardSummaries = List.of(); // TODO: 단기예치용 카드 요약 구현
+
+        return ShortTermResultDto.builder()
+                .tabs(tabs)
+                .parkingProducts(parkingProducts)
+                .depositSavingsProducts(depositSavingsProducts)
+                .productCardSummaries(productCardSummaries)
+                .eligibleProductCount(
+                        filteredByTerm.stream()
+                                .map(o -> o.product().getId())
+                                .distinct()
+                                .count()
+                )
+                .build();
+    }
+
+    /**
+     * 목돈만들기 검색 파이프라인 (기존 search 로직).
+     */
+    public ProductSearchResultDto searchLongTerm(SearchRequestDto request, AuthUserDetails userDetails, ResolvedKeywords resolvedKeywords) {
+        searchRequestPolicy.validateForRecommendation(request, resolvedKeywords);
+        return searchInternal(request, userDetails, resolvedKeywords);
+    }
+
+    // 상품 검색 결과를 반환하는 메서드 (레거시 호환)
     public ProductSearchResultDto search(SearchRequestDto request, AuthUserDetails userDetails) {
-        // 프론트에서 전송된 List<OptionRequestDto>를 ResolvedKeywords로 변환
         ResolvedKeywords resolvedKeywords = resolveKeywordService.resolveKeywords(request.options());
         searchRequestPolicy.validateForRecommendation(request, resolvedKeywords);
+        return searchInternal(request, userDetails, resolvedKeywords);
+    }
+
+    // 내부 검색 로직 (키워드 해석 완료 후 호출)
+    private ProductSearchResultDto searchInternal(SearchRequestDto request, AuthUserDetails userDetails, ResolvedKeywords resolvedKeywords) {
 
         // 사용자가 가입 가능한 상품 필터링
         List<EligibleProductOption> eligible = eligibilityFilterService.filterEligibleOptions(
@@ -85,40 +220,65 @@ public class SearchService {
                 .toList();
         Double bankMaxInterestThreshold = BankMaxInterestPolicy.calculateThreshold(bankMaxInterestRates);
 
-        // 정부상품 점수 계산 후 각 상품별로 총점이 가장 높은 (Product, ProductProperty) 쌍만 남긴 뒤 점수순 내림차순 정렬
+        // 정부상품 점수 계산 + tieBreaker(기여금총액) 설정 후 정렬
+        // PRD 동점 규칙: 적합도 → 기여금총액 → 상품명
         List<ProductMatchDto> govRanked = collapseToBestPerProduct(
                 govList.stream()
-                        .map(option -> matchScoreService.score(
-                                option.product(),
-                                option.property(),
-                                request,
-                                resolvedKeywords,
-                                false
-                        ))
+                        .map(option -> {
+                            ProductMatchDto dto = matchScoreService.score(
+                                    option.product(),
+                                    option.property(),
+                                    request,
+                                    resolvedKeywords,
+                                    false
+                            );
+                            // tieBreaker = 기여금총액 (정부상품)
+                            ProductRateDto rateDto = rateCalculatorService.calculate(
+                                    option.product(),
+                                    option.property(),
+                                    request,
+                                    resolvedKeywords
+                            );
+                            Long tieBreaker = rateDto.netReturn();  // 정부: 원금+기여금 = netReturn
+                            return withTieBreaker(dto, tieBreaker);
+                        })
         );
 
-        // 은행상품 점수 계산 후 각 상품별로 총점이 가장 높은 (Product, ProductProperty) 쌍만 남긴 뒤 점수순 내림차순 정렬
+        // 은행상품 점수 계산 + tieBreaker(세후실수령액) 설정 후 정렬
+        // PRD 동점 규칙: 적합도 → 실수령액 → 상품명
         List<ProductMatchDto> bankRanked = collapseToBestPerProduct(
                 bankList.stream()
-                        .map(option -> matchScoreService.score(
-                                option.product(),
-                                option.property(),
-                                request,
-                                resolvedKeywords,
-                                tabBEnabled,
-                                bankMaxInterestThreshold
-                        ))
+                        .map(option -> {
+                            ProductMatchDto dto = matchScoreService.score(
+                                    option.product(),
+                                    option.property(),
+                                    request,
+                                    resolvedKeywords,
+                                    tabBEnabled,
+                                    bankMaxInterestThreshold
+                            );
+                            // tieBreaker = 세후실수령액 (은행상품)
+                            ProductRateDto rateDto = rateCalculatorService.calculate(
+                                    option.product(),
+                                    option.property(),
+                                    request,
+                                    resolvedKeywords
+                            );
+                            Long tieBreaker = rateDto.netReturn();
+                            return withTieBreaker(dto, tieBreaker);
+                        })
         );
 
         // 탭별 활성화여부 계산
         TabAvailabilityDto tabs = TabAvailabilityDto.builder()
                 .tabAEnabled(true)
                 .tabBEnabled(tabBEnabled)
-                .tabBDisabledReason(tabBEnabled ? null : "로그인 후 상세 정보를 입력하면 금리순 정렬을 확인할 수 있어요.")
+                .tabBDisabledReason(tabBEnabled ? null : "로그인 후 상세 정보를 입력하면 실수령액순 정렬을 확인할 수 있어요.")
                 .build();
 				
 				
-        // tabB가 활성화되어 있으면 정부상품 수익률 높은순으로 내림차순 정렬한 리스트, 비활성화면 빈 리스트				
+        // tabB가 활성화되어 있으면 정부상품 기여금총액(수익률) 높은순으로 정렬, 비활성화면 빈 리스트
+        // PRD 동점 규칙: 기여금총액 → 환산수익률 → 상품명
         List<ProductRateDto> governmentRateRanked = tabBEnabled
                 ? govList.stream()
                         .map(option -> rateCalculatorService.calculate(
@@ -135,12 +295,12 @@ public class SearchService {
                                         Function.identity(),
                                         (left, right) -> left.achievableRate() >= right.achievableRate() ? left : right
                                 ),
-                                map -> sortedByAchievableRate(map.values())
+                                map -> sortedByGovernmentRate(map.values())
                         ))
                 : List.of();
 
-				
-	// tabB가 활성화되어 있으면 은행상품 이자율 높은순으로 내림차순 정렬한 리스트, 비활성화면 빈 리스트
+        // tabB가 활성화되어 있으면 은행상품 세후실수령액순 정렬, 비활성화면 빈 리스트
+        // PRD 동점 규칙: 실수령액 → 최고금리 → 상품명
         List<ProductRateDto> bankRateRanked = tabBEnabled
                 ? bankList.stream()
                         .map(option -> rateCalculatorService.calculate(
@@ -153,9 +313,14 @@ public class SearchService {
                                 Collectors.toMap(
                                         ProductRateDto::productId,
                                         Function.identity(),
-                                        (left, right) -> left.achievableRate() >= right.achievableRate() ? left : right
+                                        // 세후실수령액 기준으로 베스트 선택
+                                        (left, right) -> {
+                                            long leftReturn = left.netReturn() != null ? left.netReturn() : 0L;
+                                            long rightReturn = right.netReturn() != null ? right.netReturn() : 0L;
+                                            return leftReturn >= rightReturn ? left : right;
+                                        }
                                 ),
-                                map -> sortedByAchievableRate(map.values())
+                                map -> sortedByBankRate(map.values())
                         ))
                 : List.of();
 
@@ -175,9 +340,17 @@ public class SearchService {
                                         Function.identity(),
                                         (left, right) -> left // 겹치면 무조건 먼저 들어온 것 선택
                                 ),
-                                map -> map.values().stream().toList() // 정렬없이 바로 리스트화 
+                                map -> map.values().stream().toList() // 정렬없이 바로 리스트화
                         ))
                 : List.of();
+
+        // TOP3 균등 배점 (PRD: 3축 33/33/34)
+        List<ProductMatchDto> governmentTop3 = generateTop3(
+                govList, request, resolvedKeywords, null
+        );
+        List<ProductMatchDto> bankTop3 = generateTop3(
+                bankList, request, resolvedKeywords, bankMaxInterestThreshold
+        );
 
         List<ProductCardSummaryDto> productCardSummaries = productCardSummaryService.build(
                 eligible,
@@ -205,6 +378,8 @@ public class SearchService {
                                 .distinct()
                                 .count()
                 )
+                .governmentTop3(governmentTop3)
+                .bankTop3(bankTop3)
                 .build();
     }
 
@@ -242,18 +417,162 @@ public class SearchService {
                         (left, right) -> left.totalScore() >= right.totalScore() ? left : right
                 ),
                 map -> map.values().stream()
-                        .sorted(Comparator.comparingDouble(ProductMatchDto::totalScore).reversed())
+                        .sorted(tabAComparator())
                         .toList()
         ));
     }
-		
-    // 달성 가능 금리 기준 내림차순 정렬
-    private List<ProductRateDto> sortedByAchievableRate(Collection<ProductRateDto> products) {
+
+    /**
+     * 탭A 동점 규칙: 적합도 → tieBreaker(정부:기여금/은행:실수령액) → 상품명
+     */
+    private static Comparator<ProductMatchDto> tabAComparator() {
+        return Comparator
+                .comparingDouble(ProductMatchDto::totalScore).reversed()
+                .thenComparing((dto) -> dto.tieBreaker() != null ? dto.tieBreaker() : 0L, Comparator.reverseOrder())
+                .thenComparing(ProductMatchDto::productName, Comparator.nullsLast(Comparator.naturalOrder()));
+    }
+
+    /**
+     * ProductMatchDto에 tieBreaker 값을 설정한 새 인스턴스 반환
+     */
+    private static ProductMatchDto withTieBreaker(ProductMatchDto dto, Long tieBreaker) {
+        return ProductMatchDto.builder()
+                .productId(dto.productId())
+                .productPropertyId(dto.productPropertyId())
+                .productName(dto.productName())
+                .providerName(dto.providerName())
+                .source(dto.source())
+                .totalScore(dto.totalScore())
+                .benefitScore(dto.benefitScore())
+                .periodScore(dto.periodScore())
+                .identityScore(dto.identityScore())
+                .depositScore(dto.depositScore())
+                .bankCondScore(dto.bankCondScore())
+                .tieBreaker(tieBreaker)
+                .build();
+    }
+
+    /**
+     * TOP3 균등 배점 리스트 생성 (PRD: 3축 33/33/34).
+     * 상품별 베스트 property 선택 후 적합도순 상위 3개 반환.
+     */
+    private List<ProductMatchDto> generateTop3(
+            List<EligibleProductOption> options,
+            SearchRequestDto request,
+            ResolvedKeywords resolvedKeywords,
+            Double bankMaxInterestThreshold
+    ) {
+        return options.stream()
+                .map(option -> matchScoreService.scoreForTop3(
+                        option.product(),
+                        option.property(),
+                        request,
+                        resolvedKeywords,
+                        bankMaxInterestThreshold
+                ))
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toMap(
+                                ProductMatchDto::productId,
+                                Function.identity(),
+                                (left, right) -> left.totalScore() >= right.totalScore() ? left : right
+                        ),
+                        map -> map.values().stream()
+                                .sorted(Comparator.comparingDouble(ProductMatchDto::totalScore).reversed()
+                                        .thenComparing(ProductMatchDto::productName, Comparator.nullsLast(Comparator.naturalOrder())))
+                                .limit(3)
+                                .toList()
+                ));
+    }
+
+    /**
+     * 탭B 정부 정렬: 기여금총액(achievableRate) → 환산수익률 → 상품명
+     * (정부상품에서 achievableRate는 환산수익률로 사용됨)
+     */
+    private List<ProductRateDto> sortedByGovernmentRate(Collection<ProductRateDto> products) {
         return products.stream()
-                .sorted(Comparator.comparingDouble(ProductRateDto::achievableRate).reversed())
+                .sorted(Comparator
+                        .comparingDouble(ProductRateDto::achievableRate).reversed()
+                        .thenComparing(ProductRateDto::productName, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
     }
-		
+
+    /**
+     * 탭B 은행 정렬: 실수령액 → 최고금리(achievableRate) → 상품명
+     */
+    private List<ProductRateDto> sortedByBankRate(Collection<ProductRateDto> products) {
+        return products.stream()
+                .sorted(Comparator
+                        .comparingLong((ProductRateDto dto) -> dto.netReturn() != null ? dto.netReturn() : 0L).reversed()
+                        .thenComparingDouble(ProductRateDto::achievableRate).reversed()
+                        .thenComparing(ProductRateDto::productName, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+    }
+
+    // 세후 실수령액 기준 내림차순 정렬 (PRD 동점 규칙: 세후실수령액 → 달성가능금리 → 상품명)
+    private List<ProductRateDto> sortedByNetReturn(Collection<ProductRateDto> products) {
+        return products.stream()
+                .sorted((a, b) -> {
+                    // 1순위: 세후 실수령액 내림차순
+                    long aReturn = a.netReturn() != null ? a.netReturn() : 0L;
+                    long bReturn = b.netReturn() != null ? b.netReturn() : 0L;
+                    int cmp = Long.compare(bReturn, aReturn);  // 내림차순
+                    if (cmp != 0) return cmp;
+
+                    // 2순위: 달성가능금리 내림차순
+                    cmp = Double.compare(b.achievableRate(), a.achievableRate());  // 내림차순
+                    if (cmp != 0) return cmp;
+
+                    // 3순위: 상품명 오름차순
+                    String aName = a.productName() != null ? a.productName() : "";
+                    String bName = b.productName() != null ? b.productName() : "";
+                    return aName.compareTo(bName);
+                })
+                .toList();
+    }
+
+    // 세후 실수령액 비교 (null-safe)
+    private int compareNetReturn(ProductRateDto left, ProductRateDto right) {
+        Long leftReturn = left.netReturn() != null ? left.netReturn() : 0L;
+        Long rightReturn = right.netReturn() != null ? right.netReturn() : 0L;
+        return Long.compare(leftReturn, rightReturn);
+    }
+
+    // 실수령액 마스킹 (비로그인 시 netReturn만 null 처리)
+    private ProductRateDto maskNetReturn(ProductRateDto dto) {
+        return ProductRateDto.builder()
+                .productId(dto.productId())
+                .productPropertyId(dto.productPropertyId())
+                .productName(dto.productName())
+                .providerName(dto.providerName())
+                .source(dto.source())
+                .baseRate(dto.baseRate())
+                .achievableRate(dto.achievableRate())
+                .rateComparable(dto.rateComparable())
+                .isSubscription(dto.isSubscription())
+                .subscriptionNote(dto.subscriptionNote())
+                .netReturn(null)  // 마스킹
+                .principal(dto.principal())
+                .saveTrm(dto.saveTrm())
+                .productType(dto.productType())
+                .build();
+    }
+
+    // 달성가능금리 기준 내림차순 정렬 (비로그인 시 사용)
+    private List<ProductRateDto> sortedByAchievableRate(Collection<ProductRateDto> products) {
+        return products.stream()
+                .sorted((a, b) -> {
+                    // 1순위: 달성가능금리 내림차순
+                    int cmp = Double.compare(b.achievableRate(), a.achievableRate());
+                    if (cmp != 0) return cmp;
+
+                    // 2순위: 상품명 오름차순
+                    String aName = a.productName() != null ? a.productName() : "";
+                    String bName = b.productName() != null ? b.productName() : "";
+                    return aName.compareTo(bName);
+                })
+                .toList();
+    }
+
     // 상품에서 매칭되는 지역 있는지 확인하는 함수
     private boolean hasMatchingRegion(EligibleProductOption option, List<KeywordValueEnum> selectedRegions) {
         List<KeywordValueEnum> productRegions = option.property().keywordCodes().stream()

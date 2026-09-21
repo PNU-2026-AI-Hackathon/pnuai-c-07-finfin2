@@ -30,10 +30,18 @@ public enum KeywordValueEnum {
     STATUS_SME_WORKER("STATUS_SME_WORKER"),
     STATUS_MILITARY("STATUS_MILITARY"),
 
-    // 3. 저축 기간
-    TERM_OVER_3_YEARS("TERM_OVER_3_YEARS"),
-    TERM_2_TO_3_YEARS("TERM_2_TO_3_YEARS"),
-    TERM_AROUND_1_YEAR("TERM_AROUND_1_YEAR"),
+    // 3. 저축 기간 (신규: 정확한 개월 수 매칭)
+    TERM_1_MONTH("TERM_1_MONTH"),     // 1개월 - 단기예치
+    TERM_3_MONTH("TERM_3_MONTH"),     // 3개월 - 단기예치
+    TERM_6_MONTH("TERM_6_MONTH"),     // 6개월 - 목돈만들기
+    TERM_12_MONTH("TERM_12_MONTH"),   // 12개월(1년) - 목돈만들기
+    TERM_24_MONTH("TERM_24_MONTH"),   // 24개월(2년) - 목돈만들기
+    TERM_36_MONTH("TERM_36_MONTH"),   // 36개월(3년) - 목돈만들기
+
+    // 3-1. 저축 기간 (레거시: 하위 호환용, 추후 제거 예정)
+    @Deprecated TERM_OVER_3_YEARS("TERM_OVER_3_YEARS"),
+    @Deprecated TERM_2_TO_3_YEARS("TERM_2_TO_3_YEARS"),
+    @Deprecated TERM_AROUND_1_YEAR("TERM_AROUND_1_YEAR"),
 
     // 4. 핵심 혜택 (핵심 기간)
     BENEFIT_MAX_INTEREST("BENEFIT_MAX_INTEREST"),
@@ -80,5 +88,35 @@ public enum KeywordValueEnum {
 
     public boolean isTransactionHistoryCondition() {
         return this == BANK_FIRST_TRANSACTION || this == BANK_REDEPOSIT;
+    }
+
+    /** 저축기간 키워드인지. */
+    public boolean isSavingPeriod() {
+        return name().startsWith("TERM_");
+    }
+
+    /** 저축기간 키워드 → save_trm(개월) 변환. 매칭되지 않으면 null. */
+    public Integer toSaveTrm() {
+        return switch (this) {
+            case TERM_1_MONTH -> 1;
+            case TERM_3_MONTH -> 3;
+            case TERM_6_MONTH -> 6;
+            case TERM_12_MONTH, TERM_AROUND_1_YEAR -> 12;
+            case TERM_24_MONTH -> 24;
+            case TERM_36_MONTH, TERM_2_TO_3_YEARS -> 36;
+            case TERM_OVER_3_YEARS -> 60; // 레거시: 기본 60개월로 매핑
+            default -> null;
+        };
+    }
+
+    /** 단기예치 대분류인지 (1, 3개월). */
+    public boolean isShortTerm() {
+        return this == TERM_1_MONTH || this == TERM_3_MONTH;
+    }
+
+    /** 목돈만들기 대분류인지 (6개월 이상). */
+    public boolean isLongTerm() {
+        Integer trm = toSaveTrm();
+        return trm != null && trm >= 6;
     }
 }
