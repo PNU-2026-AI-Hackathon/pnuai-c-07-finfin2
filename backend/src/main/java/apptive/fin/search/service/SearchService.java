@@ -509,10 +509,22 @@ public class SearchService {
     // 세후 실수령액 기준 내림차순 정렬 (PRD 동점 규칙: 세후실수령액 → 달성가능금리 → 상품명)
     private List<ProductRateDto> sortedByNetReturn(Collection<ProductRateDto> products) {
         return products.stream()
-                .sorted(Comparator
-                        .comparingLong((ProductRateDto dto) -> dto.netReturn() != null ? dto.netReturn() : 0L).reversed()
-                        .thenComparingDouble(ProductRateDto::achievableRate).reversed()
-                        .thenComparing(ProductRateDto::productName, Comparator.nullsLast(Comparator.naturalOrder())))
+                .sorted((a, b) -> {
+                    // 1순위: 세후 실수령액 내림차순
+                    long aReturn = a.netReturn() != null ? a.netReturn() : 0L;
+                    long bReturn = b.netReturn() != null ? b.netReturn() : 0L;
+                    int cmp = Long.compare(bReturn, aReturn);  // 내림차순
+                    if (cmp != 0) return cmp;
+
+                    // 2순위: 달성가능금리 내림차순
+                    cmp = Double.compare(b.achievableRate(), a.achievableRate());  // 내림차순
+                    if (cmp != 0) return cmp;
+
+                    // 3순위: 상품명 오름차순
+                    String aName = a.productName() != null ? a.productName() : "";
+                    String bName = b.productName() != null ? b.productName() : "";
+                    return aName.compareTo(bName);
+                })
                 .toList();
     }
 
