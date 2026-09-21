@@ -137,11 +137,11 @@ public class SearchService {
                         ))
                 : List.of();
 
-        // 탭 활성화 상태
+        // 탭 활성화 상태 (단기예치: tabC=예적금, tabD=파킹통장)
         TabAvailabilityDto tabs = TabAvailabilityDto.builder()
-                .tabAEnabled(true)  // 파킹통장 탭 (비로그인 허용)
-                .tabBEnabled(tabBEnabled)  // 예적금 탭 (로그인 필요)
-                .tabBDisabledReason(tabBEnabled ? null : "로그인 후 상세 정보를 입력하면 예적금 탭을 확인할 수 있어요.")
+                .tabCEnabled(tabBEnabled)  // 예적금 탭 (실수령액순, 로그인 필요)
+                .tabCDisabledReason(tabBEnabled ? null : "로그인 후 상세 정보를 입력하면 예적금 탭을 확인할 수 있어요.")
+                .tabDEnabled(true)  // 파킹통장 탭 (최고금리순, 비로그인 허용)
                 .build();
 
         // 카드 요약 (단기예치용)
