@@ -1,5 +1,6 @@
 package apptive.fin.search;
 
+import apptive.fin.search.dto.ProductMatchDto;
 import apptive.fin.search.dto.ProductRateDto;
 import org.junit.jupiter.api.Test;
 
@@ -223,6 +224,250 @@ class ShortTermSortingTest {
                         .comparingLong((ProductRateDto dto) -> dto.netReturn() != null ? dto.netReturn() : 0L).reversed()
                         .thenComparingDouble(dto -> -dto.achievableRate())  // 음수로 DESC 효과
                         .thenComparing(ProductRateDto::productName, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+    }
+
+    // ============================================================
+    // 탭A 적합도순 정렬 테스트 (totalScore DESC → tieBreaker DESC → 상품명 ASC)
+    // ============================================================
+
+    @Test
+    void 탭A_적합도정렬은_totalScore_내림차순이_1순위다() {
+        // Given
+        ProductMatchDto lowScore = createMatchDto(1L, "저점수", 70.0, 1_000_000L);
+        ProductMatchDto highScore = createMatchDto(2L, "고점수", 90.0, 500_000L);
+
+        List<ProductMatchDto> products = List.of(lowScore, highScore);
+
+        // When
+        List<ProductMatchDto> sorted = sortedByTabA(products);
+
+        // Then: 점수 높은 순 (tieBreaker가 낮아도 점수가 높으면 먼저)
+        assertThat(sorted).extracting(ProductMatchDto::productId)
+                .containsExactly(2L, 1L);
+    }
+
+    @Test
+    void 탭A_적합도정렬은_동점시_tieBreaker_내림차순이_2순위다() {
+        // Given: 점수 동일, tieBreaker(정부=기여금/은행=실수령액) 다름
+        ProductMatchDto lowTie = createMatchDto(1L, "낮은타이", 80.0, 500_000L);
+        ProductMatchDto highTie = createMatchDto(2L, "높은타이", 80.0, 1_000_000L);
+
+        List<ProductMatchDto> products = List.of(lowTie, highTie);
+
+        // When
+        List<ProductMatchDto> sorted = sortedByTabA(products);
+
+        // Then: tieBreaker 높은 순
+        assertThat(sorted).extracting(ProductMatchDto::productId)
+                .containsExactly(2L, 1L);
+    }
+
+    @Test
+    void 탭A_적합도정렬은_점수와_tieBreaker_모두_동점시_상품명_오름차순이_3순위다() {
+        // Given: 점수, tieBreaker 모두 동일
+        ProductMatchDto productB = createMatchDto(1L, "B상품", 80.0, 1_000_000L);
+        ProductMatchDto productA = createMatchDto(2L, "A상품", 80.0, 1_000_000L);
+
+        List<ProductMatchDto> products = List.of(productB, productA);
+
+        // When
+        List<ProductMatchDto> sorted = sortedByTabA(products);
+
+        // Then: 상품명 오름차순 (A → B)
+        assertThat(sorted).extracting(ProductMatchDto::productName)
+                .containsExactly("A상품", "B상품");
+    }
+
+    @Test
+    void 탭A_적합도정렬_전체_우선순위_검증() {
+        // Given: 다양한 조합
+        ProductMatchDto p1 = createMatchDto(1L, "C상품", 90.0, 500_000L);   // 점수 최고
+        ProductMatchDto p2 = createMatchDto(2L, "B상품", 80.0, 1_000_000L); // 점수 중간, tieBreaker 최고
+        ProductMatchDto p3 = createMatchDto(3L, "A상품", 80.0, 800_000L);   // 점수 중간, tieBreaker 중간
+        ProductMatchDto p4 = createMatchDto(4L, "D상품", 70.0, 2_000_000L); // 점수 최저
+
+        List<ProductMatchDto> products = List.of(p4, p3, p2, p1);  // 무작위 순서
+
+        // When
+        List<ProductMatchDto> sorted = sortedByTabA(products);
+
+        // Then: 1순위 점수 DESC → 2순위 tieBreaker DESC → 3순위 상품명 ASC
+        assertThat(sorted).extracting(ProductMatchDto::productId)
+                .containsExactly(1L, 2L, 3L, 4L);
+    }
+
+    private ProductMatchDto createMatchDto(Long productId, String name, double totalScore, Long tieBreaker) {
+        return ProductMatchDto.builder()
+                .productId(productId)
+                .productPropertyId(productId * 10)
+                .productName(name)
+                .providerName("테스트은행")
+                .source("FSS")
+                .totalScore(totalScore)
+                .benefitScore(0)
+                .periodScore(0)
+                .identityScore(0)
+                .depositScore(0)
+                .bankCondScore(0)
+                .tieBreaker(tieBreaker)
+                .build();
+    }
+
+    // SearchService.tabAComparator와 동일한 로직
+    private List<ProductMatchDto> sortedByTabA(Collection<ProductMatchDto> products) {
+        return products.stream()
+                .sorted(Comparator
+                        .comparingDouble(ProductMatchDto::totalScore).reversed()
+                        .thenComparing((dto) -> dto.tieBreaker() != null ? dto.tieBreaker() : 0L, Comparator.reverseOrder())
+                        .thenComparing(ProductMatchDto::productName, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+    }
+
+    // ============================================================
+    // 탭C 예적금 정렬 테스트 (netReturn DESC → achievableRate DESC → 상품명 ASC)
+    // ============================================================
+
+    @Test
+    void 탭C_예적금정렬은_실수령액_내림차순이_1순위다() {
+        // Given
+        ProductRateDto lowReturn = createRateDtoWithRate(1L, "저수익", 1_000_000L, 5.0);
+        ProductRateDto highReturn = createRateDtoWithRate(2L, "고수익", 1_100_000L, 3.0);
+
+        List<ProductRateDto> products = List.of(lowReturn, highReturn);
+
+        // When
+        List<ProductRateDto> sorted = sortedByNetReturnFull(products);
+
+        // Then: 실수령액 높은 순
+        assertThat(sorted).extracting(ProductRateDto::productId)
+                .containsExactly(2L, 1L);
+    }
+
+    @Test
+    void 탭C_예적금정렬은_실수령액_동점시_금리_내림차순이_2순위다() {
+        // Given: 실수령액 동일, 금리 다름
+        ProductRateDto lowRate = createRateDtoWithRate(1L, "저금리", 1_050_000L, 3.0);
+        ProductRateDto highRate = createRateDtoWithRate(2L, "고금리", 1_050_000L, 5.0);
+
+        List<ProductRateDto> products = List.of(lowRate, highRate);
+
+        // When
+        List<ProductRateDto> sorted = sortedByNetReturnFull(products);
+
+        // Then: 금리 높은 순
+        assertThat(sorted).extracting(ProductRateDto::productId)
+                .containsExactly(2L, 1L);
+    }
+
+    @Test
+    void 탭C_예적금정렬_전체_우선순위_검증() {
+        // Given: 다양한 조합
+        ProductRateDto p1 = createRateDtoWithRate(1L, "C상품", 1_100_000L, 3.0);  // 실수령액 최고
+        ProductRateDto p2 = createRateDtoWithRate(2L, "B상품", 1_050_000L, 5.0);  // 실수령액 중간, 금리 최고
+        ProductRateDto p3 = createRateDtoWithRate(3L, "A상품", 1_050_000L, 4.0);  // 실수령액 중간, 금리 중간
+        ProductRateDto p4 = createRateDtoWithRate(4L, "D상품", 1_000_000L, 6.0);  // 실수령액 최저
+
+        List<ProductRateDto> products = List.of(p4, p3, p2, p1);  // 무작위 순서
+
+        // When
+        List<ProductRateDto> sorted = sortedByNetReturnFull(products);
+
+        // Then: 1순위 실수령액 DESC → 2순위 금리 DESC → 3순위 상품명 ASC
+        assertThat(sorted).extracting(ProductRateDto::productId)
+                .containsExactly(1L, 2L, 3L, 4L);
+    }
+
+    // SearchService.sortedByNetReturn과 동일한 로직 (3순위까지 포함)
+    private List<ProductRateDto> sortedByNetReturnFull(Collection<ProductRateDto> products) {
+        return products.stream()
+                .sorted((a, b) -> {
+                    // 1순위: 세후 실수령액 내림차순
+                    long aReturn = a.netReturn() != null ? a.netReturn() : 0L;
+                    long bReturn = b.netReturn() != null ? b.netReturn() : 0L;
+                    int cmp = Long.compare(bReturn, aReturn);
+                    if (cmp != 0) return cmp;
+
+                    // 2순위: 달성가능금리 내림차순
+                    cmp = Double.compare(b.achievableRate(), a.achievableRate());
+                    if (cmp != 0) return cmp;
+
+                    // 3순위: 상품명 오름차순
+                    String aName = a.productName() != null ? a.productName() : "";
+                    String bName = b.productName() != null ? b.productName() : "";
+                    return aName.compareTo(bName);
+                })
+                .toList();
+    }
+
+    // ============================================================
+    // 탭D 파킹통장 정렬 테스트 (achievableRate DESC → 상품명 ASC)
+    // ============================================================
+
+    @Test
+    void 탭D_파킹통장정렬은_금리_내림차순이_1순위다() {
+        // Given
+        ProductRateDto lowRate = createRateDtoWithRate(1L, "저금리", 1_000_000L, 3.0);
+        ProductRateDto highRate = createRateDtoWithRate(2L, "고금리", 1_000_000L, 5.0);
+
+        List<ProductRateDto> products = List.of(lowRate, highRate);
+
+        // When
+        List<ProductRateDto> sorted = sortedByAchievableRate(products);
+
+        // Then: 금리 높은 순
+        assertThat(sorted).extracting(ProductRateDto::productId)
+                .containsExactly(2L, 1L);
+    }
+
+    @Test
+    void 탭D_파킹통장정렬은_금리_동점시_상품명_오름차순이_2순위다() {
+        // Given: 금리 동일
+        ProductRateDto productB = createRateDtoWithRate(1L, "B상품", 1_000_000L, 4.0);
+        ProductRateDto productA = createRateDtoWithRate(2L, "A상품", 1_000_000L, 4.0);
+
+        List<ProductRateDto> products = List.of(productB, productA);
+
+        // When
+        List<ProductRateDto> sorted = sortedByAchievableRate(products);
+
+        // Then: 상품명 오름차순 (A → B)
+        assertThat(sorted).extracting(ProductRateDto::productName)
+                .containsExactly("A상품", "B상품");
+    }
+
+    @Test
+    void 탭D_파킹통장정렬_전체_우선순위_검증() {
+        // Given: 다양한 조합
+        ProductRateDto p1 = createRateDtoWithRate(1L, "C상품", 1_000_000L, 5.0);  // 금리 최고
+        ProductRateDto p2 = createRateDtoWithRate(2L, "A상품", 1_000_000L, 4.0);  // 금리 중간
+        ProductRateDto p3 = createRateDtoWithRate(3L, "B상품", 1_000_000L, 4.0);  // 금리 중간
+        ProductRateDto p4 = createRateDtoWithRate(4L, "D상품", 1_000_000L, 3.0);  // 금리 최저
+
+        List<ProductRateDto> products = List.of(p4, p3, p2, p1);  // 무작위 순서
+
+        // When
+        List<ProductRateDto> sorted = sortedByAchievableRate(products);
+
+        // Then: 1순위 금리 DESC → 2순위 상품명 ASC
+        // p1(5%) → p2(4%, A상품) → p3(4%, B상품) → p4(3%)
+        assertThat(sorted).extracting(ProductRateDto::productId)
+                .containsExactly(1L, 2L, 3L, 4L);
+    }
+
+    // SearchService.sortedByAchievableRate와 동일한 로직
+    private List<ProductRateDto> sortedByAchievableRate(Collection<ProductRateDto> products) {
+        return products.stream()
+                .sorted((a, b) -> {
+                    // 1순위: 달성가능금리 내림차순
+                    int cmp = Double.compare(b.achievableRate(), a.achievableRate());
+                    if (cmp != 0) return cmp;
+
+                    // 2순위: 상품명 오름차순
+                    String aName = a.productName() != null ? a.productName() : "";
+                    String bName = b.productName() != null ? b.productName() : "";
+                    return aName.compareTo(bName);
+                })
                 .toList();
     }
 }
