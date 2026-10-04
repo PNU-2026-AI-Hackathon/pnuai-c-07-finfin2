@@ -530,15 +530,15 @@ public class RateCalculatorService {
 
         ProductType type = product.getType();
         if (type == ProductType.DEPOSIT) {
-            // 예금: depositAmount 사용
-            Long depositAmount = request.depositAmount();
+            // 예금: 정규화된 예치 원금 사용 (목돈만들기 시 월저축액×기간으로 변환)
+            Long depositAmount = request.normalizedDepositPrincipal();
             if (depositAmount == null || depositAmount <= 0) {
                 return null;
             }
             return calculateNetReturn(type, depositAmount, null, achievable, months, isCompound);
         } else if (type == ProductType.SAVING) {
-            // 적금: monthlySavingsGoal 사용
-            Long monthlyGoal = request.monthlySavingsGoal();
+            // 적금: 정규화된 월 납입액 사용 (단기예치 시 예치액÷기간으로 변환)
+            Long monthlyGoal = request.normalizedMonthlyDeposit();
             if (monthlyGoal == null || monthlyGoal <= 0) {
                 return null;
             }
