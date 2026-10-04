@@ -197,8 +197,8 @@ public class MatchScoreService {
             return isAdjacentOption(property, selected) ? 0.5 : 0.0;
         }
 
-        // 신규 정확 매칭 키워드: 불일치시 0점
-        return 0.0;
+        // 신규 정확 매칭 키워드: 인접 구간이면 0.5점, 불일치시 0점
+        return isAdjacentPeriod(saveTrm, targetTrm) ? 0.5 : 0.0;
     }
 
     // 레거시 범위 키워드 여부
@@ -420,13 +420,27 @@ public class MatchScoreService {
         };
     }
 
-    // ProductProperty의 저축 기간이 사용자가 선택한 기간과 인접한지 여부를 판별
+    // ProductProperty의 저축 기간이 사용자가 선택한 기간과 인접한지 여부를 판별 (레거시 범위 키워드용)
     private boolean isAdjacentOption(ProductProperty property, KeywordValueEnum selected) {
         int trm = property.getSaveTrm();
         return switch (selected) {
             case TERM_AROUND_1_YEAR -> trm == 24;
             case TERM_2_TO_3_YEARS  -> trm == 12;
             case TERM_OVER_3_YEARS  -> trm == 36;
+            default -> false;
+        };
+    }
+
+    // 신규 정확 매칭 키워드용 인접 기간 판정 (전후 구간)
+    // 옵션 순서: 1→3→6→12→24→36개월, 10개월은 정부상품 특례로 12개월 인접 처리
+    private boolean isAdjacentPeriod(int actualTrm, int targetTrm) {
+        return switch (targetTrm) {
+            case 1  -> actualTrm == 3;
+            case 3  -> actualTrm == 1 || actualTrm == 6;
+            case 6  -> actualTrm == 3 || actualTrm == 12;
+            case 12 -> actualTrm == 6 || actualTrm == 10 || actualTrm == 24;  // 10개월 정부상품 포함
+            case 24 -> actualTrm == 12 || actualTrm == 36;
+            case 36 -> actualTrm == 24;
             default -> false;
         };
     }

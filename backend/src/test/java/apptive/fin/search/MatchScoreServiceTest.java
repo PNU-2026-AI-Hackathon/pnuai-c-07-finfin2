@@ -1040,11 +1040,11 @@ class MatchScoreServiceTest {
                 10L,
                 "test-bank",
                 500_000L,
-                24,  // 24개월 상품
+                36,  // 36개월 상품 (12개월과 인접하지 않음)
                 KeywordValueEnum.BENEFIT_EASY_CONDITION
         ));
 
-        // TERM_12_MONTH 선택 → 24개월 상품 불일치 → 기간 점수 0%
+        // TERM_12_MONTH 선택 → 36개월 상품 불일치 (인접 아님) → 기간 점수 0%
         ProductMatchDto mismatch = matchScoreService.score(
                 product,
                 product.getProperties().get(0),
@@ -1134,6 +1134,65 @@ class MatchScoreServiceTest {
         );
 
         assertThat(result.benefitScore()).isGreaterThan(0.0);
+    }
+
+    @Test
+    void 신규_저축기간_인접_기간이면_절반_배점() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        // 12개월 선택 → 24개월 상품 (인접) → 기간 점수 50%
+        Product product = createProduct("FSS", createProperty(
+                10L,
+                "test-bank",
+                500_000L,
+                24,  // 24개월 상품 (12개월의 인접)
+                KeywordValueEnum.BENEFIT_EASY_CONDITION
+        ));
+
+        ProductMatchDto adjacent = matchScoreService.score(
+                product,
+                product.getProperties().get(0),
+                createRequest(300_000L),
+                new ResolvedKeywords(
+                        List.of(), List.of(),
+                        KeywordValueEnum.TERM_12_MONTH,
+                        List.of(KeywordValueEnum.BENEFIT_EASY_CONDITION),
+                        List.of()
+                ),
+                false
+        );
+
+        // 인접 기간 → 기간점수 50% (정확 매칭의 절반)
+        assertThat(adjacent.periodScore()).isGreaterThan(0.0);
+        assertThat(adjacent.periodScore()).isLessThan(20.0);  // 정확 매칭 20점의 절반인 10점 부근
+    }
+
+    @Test
+    void 정부상품_10개월은_12개월_선택시_인접_배점() {
+        MatchScoreService matchScoreService = new MatchScoreService();
+        // 12개월 선택 → 10개월 정부상품 (인접 특례) → 기간 점수 50%
+        Product product = createProduct("government", createProperty(
+                10L,
+                "정부기관",
+                500_000L,
+                10,  // 10개월 정부상품
+                KeywordValueEnum.BENEFIT_EASY_CONDITION
+        ));
+
+        ProductMatchDto adjacent = matchScoreService.score(
+                product,
+                product.getProperties().get(0),
+                createRequest(300_000L),
+                new ResolvedKeywords(
+                        List.of(), List.of(),
+                        KeywordValueEnum.TERM_12_MONTH,
+                        List.of(KeywordValueEnum.BENEFIT_EASY_CONDITION),
+                        List.of()
+                ),
+                true  // 정부상품
+        );
+
+        // 10개월은 12개월의 인접으로 처리 → 기간점수 50%
+        assertThat(adjacent.periodScore()).isGreaterThan(0.0);
     }
 
     private Product createProduct(String sourceCode, ProductProperty property) {

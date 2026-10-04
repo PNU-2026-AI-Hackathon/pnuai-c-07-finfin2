@@ -189,7 +189,7 @@ class MatchScoreServiceV2Test {
                 10L,
                 "test-bank",
                 500_000L,
-                24,  // 24개월 상품
+                36,  // 36개월 상품 (12개월과 인접하지 않음)
                 KeywordValueEnum.BENEFIT_EASY_CONDITION,
                 KeywordValueEnum.BANK_SALARY_TRANSFER
         ));
@@ -201,7 +201,7 @@ class MatchScoreServiceV2Test {
                 new ResolvedKeywords(
                         List.of(),
                         List.of(),
-                        KeywordValueEnum.TERM_12_MONTH,  // 12개월 선택 → 불일치
+                        KeywordValueEnum.TERM_12_MONTH,  // 12개월 선택 → 36개월과 불일치 (인접 아님)
                         List.of(KeywordValueEnum.BENEFIT_EASY_CONDITION),
                         List.of(KeywordValueEnum.BANK_SALARY_TRANSFER)
                 ),
