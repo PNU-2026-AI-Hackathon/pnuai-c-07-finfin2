@@ -239,7 +239,7 @@ public class SearchService {
                                     request,
                                     resolvedKeywords
                             );
-                            Long tieBreaker = rateDto.netReturn();  // 정부: 원금+기여금 = netReturn
+                            Long tieBreaker = rateDto.expectedTotalContribution();  // 정부: 기여금 총액
                             return withTieBreaker(dto, tieBreaker);
                         })
         );
@@ -485,14 +485,26 @@ public class SearchService {
     }
 
     /**
-     * 탭B 정부 정렬: 기여금총액(achievableRate) → 환산수익률 → 상품명
-     * (정부상품에서 achievableRate는 환산수익률로 사용됨)
+     * 탭B 정부 정렬: 기여금총액 DESC → 환산수익률 DESC → 상품명 ASC
      */
     private List<ProductRateDto> sortedByGovernmentRate(Collection<ProductRateDto> products) {
         return products.stream()
-                .sorted(Comparator
-                        .comparingDouble(ProductRateDto::achievableRate).reversed()
-                        .thenComparing(ProductRateDto::productName, Comparator.nullsLast(Comparator.naturalOrder())))
+                .sorted((a, b) -> {
+                    // 1순위: 기여금 총액 내림차순
+                    long aContribution = a.expectedTotalContribution() != null ? a.expectedTotalContribution() : 0L;
+                    long bContribution = b.expectedTotalContribution() != null ? b.expectedTotalContribution() : 0L;
+                    int cmp = Long.compare(bContribution, aContribution);
+                    if (cmp != 0) return cmp;
+
+                    // 2순위: 환산수익률 내림차순
+                    cmp = Double.compare(b.achievableRate(), a.achievableRate());
+                    if (cmp != 0) return cmp;
+
+                    // 3순위: 상품명 오름차순
+                    String aName = a.productName() != null ? a.productName() : "";
+                    String bName = b.productName() != null ? b.productName() : "";
+                    return aName.compareTo(bName);
+                })
                 .toList();
     }
 

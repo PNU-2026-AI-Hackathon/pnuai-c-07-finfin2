@@ -470,4 +470,100 @@ class ShortTermSortingTest {
                 })
                 .toList();
     }
+
+    // ============================================================
+    // 탭B 정부 정렬 테스트 (기여금총액 DESC → 환산수익률 DESC → 상품명 ASC)
+    // ============================================================
+
+    @Test
+    void 탭B_정부정렬은_기여금총액_내림차순이_1순위다() {
+        // Given
+        ProductRateDto lowContribution = createGovRateDto(1L, "저기여금", 500_000L, 5.0);
+        ProductRateDto highContribution = createGovRateDto(2L, "고기여금", 1_000_000L, 3.0);
+
+        List<ProductRateDto> products = List.of(lowContribution, highContribution);
+
+        // When
+        List<ProductRateDto> sorted = sortedByGovernmentRate(products);
+
+        // Then: 기여금 높은 순 (수익률이 낮아도 기여금이 높으면 먼저)
+        assertThat(sorted).extracting(ProductRateDto::productId)
+                .containsExactly(2L, 1L);
+    }
+
+    @Test
+    void 탭B_정부정렬은_기여금총액_동점시_환산수익률_내림차순이_2순위다() {
+        // Given: 기여금 동일, 수익률 다름
+        ProductRateDto lowYield = createGovRateDto(1L, "저수익률", 1_000_000L, 3.0);
+        ProductRateDto highYield = createGovRateDto(2L, "고수익률", 1_000_000L, 5.0);
+
+        List<ProductRateDto> products = List.of(lowYield, highYield);
+
+        // When
+        List<ProductRateDto> sorted = sortedByGovernmentRate(products);
+
+        // Then: 수익률 높은 순
+        assertThat(sorted).extracting(ProductRateDto::productId)
+                .containsExactly(2L, 1L);
+    }
+
+    @Test
+    void 탭B_정부정렬_전체_우선순위_검증() {
+        // Given: 다양한 조합
+        ProductRateDto p1 = createGovRateDto(1L, "C상품", 1_500_000L, 3.0);  // 기여금 최고
+        ProductRateDto p2 = createGovRateDto(2L, "B상품", 1_000_000L, 5.0);  // 기여금 중간, 수익률 최고
+        ProductRateDto p3 = createGovRateDto(3L, "A상품", 1_000_000L, 4.0);  // 기여금 중간, 수익률 중간
+        ProductRateDto p4 = createGovRateDto(4L, "D상품", 500_000L, 6.0);    // 기여금 최저
+
+        List<ProductRateDto> products = List.of(p4, p3, p2, p1);  // 무작위 순서
+
+        // When
+        List<ProductRateDto> sorted = sortedByGovernmentRate(products);
+
+        // Then: 1순위 기여금 DESC → 2순위 수익률 DESC → 3순위 상품명 ASC
+        // p1(150만) → p2(100만, 5%) → p3(100만, 4%) → p4(50만)
+        assertThat(sorted).extracting(ProductRateDto::productId)
+                .containsExactly(1L, 2L, 3L, 4L);
+    }
+
+    private ProductRateDto createGovRateDto(Long productId, String name, Long contribution, double achievableRate) {
+        return ProductRateDto.builder()
+                .productId(productId)
+                .productPropertyId(productId * 10)
+                .productName(name)
+                .providerName("정부기관")
+                .source("government")
+                .baseRate(0.0)
+                .achievableRate(achievableRate)
+                .rateComparable(true)
+                .isSubscription(false)
+                .netReturn(null)
+                .principal(null)
+                .saveTrm(12)
+                .productType("SAVING")
+                .expectedTotalContribution(contribution)
+                .build();
+    }
+
+    // SearchService.sortedByGovernmentRate와 동일한 로직
+    private List<ProductRateDto> sortedByGovernmentRate(Collection<ProductRateDto> products) {
+        return products.stream()
+                .sorted((a, b) -> {
+                    // 1순위: 기여금 총액 내림차순
+                    long aContribution = a.expectedTotalContribution() != null ? a.expectedTotalContribution() : 0L;
+                    long bContribution = b.expectedTotalContribution() != null ? b.expectedTotalContribution() : 0L;
+                    int cmp = Long.compare(bContribution, aContribution);
+                    if (cmp != 0) return cmp;
+
+                    // 2순위: 환산수익률 내림차순
+                    cmp = Double.compare(b.achievableRate(), a.achievableRate());
+                    if (cmp != 0) return cmp;
+
+                    // 3순위: 상품명 오름차순
+                    String aName = a.productName() != null ? a.productName() : "";
+                    String bName = b.productName() != null ? b.productName() : "";
+                    return aName.compareTo(bName);
+                })
+                .toList();
+    }
 }

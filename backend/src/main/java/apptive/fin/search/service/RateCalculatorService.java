@@ -184,6 +184,7 @@ public class RateCalculatorService {
         Double yield = calculateGovernmentYield(property, request);
         Long netReturn = calculateGovernmentNetReturn(product, property, request);
         Long principal = calculateGovernmentPrincipal(property, request);
+        Long contribution = expectedTotalContribution(property, request.monthlySavingsGoal());
 
         if (yield == null) {
             return baseDto(product, property)
@@ -193,6 +194,7 @@ public class RateCalculatorService {
                     .principal(principal)
                     .saveTrm(contributionMonths(property))
                     .productType(product.getType() != null ? product.getType().name() : null)
+                    .expectedTotalContribution(contribution)
                     .build();
         }
 
@@ -205,6 +207,7 @@ public class RateCalculatorService {
                 .principal(principal)
                 .saveTrm(contributionMonths(property))
                 .productType(product.getType() != null ? product.getType().name() : null)
+                .expectedTotalContribution(contribution)
                 .build();
     }
 
