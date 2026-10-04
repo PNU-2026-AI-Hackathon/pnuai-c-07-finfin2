@@ -503,7 +503,7 @@ public class SearchService {
         return products.stream()
                 .sorted(Comparator
                         .comparingLong((ProductRateDto dto) -> dto.netReturn() != null ? dto.netReturn() : 0L).reversed()
-                        .thenComparingDouble(ProductRateDto::achievableRate).reversed()
+                        .thenComparingDouble(dto -> -dto.achievableRate())  // 음수로 DESC 효과 (reversed() 체인 문제 회피)
                         .thenComparing(ProductRateDto::productName, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
     }
