@@ -2,11 +2,9 @@ package apptive.fin.search;
 
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.search.dto.DetailedOptionsDto;
-import apptive.fin.search.dto.OptionRequestDto;
 import apptive.fin.search.dto.ProductRateDto;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.dto.UnifiedSearchResultDto;
-import apptive.fin.search.enums.CategoryIdEnum;
 import apptive.fin.search.service.SearchService;
 import apptive.fin.support.IntegrationTestSupport;
 import apptive.fin.user.UserRole;
@@ -34,9 +32,6 @@ import static org.mockito.Mockito.when;
         executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD
 )
 class ShortTermSortingIntegrationTest extends IntegrationTestSupport {
-
-    private static final Long TERM_1_MONTH_OPTION_ID = 21L;  // TERM_1_MONTH
-    private static final Long SALARY_TRANSFER_OPTION_ID = 31L;  // BANK_SALARY_TRANSFER
 
     @Autowired
     private SearchService searchService;
@@ -67,16 +62,24 @@ class ShortTermSortingIntegrationTest extends IntegrationTestSupport {
     }
 
     @Test
-    void 비로그인시_예적금탭은_비활성화되고_파킹탭만_활성화된다() {
+    void 비로그인시_예적금탭은_활성화되지만_실수령액이_마스킹된다() {
         // Given: 비로그인
         SearchRequestDto request = createShortTermRequest();
 
         // When
         UnifiedSearchResultDto result = searchService.searchUnified(request, null);
 
-        // Then
-        assertThat(result.tabs().tabCEnabled()).isFalse();
+        // Then: 탭C/D 모두 활성화 (PRD: 비로그인도 탭C 노출, 실수령액만 마스킹)
+        assertThat(result.tabs().tabCEnabled()).isTrue();
         assertThat(result.tabs().tabDEnabled()).isTrue();
+
+        // 비로그인이므로 실수령액(netReturn)이 null로 마스킹됨
+        List<ProductRateDto> depositSavings = result.depositSavingsProducts();
+        if (depositSavings != null && !depositSavings.isEmpty()) {
+            assertThat(depositSavings).allSatisfy(dto ->
+                    assertThat(dto.netReturn()).isNull()
+            );
+        }
     }
 
     @Test
@@ -98,11 +101,9 @@ class ShortTermSortingIntegrationTest extends IntegrationTestSupport {
     // === Helper methods ===
 
     private SearchRequestDto createShortTermRequest() {
+        // 옵션 없이 saveTrmExact=1로 단기예치 요청 (옵션 ID 의존성 제거)
         return new SearchRequestDto(
-                List.of(
-                        new OptionRequestDto(CategoryIdEnum.PERIOD.getId(), TERM_1_MONTH_OPTION_ID),
-                        new OptionRequestDto(CategoryIdEnum.BANK_COND.getId(), SALARY_TRANSFER_OPTION_ID)
-                ),
+                List.of(),
                 new DetailedOptionsDto(
                         LocalDate.now().minusYears(25),  // 생년월일 (25세)
                         50_000_000L,   // annualIncome
@@ -114,7 +115,7 @@ class ShortTermSortingIntegrationTest extends IntegrationTestSupport {
                         null,          // isHouseholder
                         null,          // monthlySavingsGoal
                         10_000_000L,   // depositAmount (1천만원)
-                        1,             // saveTrmExact (1개월)
+                        1,             // saveTrmExact (1개월) - 단기예치로 인식됨
                         List.of(),     // neverUsedBanks (없음)
                         List.of(),     // maturedSavingBanks (없음)
                         List.of()      // selectedInterestRateOptions

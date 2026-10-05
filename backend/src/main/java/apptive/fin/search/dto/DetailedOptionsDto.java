@@ -14,8 +14,8 @@ public record DetailedOptionsDto(
         Boolean isFirstJob,
         Boolean isHomeless,
         Boolean isHouseholder, // 세대주 여부
-        Long monthlySavingsGoal,       // 월 저축 가능액 (목돈만들기용, 단위: 만원)
-        Long depositAmount,            // 예치 희망액 (단기예치용, 단위: 만원)
+        Long monthlySavingsGoal,       // 월 저축 가능액 (목돈만들기용, 단위: 원)
+        Long depositAmount,            // 예치 희망액 (단기예치용, 단위: 원)
         Integer saveTrmExact,          // 정확한 저축기간 (1, 3, 6, 12, 24, 36 개월)
         List<String> neverUsedBanks,
         List<String> maturedSavingBanks,
