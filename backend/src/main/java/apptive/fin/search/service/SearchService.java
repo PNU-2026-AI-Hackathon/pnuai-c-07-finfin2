@@ -65,24 +65,14 @@ public class SearchService {
 
     /**
      * 대분류 결정 로직.
-     * 1순위: saveTrmExact (정확한 개월 수)
-     * 2순위: savingPeriod 키워드 (레거시 호환)
+     * 키워드 우선, saveTrmExact fallback으로 일원화.
      * 기본값: LONG_TERM (목돈만들기)
      */
     private ProductCategoryEnum determineCategory(SearchRequestDto request, ResolvedKeywords resolvedKeywords) {
-        // 1순위: saveTrmExact
-        Integer saveTrmExact = request.saveTrmExact();
-        if (saveTrmExact != null) {
-            return ProductCategoryEnum.fromSaveTrm(saveTrmExact);
+        Integer saveTrm = request.getSaveTrm(resolvedKeywords);
+        if (saveTrm != null) {
+            return ProductCategoryEnum.fromSaveTrm(saveTrm);
         }
-
-        // 2순위: savingPeriod 키워드
-        KeywordValueEnum savingPeriod = resolvedKeywords.savingPeriod();
-        if (savingPeriod != null) {
-            return ProductCategoryEnum.fromKeyword(savingPeriod);
-        }
-
-        // 기본값
         return ProductCategoryEnum.LONG_TERM;
     }
 
@@ -93,7 +83,7 @@ public class SearchService {
      */
     public ShortTermResultDto searchShortTerm(SearchRequestDto request, AuthUserDetails userDetails, ResolvedKeywords resolvedKeywords) {
         // 단기예치 검증 (파킹통장 탭은 예치액만 필수, 은행조건 불필요)
-        searchRequestPolicy.validateForShortTerm(request);
+        searchRequestPolicy.validateForShortTerm(request, resolvedKeywords);
 
         // 가입 가능 상품 필터링
         List<EligibleProductOption> eligible = eligibilityFilterService.filterEligibleOptions(request, resolvedKeywords);
@@ -104,7 +94,7 @@ public class SearchService {
                 .toList();
 
         // 저축기간 필터 (선택된 기간과 일치하는 상품만)
-        Integer targetSaveTrm = request.saveTrmExact();
+        Integer targetSaveTrm = request.getSaveTrm(resolvedKeywords);
         List<EligibleProductOption> filteredByTerm = targetSaveTrm != null
                 ? bankList.stream()
                         .filter(option -> targetSaveTrm.equals(option.property().getSaveTrm()))

@@ -47,10 +47,45 @@ public record SearchRequestDto(
         return detailedOptions != null ? detailedOptions.saveTrmExact() : null;
     }
 
+    /**
+     * 통합 저축기간 조회 (키워드 우선, saveTrmExact fallback).
+     * 키워드와 saveTrmExact를 일원화하여 불일치 문제 방지.
+     */
+    public Integer getSaveTrm(ResolvedKeywords keywords) {
+        // 1순위: 키워드에서 추출 (단일 기준)
+        if (keywords != null && keywords.savingPeriod() != null) {
+            return keywords.savingPeriod().toSaveTrm();
+        }
+        // 2순위: saveTrmExact (레거시 호환)
+        return saveTrmExact();
+    }
+
+    /**
+     * 단기예치 여부 (키워드 기반 통합 판정).
+     */
+    public boolean isShortTerm(ResolvedKeywords keywords) {
+        Integer saveTrm = getSaveTrm(keywords);
+        return saveTrm != null && (saveTrm == 1 || saveTrm == 3);
+    }
+
+    /**
+     * 단기예치 여부 (saveTrmExact만 사용, 레거시 호환).
+     */
     public boolean isShortTerm() {
         return detailedOptions != null && detailedOptions.isShortTerm();
     }
 
+    /**
+     * 목돈만들기 여부 (키워드 기반 통합 판정).
+     */
+    public boolean isLongTerm(ResolvedKeywords keywords) {
+        Integer saveTrm = getSaveTrm(keywords);
+        return saveTrm != null && saveTrm >= 6;
+    }
+
+    /**
+     * 목돈만들기 여부 (saveTrmExact만 사용, 레거시 호환).
+     */
     public boolean isLongTerm() {
         return detailedOptions != null && detailedOptions.isLongTerm();
     }

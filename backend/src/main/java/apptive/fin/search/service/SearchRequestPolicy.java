@@ -18,10 +18,11 @@ public class SearchRequestPolicy {
         if (request == null || request.monthlySavingsGoal() == null) {
             throw new BusinessException(SearchErrorCode.MONTHLY_SAVINGS_GOAL_REQUIRED);
         }
-        if (keywords == null || keywords.savingPeriod() == null) {
+        // 통합 저축기간 검증 (키워드 우선, saveTrmExact fallback)
+        if (request.getSaveTrm(keywords) == null) {
             throw new BusinessException(SearchErrorCode.SAVING_PERIOD_REQUIRED);
         }
-        if (keywords.bankConditions() == null || keywords.bankConditions().isEmpty()) {
+        if (keywords == null || keywords.bankConditions() == null || keywords.bankConditions().isEmpty()) {
             throw new BusinessException(SearchErrorCode.BANK_CONDITION_REQUIRED);
         }
     }
@@ -51,8 +52,8 @@ public class SearchRequestPolicy {
     private boolean isStep1Complete(SearchRequestDto request, ResolvedKeywords keywords) {
         return request != null
                 && request.monthlySavingsGoal() != null
+                && request.getSaveTrm(keywords) != null  // 통합 저축기간 검증
                 && keywords != null
-                && keywords.savingPeriod() != null
                 && keywords.bankConditions() != null
                 && !keywords.bankConditions().isEmpty();
     }
@@ -62,17 +63,18 @@ public class SearchRequestPolicy {
     /**
      * 단기예치 검색 요청 검증.
      * - 예치액(depositAmount) 필수
-     * - 저축기간(saveTrmExact) 필수
+     * - 저축기간 필수 (키워드 또는 saveTrmExact)
      * - 은행조건 선택 불필요 (파킹통장 탭은 비로그인 허용)
      */
-    public void validateForShortTerm(SearchRequestDto request) {
+    public void validateForShortTerm(SearchRequestDto request, ResolvedKeywords keywords) {
         if (request == null) {
             throw new BusinessException(SearchErrorCode.INVALID_REQUEST);
         }
         if (request.depositAmount() == null || request.depositAmount() <= 0) {
             throw new BusinessException(SearchErrorCode.DEPOSIT_AMOUNT_REQUIRED);
         }
-        if (request.saveTrmExact() == null) {
+        // 통합 저축기간 검증 (키워드 우선, saveTrmExact fallback)
+        if (request.getSaveTrm(keywords) == null) {
             throw new BusinessException(SearchErrorCode.SAVING_PERIOD_REQUIRED);
         }
     }
@@ -96,8 +98,8 @@ public class SearchRequestPolicy {
             return false;
         }
 
-        // 저축기간 입력 확인
-        if (request.saveTrmExact() == null) {
+        // 저축기간 입력 확인 (키워드 또는 saveTrmExact)
+        if (request.getSaveTrm(keywords) == null) {
             return false;
         }
 
@@ -123,7 +125,7 @@ public class SearchRequestPolicy {
      */
     public void validateForCategory(SearchRequestDto request, ResolvedKeywords keywords, ProductCategoryEnum category) {
         if (category == ProductCategoryEnum.SHORT_TERM) {
-            validateForShortTerm(request);
+            validateForShortTerm(request, keywords);
         } else {
             validateForRecommendation(request, keywords);
         }

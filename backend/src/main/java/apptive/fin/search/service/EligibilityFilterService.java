@@ -92,8 +92,11 @@ public class EligibilityFilterService {
                 ? Integer.valueOf(0)
                 : detail.tenureMonths();
 
-        // 단기예치 여부 판단 (saveTrmExact가 1 또는 3개월)
-        boolean isShortTerm = detail.isShortTerm();
+        // 단기예치 여부 판단 (키워드 우선, saveTrmExact fallback)
+        Integer saveTrm = keywords.savingPeriod() != null
+                ? keywords.savingPeriod().toSaveTrm()
+                : detail.saveTrmExact();
+        boolean isShortTerm = saveTrm != null && (saveTrm == 1 || saveTrm == 3);
 
         // 예치금 하한 비교용: 단기예치는 depositAmount, 목돈만들기는 monthlySavingsGoal
         Long depositLimit = isShortTerm

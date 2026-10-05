@@ -36,16 +36,18 @@ class SearchRequestPolicyTest {
         @Test
         void 예치액이_있으면_검증_통과() {
             SearchRequestDto request = createShortTermRequest(1_000_000L, 1);
+            ResolvedKeywords keywords = createShortTermKeywords();
 
             // 예외 없이 통과
-            policy.validateForShortTerm(request);
+            policy.validateForShortTerm(request, keywords);
         }
 
         @Test
         void 예치액이_없으면_예외발생() {
             SearchRequestDto request = createShortTermRequest(null, 1);
+            ResolvedKeywords keywords = createShortTermKeywords();
 
-            assertThatThrownBy(() -> policy.validateForShortTerm(request))
+            assertThatThrownBy(() -> policy.validateForShortTerm(request, keywords))
                     .isInstanceOf(BusinessException.class)
                     .extracting("errorCode")
                     .extracting("errNum")
@@ -55,16 +57,18 @@ class SearchRequestPolicyTest {
         @Test
         void 예치액이_0이면_예외발생() {
             SearchRequestDto request = createShortTermRequest(0L, 1);
+            ResolvedKeywords keywords = createShortTermKeywords();
 
-            assertThatThrownBy(() -> policy.validateForShortTerm(request))
+            assertThatThrownBy(() -> policy.validateForShortTerm(request, keywords))
                     .isInstanceOf(BusinessException.class);
         }
 
         @Test
-        void 저축기간이_없으면_예외발생() {
+        void 저축기간이_키워드와_saveTrmExact_모두_없으면_예외발생() {
             SearchRequestDto request = createShortTermRequest(1_000_000L, null);
+            ResolvedKeywords keywordsWithoutPeriod = ResolvedKeywords.emptyKeywords();
 
-            assertThatThrownBy(() -> policy.validateForShortTerm(request))
+            assertThatThrownBy(() -> policy.validateForShortTerm(request, keywordsWithoutPeriod))
                     .isInstanceOf(BusinessException.class)
                     .extracting("errorCode")
                     .extracting("errNum")
@@ -72,8 +76,19 @@ class SearchRequestPolicyTest {
         }
 
         @Test
+        void saveTrmExact_없어도_키워드에_저축기간_있으면_통과() {
+            SearchRequestDto request = createShortTermRequest(1_000_000L, null);  // saveTrmExact 없음
+            ResolvedKeywords keywords = createShortTermKeywords();  // TERM_1_MONTH 있음
+
+            // 키워드에서 저축기간 추출되므로 예외 없이 통과
+            policy.validateForShortTerm(request, keywords);
+        }
+
+        @Test
         void request가_null이면_예외발생() {
-            assertThatThrownBy(() -> policy.validateForShortTerm(null))
+            ResolvedKeywords keywords = createShortTermKeywords();
+
+            assertThatThrownBy(() -> policy.validateForShortTerm(null, keywords))
                     .isInstanceOf(BusinessException.class)
                     .extracting("errorCode")
                     .extracting("errNum")
