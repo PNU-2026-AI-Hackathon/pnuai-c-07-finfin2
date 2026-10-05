@@ -35,7 +35,7 @@ public class EligibilityFilterService {
         ResolvedKeywords keywords = resolveKeywordService.resolveKeywords(request.options());
         EligibilityCriteria criteria = eligibilityCriteria(detail, keywords); // 사용자의 가입 기준 정리
 				
-        // 가입가능한 상품 반환	
+        // 가입가능한 상품 반환
         return productRepository.findEligibleProducts(
                 criteria.age(),
                 criteria.annualIncome(),
@@ -44,7 +44,7 @@ public class EligibilityFilterService {
                 criteria.isHomeless(),
                 criteria.isHouseholder(),
                 criteria.tenureMonths(),
-                criteria.monthlyDeposit()
+                criteria.depositLimit()
         ).stream()
                 .filter(product -> hasEligibleIdentityProperty(product, keywords.identities()))
                 .toList();
@@ -70,7 +70,7 @@ public class EligibilityFilterService {
                         criteria.isHomeless(),
                         criteria.isHouseholder(),
                         criteria.tenureMonths(),
-                        criteria.monthlyDeposit()
+                        criteria.depositLimit()
                 ).stream()
                 .flatMap(product
                         -> product.getProperties().stream()
@@ -92,6 +92,14 @@ public class EligibilityFilterService {
                 ? Integer.valueOf(0)
                 : detail.tenureMonths();
 
+        // 단기예치 여부 판단 (saveTrmExact가 1 또는 3개월)
+        boolean isShortTerm = detail.isShortTerm();
+
+        // 예치금 하한 비교용: 단기예치는 depositAmount, 목돈만들기는 monthlySavingsGoal
+        Long depositLimit = isShortTerm
+                ? detail.depositAmount()
+                : detail.monthlySavingsGoal();
+
         return new EligibilityCriteria(
                 age,
                 annualIncome,
@@ -100,7 +108,8 @@ public class EligibilityFilterService {
                 detail.isHomeless(),
                 detail.isHouseholder(),
                 tenureMonths,
-                detail.monthlySavingsGoal()
+                depositLimit,
+                isShortTerm
         );
     }
     // ProductProperty의 자격요건에 사용자의 조건이 부합하는지 검사하는 함수
@@ -110,16 +119,20 @@ public class EligibilityFilterService {
             List<KeywordValueEnum> identities
     ) {
         return Boolean.TRUE.equals(property.getIsJoinable())
-                && isAgeEligible(property, criteria.age())
+                && isAgeEligible(property, criteria.age(), criteria.isShortTerm())
                 && isIncomeEligible(property, criteria.annualIncome(), criteria.householdIncomePercent(), criteria.incomeProofUnavailable())
                 && isResidenceEligible(property, criteria.isHomeless(), criteria.isHouseholder())
                 && isTenureEligible(property, criteria.tenureMonths())
-                && isMonthlyDepositEligible(property, criteria.monthlyDeposit())
+                && isDepositLimitEligible(property, criteria.depositLimit())
                 && isIdentityEligible(property, identities);
     }
 
     // 나이 조건 확인
-    private boolean isAgeEligible(ProductProperty property, Integer age) {
+    private boolean isAgeEligible(ProductProperty property, Integer age, boolean isShortTerm) {
+        // 단기예치: 미성년(만 17세 미만) 일괄 제외
+        if (isShortTerm && age != null && age < 17) {
+            return false;
+        }
         if (age == null) {
             return true;
         }
@@ -171,11 +184,11 @@ public class EligibilityFilterService {
                 || property.getMinTenureMonths() <= tenureMonths;
     }
 
-    // 월저축희망액 조건 확인
-    private boolean isMonthlyDepositEligible(ProductProperty property, Long monthlyDeposit) {
-        return monthlyDeposit == null
+    // 예치금 하한 조건 확인 (단기: depositAmount, 목돈: monthlySavingsGoal)
+    private boolean isDepositLimitEligible(ProductProperty property, Long depositLimit) {
+        return depositLimit == null
                 || property.getMinMonthlyLimit() == null
-                || property.getMinMonthlyLimit() <= monthlyDeposit;
+                || property.getMinMonthlyLimit() <= depositLimit;
     }
 
     // 상품에 대해 사용자의 현재 신분 기준 가입 가능 여부를 반환하는 함수
@@ -223,7 +236,8 @@ public class EligibilityFilterService {
             Boolean isHomeless,
             Boolean isHouseholder,
             Integer tenureMonths,
-            Long monthlyDeposit
+            Long depositLimit,      // 단기: depositAmount, 목돈: monthlySavingsGoal
+            boolean isShortTerm     // 단기예치 여부
     ) {
     }
 }
