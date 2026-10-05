@@ -149,6 +149,7 @@ public class SearchService {
                                 .map(o -> o.product().getId())
                                 .distinct()
                                 .count()
+                        + parkingProducts.size()  // 파킹통장 포함
                 )
                 .build();
     }
