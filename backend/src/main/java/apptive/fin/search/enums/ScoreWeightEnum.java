@@ -34,40 +34,15 @@ public enum ScoreWeightEnum {
     // 신분특화, 은행거래 축 제외
     TOP3_BENEFITS("benefits", 33.0, true, 3),
     TOP3_DEPOSIT ("deposit",  33.0, true, 3),
-    TOP3_PERIOD  ("period",   34.0, true, 3),
-
-    // === V1 가중치 (레거시 호환) ===
-    // 정부 상품 배점
-    GOV_BENEFITS ("benefits", 40.0, true, 1),
-    GOV_PERIOD   ("period",   22.0, true, 1),
-    GOV_IDENTITY ("identity", 20.0, true, 1),
-    GOV_DEPOSIT  ("deposit",  18.0, true, 1),
-    GOV_BANK_COND("bankCond",  0.0, true, 1),
-
-    // 시중은행 상품 배점
-    BANK_BANK_COND ("bankCond", 40.0, false, 1),
-    BANK_BENEFITS  ("benefits", 20.0, false, 1),
-    BANK_PERIOD    ("period",   20.0, false, 1),
-    BANK_DEPOSIT   ("deposit",  15.0, false, 1),
-    BANK_IDENTITY  ("identity",  5.0, false, 1);
+    TOP3_PERIOD  ("period",   34.0, true, 3);
 
     private final String key;
     private final double weight;
     private final boolean isGov;
     private final int version;
 
-    // 레거시 호환용 생성자
-    ScoreWeightEnum(String key, double weight, boolean isGov) {
-        this(key, weight, isGov, 1);
-    }
-
-    // 정부 or 은행 기본 배점 Map 반환 (V1 레거시)
-    public static Map<String, Double> baseWeights(boolean isGov) {
-        return baseWeights(isGov, 1);
-    }
-
     // 버전별 기본 배점 Map 반환
-    public static Map<String, Double> baseWeights(boolean isGov, int version) {
+    private static Map<String, Double> baseWeights(boolean isGov, int version) {
         return Arrays.stream(values())
                 .filter(e -> e.isGov == isGov && e.version == version)
                 .collect(Collectors.toMap(
