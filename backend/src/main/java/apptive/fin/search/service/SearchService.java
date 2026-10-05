@@ -363,8 +363,8 @@ public class SearchService {
                 .subscriptionProducts(subscriptions)
                 .productCardSummaries(productCardSummaries)
                 .eligibleProductCount(
-                        eligible.stream()
-                                .map(o->o.product().getId())
+                        Stream.concat(govList.stream(), bankList.stream())
+                                .map(o -> o.product().getId())
                                 .distinct()
                                 .count()
                 )
