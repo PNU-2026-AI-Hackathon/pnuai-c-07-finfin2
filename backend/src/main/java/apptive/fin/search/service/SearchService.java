@@ -114,8 +114,8 @@ public class SearchService {
         // 파킹통장 목록 (최고금리순, 비로그인 허용)
         List<ParkingProductDto> parkingProducts = parkingProductService.findParkingProducts(request);
 
-        // 실수령액 표시 여부 (로그인 + 상세정보 입력 시에만)
-        boolean canShowNetReturn = searchRequestPolicy.canUseShortTermPersonalization(request, userDetails);
+        // 실수령액 표시 여부 (로그인 + 우대조건 + 거래이력 + 생년월일 입력 시에만)
+        boolean canShowNetReturn = searchRequestPolicy.canUseShortTermPersonalization(request, resolvedKeywords, userDetails);
 
         // 예적금 탭: 항상 실수령액순 정렬, 비로그인 시 실수령액 필드만 마스킹(null)
         List<ProductRateDto> depositSavingsProducts = filteredByTerm.stream()

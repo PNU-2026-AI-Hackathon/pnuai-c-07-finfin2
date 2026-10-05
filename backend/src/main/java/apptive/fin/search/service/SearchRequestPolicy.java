@@ -78,13 +78,12 @@ public class SearchRequestPolicy {
     }
 
     /**
-     * 단기예치 예적금 탭(tabB) 활성화 여부.
-     * - 로그인 필수
-     * - 예치액 입력 필수
-     * - 상세 정보(생년월일 등) 입력 필수
+     * 단기예치 예적금 탭(tabC) 활성화 여부.
+     * 명세: 우대조건 + 거래이력 + 생년월일 입력 시 활성화
      */
     public boolean canUseShortTermPersonalization(
             SearchRequestDto request,
+            ResolvedKeywords keywords,
             AuthUserDetails userDetails
     ) {
         // 비로그인이면 불가
@@ -102,10 +101,19 @@ public class SearchRequestPolicy {
             return false;
         }
 
-        // 상세 정보 입력 확인 (세후 실수령액 계산에 필요)
+        // 우대조건 입력 확인 (bankConditions)
+        if (keywords == null || keywords.bankConditions() == null || keywords.bankConditions().isEmpty()) {
+            return false;
+        }
+
+        // 거래이력 입력 확인 (neverUsedBanks, maturedSavingBanks)
+        if (!request.hasTransactionHistory()) {
+            return false;
+        }
+
+        // 생년월일 입력 확인
         DetailedOptionsDto detail = request.detailedOptions();
-        return detail != null
-                && detail.birthdate() != null;
+        return detail != null && detail.birthdate() != null;
     }
 
     // ===== 통합 검색 정책 =====
@@ -131,7 +139,7 @@ public class SearchRequestPolicy {
             ProductCategoryEnum category
     ) {
         if (category == ProductCategoryEnum.SHORT_TERM) {
-            return canUseShortTermPersonalization(request, userDetails);
+            return canUseShortTermPersonalization(request, keywords, userDetails);
         } else {
             return canUsePersonalization(request, keywords, userDetails);
         }

@@ -85,50 +85,77 @@ class SearchRequestPolicyTest {
     class 단기예치_개인화_활성화 {
 
         @Test
-        void 로그인하고_예치액과_생년월일_입력시_활성화() {
-            SearchRequestDto request = createShortTermRequestWithBirthdate(1_000_000L, 1);
+        void 모든조건_충족시_활성화() {
+            SearchRequestDto request = createShortTermRequestComplete(1_000_000L, 1);
+            ResolvedKeywords keywords = createShortTermKeywords();
             AuthUserDetails userDetails = mockUserDetails(UserRole.RECOMMENDATION);
 
-            boolean result = policy.canUseShortTermPersonalization(request, userDetails);
+            boolean result = policy.canUseShortTermPersonalization(request, keywords, userDetails);
 
             assertThat(result).isTrue();
         }
 
         @Test
         void 비로그인이면_비활성화() {
-            SearchRequestDto request = createShortTermRequestWithBirthdate(1_000_000L, 1);
+            SearchRequestDto request = createShortTermRequestComplete(1_000_000L, 1);
+            ResolvedKeywords keywords = createShortTermKeywords();
 
-            boolean result = policy.canUseShortTermPersonalization(request, null);
+            boolean result = policy.canUseShortTermPersonalization(request, keywords, null);
 
             assertThat(result).isFalse();
         }
 
         @Test
         void 예치액이_없으면_비활성화() {
-            SearchRequestDto request = createShortTermRequestWithBirthdate(null, 1);
+            SearchRequestDto request = createShortTermRequestComplete(null, 1);
+            ResolvedKeywords keywords = createShortTermKeywords();
             AuthUserDetails userDetails = mockUserDetails(UserRole.RECOMMENDATION);
 
-            boolean result = policy.canUseShortTermPersonalization(request, userDetails);
+            boolean result = policy.canUseShortTermPersonalization(request, keywords, userDetails);
 
             assertThat(result).isFalse();
         }
 
         @Test
         void 생년월일이_없으면_비활성화() {
-            SearchRequestDto request = createShortTermRequest(1_000_000L, 1);
+            SearchRequestDto request = createShortTermRequestWithoutBirthdate(1_000_000L, 1);
+            ResolvedKeywords keywords = createShortTermKeywords();
             AuthUserDetails userDetails = mockUserDetails(UserRole.RECOMMENDATION);
 
-            boolean result = policy.canUseShortTermPersonalization(request, userDetails);
+            boolean result = policy.canUseShortTermPersonalization(request, keywords, userDetails);
+
+            assertThat(result).isFalse();
+        }
+
+        @Test
+        void 우대조건이_없으면_비활성화() {
+            SearchRequestDto request = createShortTermRequestComplete(1_000_000L, 1);
+            ResolvedKeywords keywords = ResolvedKeywords.emptyKeywords();  // bankConditions 비어있음
+            AuthUserDetails userDetails = mockUserDetails(UserRole.RECOMMENDATION);
+
+            boolean result = policy.canUseShortTermPersonalization(request, keywords, userDetails);
+
+            assertThat(result).isFalse();
+        }
+
+        @Test
+        void 거래이력이_없으면_비활성화() {
+            SearchRequestDto request = createShortTermRequestWithoutTransactionHistory(1_000_000L, 1);
+            ResolvedKeywords keywords = createShortTermKeywords();
+            AuthUserDetails userDetails = mockUserDetails(UserRole.RECOMMENDATION);
+
+            boolean result = policy.canUseShortTermPersonalization(request, keywords, userDetails);
 
             assertThat(result).isFalse();
         }
 
         @Test
         void 약관동의_전_역할은_비활성화() {
-            SearchRequestDto request = createShortTermRequestWithBirthdate(1_000_000L, 1);
+            SearchRequestDto request = createShortTermRequestComplete(1_000_000L, 1);
+            ResolvedKeywords keywords = createShortTermKeywords();
             AuthUserDetails userDetails = mockUserDetails(UserRole.BEFORE_AGREED);
 
-            boolean result = policy.canUseShortTermPersonalization(request, userDetails);
+            boolean result = policy.canUseShortTermPersonalization(request, keywords, userDetails);
 
             assertThat(result).isFalse();
         }
@@ -157,11 +184,12 @@ class SearchRequestPolicyTest {
 
         @Test
         void 단기예치_대분류_개인화는_단기예치_정책_사용() {
-            SearchRequestDto request = createShortTermRequestWithBirthdate(1_000_000L, 1);
+            SearchRequestDto request = createShortTermRequestComplete(1_000_000L, 1);
+            ResolvedKeywords keywords = createShortTermKeywords();
             AuthUserDetails userDetails = mockUserDetails(UserRole.RECOMMENDATION);
 
             boolean result = policy.canUsePersonalization(
-                    request, null, userDetails, ProductCategoryEnum.SHORT_TERM);
+                    request, keywords, userDetails, ProductCategoryEnum.SHORT_TERM);
 
             assertThat(result).isTrue();
         }
@@ -193,15 +221,52 @@ class SearchRequestPolicyTest {
         );
     }
 
-    private SearchRequestDto createShortTermRequestWithBirthdate(Long depositAmount, Integer saveTrmExact) {
+    // 단기예치 모든 조건 충족 (생년월일 + 거래이력)
+    private SearchRequestDto createShortTermRequestComplete(Long depositAmount, Integer saveTrmExact) {
         return new SearchRequestDto(
                 List.of(),
                 new DetailedOptionsDto(
                         LocalDate.now().minusYears(25), null, null, null, null,
                         null, null, null, null,
                         depositAmount, saveTrmExact,
-                        null, null, List.of()
+                        List.of("KB"), List.of("NH"), List.of()  // 거래이력 포함
                 )
+        );
+    }
+
+    // 단기예치 생년월일 없음
+    private SearchRequestDto createShortTermRequestWithoutBirthdate(Long depositAmount, Integer saveTrmExact) {
+        return new SearchRequestDto(
+                List.of(),
+                new DetailedOptionsDto(
+                        null, null, null, null, null,
+                        null, null, null, null,
+                        depositAmount, saveTrmExact,
+                        List.of("KB"), List.of("NH"), List.of()  // 거래이력 있음
+                )
+        );
+    }
+
+    // 단기예치 거래이력 없음
+    private SearchRequestDto createShortTermRequestWithoutTransactionHistory(Long depositAmount, Integer saveTrmExact) {
+        return new SearchRequestDto(
+                List.of(),
+                new DetailedOptionsDto(
+                        LocalDate.now().minusYears(25), null, null, null, null,
+                        null, null, null, null,
+                        depositAmount, saveTrmExact,
+                        null, null, List.of()  // 거래이력 없음
+                )
+        );
+    }
+
+    private ResolvedKeywords createShortTermKeywords() {
+        return new ResolvedKeywords(
+                List.of(),
+                List.of(),
+                KeywordValueEnum.TERM_1_MONTH,
+                List.of(),
+                List.of(KeywordValueEnum.BANK_SALARY_TRANSFER)  // 우대조건 있음
         );
     }
 
