@@ -82,18 +82,18 @@ class ParkingProductServiceTest {
     }
 
     @Test
-    void 예치액_필터를_적용하면_한도_내_상품만_반환한다() {
+    void 예치금이_최소한도보다_적으면_제외한다() {
         // Given
-        Product highLimit = createParkingProduct(1L, "고액한도", "3.50", "4.00");
-        ReflectionTestUtils.setField(highLimit.getProperties().get(0), "maxMonthlyLimit", 100_000_000L);
+        Product lowMin = createParkingProduct(1L, "저액최소", "3.50", "4.00");
+        ReflectionTestUtils.setField(lowMin.getProperties().get(0), "minMonthlyLimit", 1_000_000L);
 
-        Product lowLimit = createParkingProduct(2L, "저액한도", "3.80", "4.20");
-        ReflectionTestUtils.setField(lowLimit.getProperties().get(0), "maxMonthlyLimit", 10_000_000L);
+        Product highMin = createParkingProduct(2L, "고액최소", "3.80", "4.20");
+        ReflectionTestUtils.setField(highMin.getProperties().get(0), "minMonthlyLimit", 100_000_000L);
 
         when(productRepository.findByType(ProductType.PARKING))
-                .thenReturn(List.of(highLimit, lowLimit));
+                .thenReturn(List.of(lowMin, highMin));
 
-        // 예치액 5천만원
+        // 예치액 5천만원 → 최소한도 1백만원 상품만 가입 가능
         SearchRequestDto request = new SearchRequestDto(
                 List.of(),
                 new DetailedOptionsDto(
@@ -105,11 +105,63 @@ class ParkingProductServiceTest {
         );
 
         // When
-        List<ParkingProductDto> result = parkingProductService.findParkingProductsWithDepositFilter(request);
+        List<ParkingProductDto> result = parkingProductService.findParkingProducts(request);
 
         // Then
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).productName()).isEqualTo("고액한도");
+        assertThat(result.get(0).productName()).isEqualTo("저액최소");
+    }
+
+    @Test
+    void 미성년자는_파킹통장_가입_불가() {
+        // Given
+        Product parking = createParkingProduct(1L, "테스트파킹", "3.00", "3.50");
+
+        when(productRepository.findByType(ProductType.PARKING))
+                .thenReturn(List.of(parking));
+
+        // 16세 (미성년자)
+        SearchRequestDto request = new SearchRequestDto(
+                List.of(),
+                new DetailedOptionsDto(
+                        java.time.LocalDate.now().minusYears(16), null, null, null, null,
+                        null, null, null, null,
+                        10_000_000L, 1,
+                        null, null, List.of()
+                )
+        );
+
+        // When
+        List<ParkingProductDto> result = parkingProductService.findParkingProducts(request);
+
+        // Then
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void 성인은_파킹통장_가입_가능() {
+        // Given
+        Product parking = createParkingProduct(1L, "테스트파킹", "3.00", "3.50");
+
+        when(productRepository.findByType(ProductType.PARKING))
+                .thenReturn(List.of(parking));
+
+        // 25세 (성인)
+        SearchRequestDto request = new SearchRequestDto(
+                List.of(),
+                new DetailedOptionsDto(
+                        java.time.LocalDate.now().minusYears(25), null, null, null, null,
+                        null, null, null, null,
+                        10_000_000L, 1,
+                        null, null, List.of()
+                )
+        );
+
+        // When
+        List<ParkingProductDto> result = parkingProductService.findParkingProducts(request);
+
+        // Then
+        assertThat(result).hasSize(1);
     }
 
     @Test

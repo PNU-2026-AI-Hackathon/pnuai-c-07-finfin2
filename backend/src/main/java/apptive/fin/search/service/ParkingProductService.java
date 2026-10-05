@@ -30,38 +30,52 @@ public class ParkingProductService {
 
     /**
      * 파킹통장 상품 목록 조회.
-     * 최고금리(maxRate) 내림차순 정렬.
+     * - 자격 필터: 미성년(17세 미만) 제외, 예치금 하한 체크
+     * - 최고금리(maxRate) 내림차순 정렬
      */
     public List<ParkingProductDto> findParkingProducts(SearchRequestDto request) {
-        // 파킹통장 상품 조회
         List<Product> parkingProducts = productRepository.findByType(ProductType.PARKING);
 
-        // 가입 가능 상품 필터 (isJoinable)
+        Integer age = request.age();
+        Long depositAmount = request.depositAmount();
+
         // PRD 동점 규칙: 최고금리 → 기본금리 → 상품명
         return parkingProducts.stream()
                 .flatMap(product -> product.getProperties().stream()
                         .filter(ProductProperty::isJoinable)
+                        .filter(property -> isAgeEligible(property, age))
+                        .filter(property -> isDepositEligible(property, depositAmount))
                         .map(property -> toParkingProductDto(product, property)))
                 .sorted(parkingComparator())
                 .toList();
     }
 
     /**
-     * 예치액 기준 파킹통장 상품 필터링.
-     * 예치액이 최고금리 적용 한도 내인 상품만 반환.
+     * 나이 자격 확인.
+     * - 단기예치: 미성년(만 17세 미만) 일괄 제외
+     * - 상품별 나이 제한 체크
      */
-    public List<ParkingProductDto> findParkingProductsWithDepositFilter(SearchRequestDto request) {
-        Long depositAmount = request.depositAmount();
+    private boolean isAgeEligible(ProductProperty property, Integer age) {
+        // 미성년(17세 미만) 일괄 제외
+        if (age != null && age < 17) {
+            return false;
+        }
+        // 상품 최소 나이 제한
+        if (age != null && property.getMinAge() != null && property.getMinAge() > age) {
+            return false;
+        }
+        // 상품 최대 나이 제한
+        return property.getMaxAge() == null || age == null || property.getMaxAge() >= age;
+    }
 
-        return findParkingProducts(request).stream()
-                .filter(dto -> {
-                    // 적용 한도가 없거나, 예치액이 한도 이내인 경우 포함
-                    if (dto.applicableLimit() == null || depositAmount == null) {
-                        return true;
-                    }
-                    return depositAmount <= dto.applicableLimit();
-                })
-                .toList();
+    /**
+     * 예치금 하한 확인.
+     * 상품의 최소 한도보다 예치액이 적으면 제외.
+     */
+    private boolean isDepositEligible(ProductProperty property, Long depositAmount) {
+        return depositAmount == null
+                || property.getMinMonthlyLimit() == null
+                || property.getMinMonthlyLimit() <= depositAmount;
     }
 
     private ParkingProductDto toParkingProductDto(Product product, ProductProperty property) {
