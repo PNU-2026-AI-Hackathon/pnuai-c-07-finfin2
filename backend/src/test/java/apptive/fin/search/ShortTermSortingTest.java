@@ -11,7 +11,11 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 단기예치 정렬 로직 테스트.
+ * 정렬 알고리즘 단위 테스트.
+ *
+ * 이 테스트는 Comparator 로직 자체의 정확성을 검증한다.
+ * 실제 SearchService 결과 검증은 {@link ShortTermSortingIntegrationTest}에서 수행한다.
+ *
  * PRD 개정: 예적금 탭은 세후 실수령액(netReturn) 내림차순 정렬.
  */
 class ShortTermSortingTest {
