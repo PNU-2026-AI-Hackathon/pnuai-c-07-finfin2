@@ -9,8 +9,13 @@ import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.enums.ProductCategoryEnum;
 import org.springframework.stereotype.Component;
 
+import java.util.Set;
+
 @Component
 public class SearchRequestPolicy {
+
+    /** 명세상 허용되는 저축기간 (개월) */
+    private static final Set<Integer> VALID_SAVE_TERMS = Set.of(1, 3, 6, 12, 24, 36);
 
     // ===== 목돈만들기 (LONG_TERM) 정책 =====
 
@@ -19,11 +24,22 @@ public class SearchRequestPolicy {
             throw new BusinessException(SearchErrorCode.MONTHLY_SAVINGS_GOAL_REQUIRED);
         }
         // 통합 저축기간 검증 (키워드 우선, saveTrmExact fallback)
-        if (request.getSaveTrm(keywords) == null) {
-            throw new BusinessException(SearchErrorCode.SAVING_PERIOD_REQUIRED);
-        }
+        validateSaveTrm(request.getSaveTrm(keywords));
         if (keywords == null || keywords.bankConditions() == null || keywords.bankConditions().isEmpty()) {
             throw new BusinessException(SearchErrorCode.BANK_CONDITION_REQUIRED);
+        }
+    }
+
+    /**
+     * 저축기간 유효값 검증.
+     * 허용값: {1, 3, 6, 12, 24, 36}개월
+     */
+    private void validateSaveTrm(Integer saveTrm) {
+        if (saveTrm == null) {
+            throw new BusinessException(SearchErrorCode.SAVING_PERIOD_REQUIRED);
+        }
+        if (!VALID_SAVE_TERMS.contains(saveTrm)) {
+            throw new BusinessException(SearchErrorCode.INVALID_SAVING_PERIOD);
         }
     }
 
@@ -74,9 +90,7 @@ public class SearchRequestPolicy {
             throw new BusinessException(SearchErrorCode.DEPOSIT_AMOUNT_REQUIRED);
         }
         // 통합 저축기간 검증 (키워드 우선, saveTrmExact fallback)
-        if (request.getSaveTrm(keywords) == null) {
-            throw new BusinessException(SearchErrorCode.SAVING_PERIOD_REQUIRED);
-        }
+        validateSaveTrm(request.getSaveTrm(keywords));
     }
 
     /**

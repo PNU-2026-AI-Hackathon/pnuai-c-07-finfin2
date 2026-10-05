@@ -94,6 +94,31 @@ class SearchRequestPolicyTest {
                     .extracting("errNum")
                     .isEqualTo("008");  // INVALID_REQUEST
         }
+
+        @Test
+        void 유효하지_않은_저축기간이면_예외발생() {
+            // 2개월은 허용되지 않음 (허용값: 1, 3, 6, 12, 24, 36)
+            SearchRequestDto request = createShortTermRequest(1_000_000L, 2);
+            ResolvedKeywords keywordsWithoutPeriod = ResolvedKeywords.emptyKeywords();
+
+            assertThatThrownBy(() -> policy.validateForShortTerm(request, keywordsWithoutPeriod))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode")
+                    .extracting("errNum")
+                    .isEqualTo("009");  // INVALID_SAVING_PERIOD
+        }
+
+        @Test
+        void 음수_저축기간이면_예외발생() {
+            SearchRequestDto request = createShortTermRequest(1_000_000L, -1);
+            ResolvedKeywords keywordsWithoutPeriod = ResolvedKeywords.emptyKeywords();
+
+            assertThatThrownBy(() -> policy.validateForShortTerm(request, keywordsWithoutPeriod))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting("errorCode")
+                    .extracting("errNum")
+                    .isEqualTo("009");  // INVALID_SAVING_PERIOD
+        }
     }
 
     @Nested
