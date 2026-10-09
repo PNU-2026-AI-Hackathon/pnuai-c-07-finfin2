@@ -23,7 +23,7 @@ public class SearchRequestPolicy {
         if (request == null || request.monthlySavingsGoal() == null) {
             throw new BusinessException(SearchErrorCode.MONTHLY_SAVINGS_GOAL_REQUIRED);
         }
-        // 통합 저축기간 검증 (키워드 우선, saveTrmExact fallback)
+        // 저축기간 검증 (키워드에서만 추출)
         validateSaveTrm(request.getSaveTrm(keywords));
         if (keywords == null || keywords.bankConditions() == null || keywords.bankConditions().isEmpty()) {
             throw new BusinessException(SearchErrorCode.BANK_CONDITION_REQUIRED);
@@ -68,7 +68,7 @@ public class SearchRequestPolicy {
     private boolean isStep1Complete(SearchRequestDto request, ResolvedKeywords keywords) {
         return request != null
                 && request.monthlySavingsGoal() != null
-                && request.getSaveTrm(keywords) != null  // 통합 저축기간 검증
+                && request.getSaveTrm(keywords) != null  // 저축기간 검증
                 && keywords != null
                 && keywords.bankConditions() != null
                 && !keywords.bankConditions().isEmpty();
@@ -79,7 +79,7 @@ public class SearchRequestPolicy {
     /**
      * 단기예치 검색 요청 검증.
      * - 예치액(depositAmount) 필수
-     * - 저축기간 필수 (키워드 또는 saveTrmExact)
+     * - 저축기간 필수 (키워드에서 추출)
      * - 은행조건 선택 불필요 (파킹통장 탭은 비로그인 허용)
      */
     public void validateForShortTerm(SearchRequestDto request, ResolvedKeywords keywords) {
@@ -89,7 +89,7 @@ public class SearchRequestPolicy {
         if (request.depositAmount() == null || request.depositAmount() <= 0) {
             throw new BusinessException(SearchErrorCode.DEPOSIT_AMOUNT_REQUIRED);
         }
-        // 통합 저축기간 검증 (키워드 우선, saveTrmExact fallback)
+        // 저축기간 검증 (키워드에서만 추출)
         validateSaveTrm(request.getSaveTrm(keywords));
     }
 
@@ -112,7 +112,7 @@ public class SearchRequestPolicy {
             return false;
         }
 
-        // 저축기간 입력 확인 (키워드 또는 saveTrmExact)
+        // 저축기간 입력 확인 (키워드에서 추출)
         if (request.getSaveTrm(keywords) == null) {
             return false;
         }

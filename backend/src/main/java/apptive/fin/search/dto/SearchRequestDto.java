@@ -43,25 +43,19 @@ public record SearchRequestDto(
         return detailedOptions != null ? detailedOptions.depositAmount() : null;
     }
 
-    public Integer saveTrmExact() {
-        return detailedOptions != null ? detailedOptions.saveTrmExact() : null;
-    }
-
     /**
-     * 통합 저축기간 조회 (키워드 우선, saveTrmExact fallback).
-     * 키워드와 saveTrmExact를 일원화하여 불일치 문제 방지.
+     * 저축기간 조회 (키워드에서만 추출).
+     * TERM_*_MONTH 키워드가 {1,3,6,12,24,36}만 허용하므로 별도 검증 불필요.
      */
     public Integer getSaveTrm(ResolvedKeywords keywords) {
-        // 1순위: 키워드에서 추출 (단일 기준)
         if (keywords != null && keywords.savingPeriod() != null) {
             return keywords.savingPeriod().toSaveTrm();
         }
-        // 2순위: saveTrmExact (레거시 호환)
-        return saveTrmExact();
+        return null;
     }
 
     /**
-     * 단기예치 여부 (키워드 기반 통합 판정).
+     * 단기예치 여부 (키워드 기반 판정).
      */
     public boolean isShortTerm(ResolvedKeywords keywords) {
         Integer saveTrm = getSaveTrm(keywords);
@@ -69,14 +63,7 @@ public record SearchRequestDto(
     }
 
     /**
-     * 단기예치 여부 (saveTrmExact만 사용, 레거시 호환).
-     */
-    public boolean isShortTerm() {
-        return detailedOptions != null && detailedOptions.isShortTerm();
-    }
-
-    /**
-     * 목돈만들기 여부 (키워드 기반 통합 판정).
+     * 목돈만들기 여부 (키워드 기반 판정).
      */
     public boolean isLongTerm(ResolvedKeywords keywords) {
         Integer saveTrm = getSaveTrm(keywords);
@@ -84,30 +71,26 @@ public record SearchRequestDto(
     }
 
     /**
-     * 목돈만들기 여부 (saveTrmExact만 사용, 레거시 호환).
-     */
-    public boolean isLongTerm() {
-        return detailedOptions != null && detailedOptions.isLongTerm();
-    }
-
-    /**
      * 대분류에 따른 유효 금액 반환.
      */
-    public Long effectiveAmount() {
-        return detailedOptions != null ? detailedOptions.effectiveAmount() : null;
+    public Long effectiveAmount(ResolvedKeywords keywords) {
+        if (detailedOptions == null) return null;
+        return detailedOptions.effectiveAmount(isShortTerm(keywords));
     }
 
     /**
      * 정규화된 월 납입액 (적금 계산용).
      */
-    public Long normalizedMonthlyDeposit() {
-        return detailedOptions != null ? detailedOptions.normalizedMonthlyDeposit() : null;
+    public Long normalizedMonthlyDeposit(ResolvedKeywords keywords) {
+        if (detailedOptions == null) return null;
+        return detailedOptions.normalizedMonthlyDeposit(getSaveTrm(keywords));
     }
 
     /**
      * 정규화된 예치 원금 (예금 계산용).
      */
-    public Long normalizedDepositPrincipal() {
-        return detailedOptions != null ? detailedOptions.normalizedDepositPrincipal() : null;
+    public Long normalizedDepositPrincipal(ResolvedKeywords keywords) {
+        if (detailedOptions == null) return null;
+        return detailedOptions.normalizedDepositPrincipal(getSaveTrm(keywords));
     }
 }

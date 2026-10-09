@@ -2,6 +2,7 @@ package apptive.fin.search;
 
 import apptive.fin.auth.security.AuthUserDetails;
 import apptive.fin.search.dto.DetailedOptionsDto;
+import apptive.fin.search.dto.OptionRequestDto;
 import apptive.fin.search.dto.ProductRateDto;
 import apptive.fin.search.dto.SearchRequestDto;
 import apptive.fin.search.dto.UnifiedSearchResultDto;
@@ -32,6 +33,10 @@ import static org.mockito.Mockito.when;
         executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD
 )
 class ShortTermSortingIntegrationTest extends IntegrationTestSupport {
+
+    // V7 migration의 category_option 삽입 순서로 결정되는 옵션 ID
+    private static final Long TERM_1_MONTH_OPTION_ID = 37L;    // TERM_1_MONTH
+    private static final Long SALARY_TRANSFER_OPTION_ID = 32L; // BANK_SALARY_TRANSFER
 
     @Autowired
     private SearchService searchService;
@@ -101,9 +106,12 @@ class ShortTermSortingIntegrationTest extends IntegrationTestSupport {
     // === Helper methods ===
 
     private SearchRequestDto createShortTermRequest() {
-        // 옵션 없이 saveTrmExact=1로 단기예치 요청 (옵션 ID 의존성 제거)
+        // 키워드 기반으로 단기예치 요청 (TERM_1_MONTH 키워드 선택)
         return new SearchRequestDto(
-                List.of(),
+                List.of(
+                        new OptionRequestDto(3L, TERM_1_MONTH_OPTION_ID),    // 저축기간: 1개월
+                        new OptionRequestDto(6L, SALARY_TRANSFER_OPTION_ID)  // 우대거래: 급여이체
+                ),
                 new DetailedOptionsDto(
                         LocalDate.now().minusYears(25),  // 생년월일 (25세)
                         50_000_000L,   // annualIncome
@@ -115,7 +123,6 @@ class ShortTermSortingIntegrationTest extends IntegrationTestSupport {
                         null,          // isHouseholder
                         null,          // monthlySavingsGoal
                         10_000_000L,   // depositAmount (1천만원)
-                        1,             // saveTrmExact (1개월) - 단기예치로 인식됨
                         List.of(),     // neverUsedBanks (없음)
                         List.of(),     // maturedSavingBanks (없음)
                         List.of()      // selectedInterestRateOptions

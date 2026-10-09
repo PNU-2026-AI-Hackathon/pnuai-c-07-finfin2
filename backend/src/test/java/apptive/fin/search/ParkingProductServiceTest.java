@@ -99,7 +99,7 @@ class ParkingProductServiceTest {
                 new DetailedOptionsDto(
                         null, null, null, null, null,
                         null, null, null, null,
-                        50_000_000L, 1,
+                        50_000_000L,
                         null, null, List.of()
                 )
         );
@@ -126,7 +126,7 @@ class ParkingProductServiceTest {
                 new DetailedOptionsDto(
                         java.time.LocalDate.now().minusYears(16), null, null, null, null,
                         null, null, null, null,
-                        10_000_000L, 1,
+                        10_000_000L,
                         null, null, List.of()
                 )
         );
@@ -152,7 +152,7 @@ class ParkingProductServiceTest {
                 new DetailedOptionsDto(
                         java.time.LocalDate.now().minusYears(25), null, null, null, null,
                         null, null, null, null,
-                        10_000_000L, 1,
+                        10_000_000L,
                         null, null, List.of()
                 )
         );
@@ -288,7 +288,7 @@ class ParkingProductServiceTest {
                 new DetailedOptionsDto(
                         null, null, null, null, null,
                         null, null, null, null,
-                        null, null,
+                        null,
                         null, null, List.of()
                 )
         );

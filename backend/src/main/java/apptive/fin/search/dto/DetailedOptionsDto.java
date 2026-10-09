@@ -16,7 +16,6 @@ public record DetailedOptionsDto(
         Boolean isHouseholder, // 세대주 여부
         Long monthlySavingsGoal,       // 월 저축 가능액 (목돈만들기용, 단위: 원)
         Long depositAmount,            // 예치 희망액 (단기예치용, 단위: 원)
-        Integer saveTrmExact,          // 정확한 저축기간 (1, 3, 6, 12, 24, 36 개월)
         List<String> neverUsedBanks,
         List<String> maturedSavingBanks,
         List<PreferentialInterestRateOption> selectedInterestRateOptions
@@ -45,7 +44,6 @@ public record DetailedOptionsDto(
                 isHouseholder,
                 monthlySavingsGoal,
                 null,  // depositAmount
-                null,  // saveTrmExact
                 null,  // neverUsedBanks
                 null,  // maturedSavingBanks
                 selectedInterestRateOptions
@@ -78,7 +76,6 @@ public record DetailedOptionsDto(
                 isHouseholder,
                 monthlySavingsGoal,
                 null,  // depositAmount
-                null,  // saveTrmExact
                 neverUsedBanks,
                 maturedSavingBanks,
                 selectedInterestRateOptions
@@ -95,27 +92,12 @@ public record DetailedOptionsDto(
     }
 
     /**
-     * 단기예치 대분류인지 판별 (saveTrmExact가 1 또는 3개월).
-     */
-    public boolean isShortTerm() {
-        return saveTrmExact != null && (saveTrmExact == 1 || saveTrmExact == 3);
-    }
-
-    /**
-     * 목돈만들기 대분류인지 판별 (saveTrmExact가 6개월 이상).
-     */
-    public boolean isLongTerm() {
-        return saveTrmExact != null && saveTrmExact >= 6;
-    }
-
-    /**
      * 대분류에 따른 유효 금액 반환.
-     * - 단기예치: depositAmount (예치 희망액)
-     * - 목돈만들기: monthlySavingsGoal (월 저축 가능액)
-     * - 미지정: monthlySavingsGoal (레거시 호환)
+     * @param isShortTerm 단기예치 여부 (키워드 기반으로 판정)
+     * @return 단기예치면 depositAmount, 목돈만들기면 monthlySavingsGoal
      */
-    public Long effectiveAmount() {
-        if (isShortTerm()) {
+    public Long effectiveAmount(boolean isShortTerm) {
+        if (isShortTerm) {
             return depositAmount;
         }
         return monthlySavingsGoal;
@@ -123,24 +105,26 @@ public record DetailedOptionsDto(
 
     /**
      * 정규화된 월 납입액 계산.
-     * - 단기예치: 예치액 ÷ 기간 (적금용)
-     * - 목돈만들기: monthlySavingsGoal 그대로
+     * @param saveTrm 저축기간 (키워드에서 추출)
+     * @return 단기예치(1,3개월)면 예치액÷기간, 목돈만들기면 monthlySavingsGoal
      */
-    public Long normalizedMonthlyDeposit() {
-        if (isShortTerm() && depositAmount != null && saveTrmExact != null && saveTrmExact > 0) {
-            return depositAmount / saveTrmExact;
+    public Long normalizedMonthlyDeposit(Integer saveTrm) {
+        boolean isShortTerm = saveTrm != null && (saveTrm == 1 || saveTrm == 3);
+        if (isShortTerm && depositAmount != null && saveTrm > 0) {
+            return depositAmount / saveTrm;
         }
         return monthlySavingsGoal;
     }
 
     /**
      * 정규화된 예치 원금 계산.
-     * - 단기예치: depositAmount 그대로
-     * - 목돈만들기: 월저축액 × 기간 (예금용)
+     * @param saveTrm 저축기간 (키워드에서 추출)
+     * @return 목돈만들기(6개월 이상)면 월저축액×기간, 단기예치면 depositAmount
      */
-    public Long normalizedDepositPrincipal() {
-        if (isLongTerm() && monthlySavingsGoal != null && saveTrmExact != null) {
-            return monthlySavingsGoal * saveTrmExact;
+    public Long normalizedDepositPrincipal(Integer saveTrm) {
+        boolean isLongTerm = saveTrm != null && saveTrm >= 6;
+        if (isLongTerm && monthlySavingsGoal != null) {
+            return monthlySavingsGoal * saveTrm;
         }
         return depositAmount;
     }

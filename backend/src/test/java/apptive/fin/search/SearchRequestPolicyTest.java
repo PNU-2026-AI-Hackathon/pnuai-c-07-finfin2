@@ -35,7 +35,7 @@ class SearchRequestPolicyTest {
 
         @Test
         void 예치액이_있으면_검증_통과() {
-            SearchRequestDto request = createShortTermRequest(1_000_000L, 1);
+            SearchRequestDto request = createShortTermRequest(1_000_000L);
             ResolvedKeywords keywords = createShortTermKeywords();
 
             // 예외 없이 통과
@@ -44,7 +44,7 @@ class SearchRequestPolicyTest {
 
         @Test
         void 예치액이_없으면_예외발생() {
-            SearchRequestDto request = createShortTermRequest(null, 1);
+            SearchRequestDto request = createShortTermRequest(null);
             ResolvedKeywords keywords = createShortTermKeywords();
 
             assertThatThrownBy(() -> policy.validateForShortTerm(request, keywords))
@@ -56,7 +56,7 @@ class SearchRequestPolicyTest {
 
         @Test
         void 예치액이_0이면_예외발생() {
-            SearchRequestDto request = createShortTermRequest(0L, 1);
+            SearchRequestDto request = createShortTermRequest(0L);
             ResolvedKeywords keywords = createShortTermKeywords();
 
             assertThatThrownBy(() -> policy.validateForShortTerm(request, keywords))
@@ -64,8 +64,8 @@ class SearchRequestPolicyTest {
         }
 
         @Test
-        void 저축기간이_키워드와_saveTrmExact_모두_없으면_예외발생() {
-            SearchRequestDto request = createShortTermRequest(1_000_000L, null);
+        void 저축기간_키워드가_없으면_예외발생() {
+            SearchRequestDto request = createShortTermRequest(1_000_000L);
             ResolvedKeywords keywordsWithoutPeriod = ResolvedKeywords.emptyKeywords();
 
             assertThatThrownBy(() -> policy.validateForShortTerm(request, keywordsWithoutPeriod))
@@ -76,8 +76,8 @@ class SearchRequestPolicyTest {
         }
 
         @Test
-        void saveTrmExact_없어도_키워드에_저축기간_있으면_통과() {
-            SearchRequestDto request = createShortTermRequest(1_000_000L, null);  // saveTrmExact 없음
+        void 키워드에_저축기간_있으면_통과() {
+            SearchRequestDto request = createShortTermRequest(1_000_000L);
             ResolvedKeywords keywords = createShortTermKeywords();  // TERM_1_MONTH 있음
 
             // 키워드에서 저축기간 추출되므로 예외 없이 통과
@@ -94,31 +94,6 @@ class SearchRequestPolicyTest {
                     .extracting("errNum")
                     .isEqualTo("008");  // INVALID_REQUEST
         }
-
-        @Test
-        void 유효하지_않은_저축기간이면_예외발생() {
-            // 2개월은 허용되지 않음 (허용값: 1, 3, 6, 12, 24, 36)
-            SearchRequestDto request = createShortTermRequest(1_000_000L, 2);
-            ResolvedKeywords keywordsWithoutPeriod = ResolvedKeywords.emptyKeywords();
-
-            assertThatThrownBy(() -> policy.validateForShortTerm(request, keywordsWithoutPeriod))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting("errorCode")
-                    .extracting("errNum")
-                    .isEqualTo("009");  // INVALID_SAVING_PERIOD
-        }
-
-        @Test
-        void 음수_저축기간이면_예외발생() {
-            SearchRequestDto request = createShortTermRequest(1_000_000L, -1);
-            ResolvedKeywords keywordsWithoutPeriod = ResolvedKeywords.emptyKeywords();
-
-            assertThatThrownBy(() -> policy.validateForShortTerm(request, keywordsWithoutPeriod))
-                    .isInstanceOf(BusinessException.class)
-                    .extracting("errorCode")
-                    .extracting("errNum")
-                    .isEqualTo("009");  // INVALID_SAVING_PERIOD
-        }
     }
 
     @Nested
@@ -126,7 +101,7 @@ class SearchRequestPolicyTest {
 
         @Test
         void 모든조건_충족시_활성화() {
-            SearchRequestDto request = createShortTermRequestComplete(1_000_000L, 1);
+            SearchRequestDto request = createShortTermRequestComplete(1_000_000L);
             ResolvedKeywords keywords = createShortTermKeywords();
             AuthUserDetails userDetails = mockUserDetails(UserRole.RECOMMENDATION);
 
@@ -137,7 +112,7 @@ class SearchRequestPolicyTest {
 
         @Test
         void 비로그인이면_비활성화() {
-            SearchRequestDto request = createShortTermRequestComplete(1_000_000L, 1);
+            SearchRequestDto request = createShortTermRequestComplete(1_000_000L);
             ResolvedKeywords keywords = createShortTermKeywords();
 
             boolean result = policy.canUseShortTermPersonalization(request, keywords, null);
@@ -147,7 +122,7 @@ class SearchRequestPolicyTest {
 
         @Test
         void 예치액이_없으면_비활성화() {
-            SearchRequestDto request = createShortTermRequestComplete(null, 1);
+            SearchRequestDto request = createShortTermRequestComplete(null);
             ResolvedKeywords keywords = createShortTermKeywords();
             AuthUserDetails userDetails = mockUserDetails(UserRole.RECOMMENDATION);
 
@@ -158,7 +133,7 @@ class SearchRequestPolicyTest {
 
         @Test
         void 생년월일이_없으면_비활성화() {
-            SearchRequestDto request = createShortTermRequestWithoutBirthdate(1_000_000L, 1);
+            SearchRequestDto request = createShortTermRequestWithoutBirthdate(1_000_000L);
             ResolvedKeywords keywords = createShortTermKeywords();
             AuthUserDetails userDetails = mockUserDetails(UserRole.RECOMMENDATION);
 
@@ -169,7 +144,7 @@ class SearchRequestPolicyTest {
 
         @Test
         void 우대조건이_없으면_비활성화() {
-            SearchRequestDto request = createShortTermRequestComplete(1_000_000L, 1);
+            SearchRequestDto request = createShortTermRequestComplete(1_000_000L);
             ResolvedKeywords keywords = ResolvedKeywords.emptyKeywords();  // bankConditions 비어있음
             AuthUserDetails userDetails = mockUserDetails(UserRole.RECOMMENDATION);
 
@@ -180,7 +155,7 @@ class SearchRequestPolicyTest {
 
         @Test
         void 거래이력이_없으면_비활성화() {
-            SearchRequestDto request = createShortTermRequestWithoutTransactionHistory(1_000_000L, 1);
+            SearchRequestDto request = createShortTermRequestWithoutTransactionHistory(1_000_000L);
             ResolvedKeywords keywords = createShortTermKeywords();
             AuthUserDetails userDetails = mockUserDetails(UserRole.RECOMMENDATION);
 
@@ -191,7 +166,7 @@ class SearchRequestPolicyTest {
 
         @Test
         void 약관동의_전_역할은_비활성화() {
-            SearchRequestDto request = createShortTermRequestComplete(1_000_000L, 1);
+            SearchRequestDto request = createShortTermRequestComplete(1_000_000L);
             ResolvedKeywords keywords = createShortTermKeywords();
             AuthUserDetails userDetails = mockUserDetails(UserRole.BEFORE_AGREED);
 
@@ -206,8 +181,8 @@ class SearchRequestPolicyTest {
 
         @Test
         void 단기예치_대분류면_단기예치_검증_사용() {
-            SearchRequestDto request = createShortTermRequest(1_000_000L, 1);
-            ResolvedKeywords keywords = ResolvedKeywords.emptyKeywords();
+            SearchRequestDto request = createShortTermRequest(1_000_000L);
+            ResolvedKeywords keywords = createShortTermKeywords();  // TERM_1_MONTH 포함
 
             // 예외 없이 통과
             policy.validateForCategory(request, keywords, ProductCategoryEnum.SHORT_TERM);
@@ -224,7 +199,7 @@ class SearchRequestPolicyTest {
 
         @Test
         void 단기예치_대분류_개인화는_단기예치_정책_사용() {
-            SearchRequestDto request = createShortTermRequestComplete(1_000_000L, 1);
+            SearchRequestDto request = createShortTermRequestComplete(1_000_000L);
             ResolvedKeywords keywords = createShortTermKeywords();
             AuthUserDetails userDetails = mockUserDetails(UserRole.RECOMMENDATION);
 
@@ -249,52 +224,52 @@ class SearchRequestPolicyTest {
 
     // === Helper methods ===
 
-    private SearchRequestDto createShortTermRequest(Long depositAmount, Integer saveTrmExact) {
+    private SearchRequestDto createShortTermRequest(Long depositAmount) {
         return new SearchRequestDto(
                 List.of(),
                 new DetailedOptionsDto(
                         null, null, null, null, null,
                         null, null, null, null,
-                        depositAmount, saveTrmExact,
+                        depositAmount,
                         null, null, List.of()
                 )
         );
     }
 
     // 단기예치 모든 조건 충족 (생년월일 + 거래이력)
-    private SearchRequestDto createShortTermRequestComplete(Long depositAmount, Integer saveTrmExact) {
+    private SearchRequestDto createShortTermRequestComplete(Long depositAmount) {
         return new SearchRequestDto(
                 List.of(),
                 new DetailedOptionsDto(
                         LocalDate.now().minusYears(25), null, null, null, null,
                         null, null, null, null,
-                        depositAmount, saveTrmExact,
+                        depositAmount,
                         List.of("KB"), List.of("NH"), List.of()  // 거래이력 포함
                 )
         );
     }
 
     // 단기예치 생년월일 없음
-    private SearchRequestDto createShortTermRequestWithoutBirthdate(Long depositAmount, Integer saveTrmExact) {
+    private SearchRequestDto createShortTermRequestWithoutBirthdate(Long depositAmount) {
         return new SearchRequestDto(
                 List.of(),
                 new DetailedOptionsDto(
                         null, null, null, null, null,
                         null, null, null, null,
-                        depositAmount, saveTrmExact,
+                        depositAmount,
                         List.of("KB"), List.of("NH"), List.of()  // 거래이력 있음
                 )
         );
     }
 
     // 단기예치 거래이력 없음
-    private SearchRequestDto createShortTermRequestWithoutTransactionHistory(Long depositAmount, Integer saveTrmExact) {
+    private SearchRequestDto createShortTermRequestWithoutTransactionHistory(Long depositAmount) {
         return new SearchRequestDto(
                 List.of(),
                 new DetailedOptionsDto(
                         LocalDate.now().minusYears(25), null, null, null, null,
                         null, null, null, null,
-                        depositAmount, saveTrmExact,
+                        depositAmount,
                         null, null, List.of()  // 거래이력 없음
                 )
         );
@@ -316,7 +291,7 @@ class SearchRequestPolicyTest {
                 new DetailedOptionsDto(
                         null, null, null, null, null,
                         null, null, null, monthlySavingsGoal,
-                        null, null,
+                        null,
                         null, null, List.of()
                 )
         );
@@ -333,7 +308,7 @@ class SearchRequestPolicyTest {
                         null,
                         null, null, null,
                         100_000L,     // monthlySavingsGoal
-                        null, null,
+                        null,
                         List.of(), List.of(), List.of()
                 )
         );

@@ -795,15 +795,21 @@ class RateCalculatorServiceTest {
                 new DetailedOptionsDto(
                         null, null, null, null, null,
                         null, null, null, 100_000L,
-                        null, null, null, null, List.of()
+                        null,
+                        null, null, List.of()
                 )
         );
 
+        ResolvedKeywords keywords = new ResolvedKeywords(
+                List.of(), List.of(),
+                KeywordValueEnum.TERM_12_MONTH,
+                List.of(), List.of()
+        );
         ProductRateDto result = rateCalculatorService.calculate(
                 product,
                 property,
                 request,
-                ResolvedKeywords.emptyKeywords()
+                keywords
         );
 
         assertThat(result.netReturn()).isNotNull();
@@ -826,16 +832,21 @@ class RateCalculatorServiceTest {
                 new DetailedOptionsDto(
                         null, null, null, null, null,
                         null, null, null, null,
-                        1_000_000L, 12,
+                        1_000_000L,
                         null, null, List.of()
                 )
         );
 
+        ResolvedKeywords keywords = new ResolvedKeywords(
+                List.of(), List.of(),
+                KeywordValueEnum.TERM_12_MONTH,
+                List.of(), List.of()
+        );
         ProductRateDto result = rateCalculatorService.calculate(
                 product,
                 property,
                 request,
-                ResolvedKeywords.emptyKeywords()
+                keywords
         );
 
         assertThat(result.netReturn()).isNotNull();

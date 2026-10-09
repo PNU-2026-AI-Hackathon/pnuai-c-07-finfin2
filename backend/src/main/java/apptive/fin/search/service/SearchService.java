@@ -44,7 +44,7 @@ public class SearchService {
 
     /**
      * 통합 검색 (대분류 라우팅).
-     * saveTrmExact 또는 savingPeriod 키워드에 따라 대분류를 결정하고 해당 파이프라인 실행.
+     * savingPeriod 키워드에 따라 대분류를 결정하고 해당 파이프라인 실행.
      */
     public UnifiedSearchResultDto searchUnified(SearchRequestDto request, AuthUserDetails userDetails) {
         ResolvedKeywords resolvedKeywords = resolveKeywordService.resolveKeywords(request.options());
@@ -65,7 +65,7 @@ public class SearchService {
 
     /**
      * 대분류 결정 로직.
-     * 키워드 우선, saveTrmExact fallback으로 일원화.
+     * savingPeriod 키워드에서 저축기간 추출.
      * 기본값: LONG_TERM (목돈만들기)
      */
     private ProductCategoryEnum determineCategory(SearchRequestDto request, ResolvedKeywords resolvedKeywords) {

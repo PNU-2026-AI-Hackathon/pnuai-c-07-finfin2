@@ -454,7 +454,7 @@ class MatchScoreServiceV2Test {
                 new DetailedOptionsDto(
                         null, null, null, null, null,
                         null, null, null, monthlySavingsGoal,
-                        null, null,
+                        null,
                         null, null, List.of()
                 )
         );
