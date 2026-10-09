@@ -1,6 +1,7 @@
 package apptive.fin.search.repository;
 
 import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ProductType;
 import apptive.fin.search.entity.Product;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -82,5 +83,16 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
            AND pp.isJoinable = TRUE
     """)
     List<Product> findByProductNameContaining(@Param("searchInput") String searchInput);
+
+    // 상품 유형별 조회 (파킹통장 등)
+    @Query("""
+            SELECT DISTINCT p FROM Product p
+            JOIN FETCH p.source
+            JOIN FETCH p.properties pp
+            LEFT JOIN FETCH pp.provider
+            WHERE p.type = :type
+              AND pp.isJoinable = TRUE
+            """)
+    List<Product> findByType(@Param("type") ProductType type);
 
 }
