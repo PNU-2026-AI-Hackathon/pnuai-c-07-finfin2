@@ -133,6 +133,12 @@ class FssProductNormalizerTest {
     }
 
     @Test
+    void keepsTrailingParenInProductName() {
+        // normalizer는 원본 이름을 그대로 담는다(공백만 축약). 끝 괄호 제거는 DisplayNameResolver 몫이다.
+        assertThat(normalizedName("JB 다이렉트적금(자유적립식)")).isEqualTo("JB 다이렉트적금(자유적립식)");
+        assertThat(normalizedName("The든든예금(시즌2)")).isEqualTo("The든든예금(시즌2)");
+        // 개행은 공백으로 축약되므로 "적금\n(정액적립식)" -> "적금 (정액적립식)"
+        assertThat(normalizedName("Sh해양플라스틱Zero!적금\\n(정액적립식)")).isEqualTo("Sh해양플라스틱Zero!적금 (정액적립식)");
     void keepsTrailingParenSoScrapersCanTellProductsApart() {
         // normalizer는 원본 이름을 그대로 담는다(공백만 축약). 이름 끝 괄호는 적립·지급 방식을 담고 있고,
         // 은행 URL 스크래퍼가 상품을 구분하는 유일한 근거다. 끝 괄호 제거는 DisplayNameResolver 몫이다.

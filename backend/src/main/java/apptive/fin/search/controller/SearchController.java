@@ -5,8 +5,8 @@ import apptive.fin.search.dto.DynamicFormResponseDto;
 import apptive.fin.search.dto.ProductDetailRequestDto;
 import apptive.fin.search.dto.ProductDetailResponseDto;
 import apptive.fin.search.dto.ProductNameSearchDto;
-import apptive.fin.search.dto.ProductSearchResultDto;
 import apptive.fin.search.dto.SearchRequestDto;
+import apptive.fin.search.dto.UnifiedSearchResultDto;
 import apptive.fin.search.service.DynamicFormService;
 import apptive.fin.search.service.ProductDetailService;
 import apptive.fin.search.service.SearchService;
@@ -40,11 +40,11 @@ public class SearchController {
     }
 
     @PostMapping("/products")
-    public ResponseEntity<ProductSearchResultDto> search(
+    public ResponseEntity<UnifiedSearchResultDto> search(
             @Valid @RequestBody SearchRequestDto searchRequestDto,
             @AuthenticationPrincipal AuthUserDetails userDetails
     ) {
-        return ResponseEntity.ok(searchService.search(searchRequestDto, userDetails));
+        return ResponseEntity.ok(searchService.searchUnified(searchRequestDto, userDetails));
     }
 
     @GetMapping("/products")
