@@ -1,0 +1,561 @@
+package apptive.fin.search.service;
+
+import apptive.fin.search.enums.KeywordValueEnum;
+import apptive.fin.search.enums.ScoreWeightEnum;
+import apptive.fin.search.dto.ProductMatchDto;
+import apptive.fin.search.dto.ResolvedKeywords;
+import apptive.fin.search.dto.SearchRequestDto;
+import apptive.fin.search.entity.Product;
+import apptive.fin.search.entity.ProductProperty;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static apptive.fin.search.enums.KeywordValueEnum.*;
+
+@Service
+public class MatchScoreService {
+
+    public ProductMatchDto score(
+            Product product,
+            ProductProperty property,
+            SearchRequestDto request,
+            ResolvedKeywords keywords,
+            boolean includeTransactionHistory
+    ) {
+        return score(product, property, request, keywords, includeTransactionHistory, null);
+    }
+
+    // bankMaxInterestThreshold: 은행 #최고이율 상위 30% 판정용 임계 금리(결과셋 기준, SearchService에서 사전 계산). null이면 미적용.
+    public ProductMatchDto score(
+            Product product,
+            ProductProperty property,
+            SearchRequestDto request,
+            ResolvedKeywords keywords,
+            boolean includeTransactionHistory,
+            Double bankMaxInterestThreshold
+    ) {
+        boolean isGov = product.isGovernment();  // 정부상품 여부
+
+        // ProductProperty에 대한 점수 계산
+        ProductPropertyScore score = scoreProperty(
+                property,
+                keywords.coreBenefits(),
+                keywords.identities(),
+                keywords.bankConditions(),
+                keywords.savingPeriod(),
+                request.monthlySavingsGoal(),
+                isGov,
+                request,
+                includeTransactionHistory,
+                bankMaxInterestThreshold
+        );
+
+        return ProductMatchDto.builder()
+                .productId(product.getId())
+                .productPropertyId(property.getId())
+                .productName(product.getDisplayProductName())
+                .providerName(property.providerName())
+                .source(product.getSource().getCode())
+                .totalScore(score.totalScore())
+                .benefitScore(score.benefitScore())
+                .periodScore(score.periodScore())
+                .identityScore(score.identityScore())
+                .depositScore(score.depositScore())
+                .bankCondScore(score.bankCondScore())
+                .tieBreaker(null)  // SearchService에서 설정
+                .build();
+    }
+
+    private ProductPropertyScore scoreProperty(
+            ProductProperty property,
+            List<KeywordValueEnum> coreBenefits,
+            List<KeywordValueEnum> identities,
+            List<KeywordValueEnum> bankConditions,
+            KeywordValueEnum savingPeriod,
+            Long monthlyDeposit,
+            boolean isGov,
+            SearchRequestDto request,
+            boolean includeTransactionHistory,
+            Double bankMaxInterestThreshold
+    ) {
+        // 상품 속성의 키워드
+        Set<KeywordValueEnum> propertyKeywords = property.keywordCodes();
+
+        // 활성화된 은행 관련 조건
+        List<KeywordValueEnum> activeBankConditions = activeBankConditions(
+                bankConditions,
+                property,
+                request,
+                includeTransactionHistory,
+                isGov
+        );
+
+        // 가중치 분배
+        Map<String, Double> weights = distributeWeights(
+                coreBenefits,
+                identities,
+                activeBankConditions,
+                savingPeriod,
+                monthlyDeposit,
+                property,
+                isGov
+        );
+        
+        // metric 별로 점수계산, 가중치 적용 (V2: 4축 - 고특성30 + 균등20)
+        double benefitScore = calcBenefitScore(coreBenefits, property, propertyKeywords, isGov, bankMaxInterestThreshold)
+                * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_BENEFITS_V2, ScoreWeightEnum.BANK_BENEFITS_V2));
+        double periodScore = calcPeriodScore(savingPeriod, property)
+                * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_PERIOD_V2, ScoreWeightEnum.BANK_PERIOD_V2));
+        double depositScore = calcDepositScore(monthlyDeposit, property)
+                * weights.get(weightKey(isGov, ScoreWeightEnum.GOV_DEPOSIT_V2, ScoreWeightEnum.BANK_DEPOSIT_V2));
+
+        // V2: 정부는 신분특화, 은행은 은행거래 조건 점수 적용
+        double identityScore = isGov
+                ? calcIdentityScore(identities, propertyKeywords, isGov)
+                        * weights.get(ScoreWeightEnum.GOV_IDENTITY_V2.getKey())
+                : 0.0;
+        double bankCondScore = !isGov
+                ? calcBankCondScore(activeBankConditions, propertyKeywords, property, request)
+                        * weights.get(ScoreWeightEnum.BANK_BANK_COND_V2.getKey())
+                : 0.0;
+
+        double totalScore = benefitScore + periodScore + depositScore + identityScore + bankCondScore;
+
+        // 점수를 ProductPropertyScore Dto 형태로 반환
+        return new ProductPropertyScore(
+                property,
+                totalScore,
+                benefitScore,
+                periodScore,
+                identityScore,
+                depositScore,
+                bankCondScore
+        );
+    }
+
+    // 정부상품 여부에 따라 맞는 weightKey를 계산해 반환
+    private String weightKey(boolean isGov, ScoreWeightEnum govWeight, ScoreWeightEnum bankWeight) {
+        return isGov ? govWeight.getKey() : bankWeight.getKey();
+    }
+
+    // 혜택 점수 계산
+    private double calcBenefitScore(
+            List<KeywordValueEnum> selected,
+            ProductProperty property,
+            Set<KeywordValueEnum> propertyKeywords,
+            boolean isGov,
+            Double bankMaxInterestThreshold
+    ) {
+        List<KeywordValueEnum> applicable = applicableBenefitKeywords(selected, isGov);
+        if (applicable.isEmpty()) return 0.0;
+
+        long matched = applicable.stream()
+                .filter(kw -> isBenefitMatched(kw, property, propertyKeywords, isGov, bankMaxInterestThreshold))
+                .count();
+        return (double) matched / applicable.size();
+    }
+
+    // 혜택 매칭 여부 계산
+    private boolean isBenefitMatched(
+            KeywordValueEnum keyword,
+            ProductProperty property,
+            Set<KeywordValueEnum> propertyKeywords,
+            boolean isGov,
+            Double bankMaxInterestThreshold
+    ) {
+        // 은행 #최고이율_중심: 정적 태그가 아니라 결과셋 최고금리(maxRate) 상위 30% 임계값 이상인지로 동적 판정 (PRD A-2).
+        // 정부 상품/임계값 미제공 시에는 기존 태그 방식 유지 (정부는 금리 대부분 미공시).
+        if (keyword == BENEFIT_MAX_INTEREST && !isGov && bankMaxInterestThreshold != null) {
+            return BankMaxInterestPolicy.qualifies(property, bankMaxInterestThreshold);
+        }
+        return propertyKeywords.contains(keyword);
+    }
+
+    // 저축기간 점수 계산 (개정: 정확한 save_trm 매칭)
+    private double calcPeriodScore(KeywordValueEnum selected, ProductProperty property) {
+        // 선택된 키워드가 없거나 상품 속성의 saveTrm이 null이면 0점
+        if (selected == null || property.getSaveTrm() == null) return 0.0;
+
+        Integer targetTrm = selected.toSaveTrm();
+        if (targetTrm == null) return 0.0;
+
+        int saveTrm = property.getSaveTrm();
+
+        // 정확 매칭: 선택한 기간과 상품 기간이 일치하면 100%
+        if (saveTrm == targetTrm) return 1.0;
+
+        // 레거시 범위 키워드 하위 호환: 범위 내 또는 인접이면 부분 점수
+        if (isLegacyPeriodKeyword(selected)) {
+            int[] range = periodRange(selected);
+            if (saveTrm >= range[0] && saveTrm <= range[1]) return 1.0;
+            return isAdjacentOption(property, selected) ? 0.5 : 0.0;
+        }
+
+        // 신규 정확 매칭 키워드: 인접 구간이면 0.5점, 불일치시 0점
+        return isAdjacentPeriod(saveTrm, targetTrm) ? 0.5 : 0.0;
+    }
+
+    // 레거시 범위 키워드 여부
+    private boolean isLegacyPeriodKeyword(KeywordValueEnum kw) {
+        return kw == TERM_AROUND_1_YEAR || kw == TERM_2_TO_3_YEARS || kw == TERM_OVER_3_YEARS;
+    }
+
+    // 신분 특화도 계산
+    private double calcIdentityScore(List<KeywordValueEnum> selected, Set<KeywordValueEnum> propertyKeywords, boolean isGov) {
+        if (selected.isEmpty()) return 0;
+
+        // 정부상품이면
+        if (isGov) {
+            // 상품속성이 선택한 키워드를 포함하고 있고 그 키워드가 특화 키워드이면 특화상품
+            boolean specialized = selected.stream().anyMatch(kw ->
+                    propertyKeywords.contains(kw) && isSpecializedKeyword(kw));
+            // 특화 키워드가 아니고 키워드만 포함하고 있으면 포함상품
+            boolean included = selected.stream().anyMatch(propertyKeywords::contains);
+            if (specialized) return 1.0;  // 특화이면 100%
+            if (included) return 0.5;     // 포함이면 50%
+            return 0; // 둘 다 아니면 0%
+        }
+
+        // 은행상품이면 키워드 포함이면 100%, 아니면 0%
+        return selected.stream().anyMatch(propertyKeywords::contains) ? 1.0 : 0;
+    }
+
+    // 납입 한도 적합도 계산
+    private double calcDepositScore(Long monthlyDeposit, ProductProperty property) {
+        if (monthlyDeposit == null) return 0.0;
+
+        Long maxMonthlyLimit = property.getMaxMonthlyLimit();
+        // 납입 한도가 없거나 월최대납입한도보다 희망납입액이 적으면 100%
+        if (maxMonthlyLimit == null) return 1.0;
+        if (monthlyDeposit <= maxMonthlyLimit) return 1.0;
+        // 아니면 월최대납입한도 / 희망납입액
+        return (double) maxMonthlyLimit / monthlyDeposit;
+    }
+
+    // 은행 거래 조건 점수 계산
+    private double calcBankCondScore(
+            List<KeywordValueEnum> selected,
+            Set<KeywordValueEnum> propertyKeywords,
+            ProductProperty property,
+            SearchRequestDto request
+    ) {
+        if (selected.isEmpty()) return 0.0;
+        long matched = selected.stream()
+                .filter(keyword -> matchesBankCondition(keyword, propertyKeywords, property, request))
+                .count();
+        return (double) matched / selected.size();
+    }
+
+    // 은행 상품의 우대금리 매칭되는지 검사
+    private boolean matchesBankCondition(
+            KeywordValueEnum keyword,
+            Set<KeywordValueEnum> propertyKeywords,
+            ProductProperty property,
+            SearchRequestDto request
+    ) {
+        if (keyword == BANK_AGE) {
+            return BankConditionMatcher.hasYouthAgeCondition(property);
+        }
+
+        // 상품 속성이 해당 키워드를 포함하고 있지 않으면 false
+        if (!propertyKeywords.contains(keyword)) {
+            return false;
+        }
+
+        // 첫거래·재예치는 단계2 거래이력으로 추론된 은행에만 매칭 (PRD: 단계2 자동 추론 전용).
+        // 은행 리스트가 비면 매칭 인정하지 않는다.
+
+        // 첫거래
+        if (keyword == BANK_FIRST_TRANSACTION) {
+            return property.matchesAnyProvider(request.neverUsedBanks());
+        }
+
+        // 재예치
+        if (keyword == BANK_REDEPOSIT) {
+            return property.matchesAnyProvider(request.maturedSavingBanks());
+        }
+
+        return true;
+    }
+
+    // 활성화된 은행 키워드 계산
+    private List<KeywordValueEnum> activeBankConditions(
+            List<KeywordValueEnum> selected,
+            ProductProperty property,
+            SearchRequestDto request,
+            boolean includeTransactionHistory,
+            boolean isGov
+    ) {
+        LinkedHashSet<KeywordValueEnum> active = new LinkedHashSet<>();
+        selected.stream()
+                .filter(keyword -> !keyword.isTransactionHistoryCondition())
+                .filter(keyword -> keyword != BANK_ETC)
+                .forEach(active::add);
+        if (!isGov) {
+            if (property.keywordCodes().contains(BANK_ONLINE_JOIN)) {
+                active.add(BANK_ONLINE_JOIN);
+            }
+            if (BankConditionMatcher.hasYouthAgeCondition(property)) {
+                active.add(BANK_AGE);
+            }
+        }
+
+        // 거래 내역 미포함시 계산하지 않음
+        if (!includeTransactionHistory || !request.hasTransactionHistory()) {
+            return new ArrayList<>(active);
+        }
+        
+        // neverUsedBanks가 하나 이상 선택되었고 BANK_FIRST_TRANSACTION이 포함되어 있지 않다면
+        if (hasAny(request.neverUsedBanks())) {
+            active.add(BANK_FIRST_TRANSACTION);
+        }
+
+        // maturedSavingBanks가 하나 이상 선택되었고 BANK_REDEPOSITE이 포함되어 있지 않다면
+        if (hasAny(request.maturedSavingBanks())) {
+            active.add(BANK_REDEPOSIT);
+        }
+
+        return new ArrayList<>(active);
+    }
+
+    // 리스트가 값을 가지고 있는지 검사
+    private boolean hasAny(List<String> values) {
+        return values != null && !values.isEmpty();
+    }
+
+    // 가중치 분배 (V2: 4축 - 고특성30, 균등20)
+    // PRD: 미선택 점수 항목 제외 후 나머지로 100점 비례 환산
+    private Map<String, Double> distributeWeights(
+            List<KeywordValueEnum> coreBenefits,
+            List<KeywordValueEnum> identities,
+            List<KeywordValueEnum> bankConditions,
+            KeywordValueEnum savingPeriod,
+            Long monthlyDeposit,
+            ProductProperty property,
+            boolean isGov
+    ) {
+        // V2 가중치 사용 (PRD 개정: 4축)
+        Map<String, Double> weights = new HashMap<>(ScoreWeightEnum.baseWeightsV2(isGov));
+
+        List<String> inactive = new ArrayList<>();
+
+        // 적용 가능한 혜택 키워드가 없으면
+        if (applicableBenefitKeywords(coreBenefits, isGov).isEmpty()) {
+            inactive.add(weightKey(isGov, ScoreWeightEnum.GOV_BENEFITS_V2, ScoreWeightEnum.BANK_BENEFITS_V2));
+        }
+
+        // 저축 기간이 없으면
+        if (savingPeriod == null) {
+            inactive.add(weightKey(isGov, ScoreWeightEnum.GOV_PERIOD_V2, ScoreWeightEnum.BANK_PERIOD_V2));
+        }
+
+        // 월 납입 희망액이 없으면 납입한도 점수를 산출할 수 없으므로 재배분 대상
+        if (monthlyDeposit == null) {
+            inactive.add(weightKey(isGov, ScoreWeightEnum.GOV_DEPOSIT_V2, ScoreWeightEnum.BANK_DEPOSIT_V2));
+        }
+
+        // 정부상품: 신분 미선택 시 재배분
+        if (isGov && identities.isEmpty()) {
+            inactive.add(ScoreWeightEnum.GOV_IDENTITY_V2.getKey());
+        }
+
+        // 은행상품: 은행거래 조건 미선택 시 재배분
+        if (!isGov && bankConditions.isEmpty()) {
+            inactive.add(ScoreWeightEnum.BANK_BANK_COND_V2.getKey());
+        }
+
+        // inactive 없으면 기본 가중치 바로 반환
+        if (inactive.isEmpty()) return weights;
+
+        // inactive로 인해 채점되지 않는 점수들의 총합
+        double removedTotal = inactive.stream().mapToDouble(weights::get).sum();
+        // inactive들의 가중치를 0으로 설정
+        inactive.forEach(k -> weights.put(k, 0.0));
+        // 활성화된 점수 총합
+        double activeTotal = weights.values().stream().mapToDouble(Double::doubleValue).sum();
+        // active들의 가중치를 비율대로 조정
+        // new_weight = weight + ( removedTotal * (v / activeTotal) )
+        if (activeTotal > 0) {
+            weights.replaceAll((k, v) -> v > 0 ? v + removedTotal * (v / activeTotal) : 0.0);
+        }
+
+        return weights;
+    }
+
+
+    // 정부상품 여부에 따라 적용가능한 핵심 혜택 키워드를 반환
+    // 상품 유형별로 실제 매칭 가능한 혜택 키워드만 남긴다.
+    // 정부: 정부기여금·비과세·우대조건간편 (최고이율은 정부 금리 미공시로 매칭 불가하여 제외)
+    // 은행: 최고이율·우대조건간편 (정부기여금·비과세는 은행 상품에 해당 없음)
+    private static final Set<KeywordValueEnum> GOV_APPLICABLE_BENEFITS =
+            Set.of(BENEFIT_GOV_SUBSIDY, BENEFIT_TAX_FREE, BENEFIT_EASY_CONDITION);
+    private static final Set<KeywordValueEnum> BANK_APPLICABLE_BENEFITS =
+            Set.of(BENEFIT_MAX_INTEREST, BENEFIT_EASY_CONDITION);
+
+    private List<KeywordValueEnum> applicableBenefitKeywords(List<KeywordValueEnum> selected, boolean isGov) {
+        Set<KeywordValueEnum> applicable = isGov ? GOV_APPLICABLE_BENEFITS : BANK_APPLICABLE_BENEFITS;
+        return selected.stream()
+                .filter(applicable::contains)
+                .toList();
+    }
+
+    private boolean isGovBankConditionExcluded(boolean isGov) {
+        return isGov;
+    }
+
+
+    // 저축기간을 반환
+    private int[] periodRange(KeywordValueEnum kw) {
+        return switch (kw) {
+            case TERM_AROUND_1_YEAR -> new int[]{6, 12};
+            case TERM_2_TO_3_YEARS -> new int[]{24, 36};
+            case TERM_OVER_3_YEARS -> new int[]{37, Integer.MAX_VALUE};
+            default -> new int[]{0, 0};
+        };
+    }
+
+    // ProductProperty의 저축 기간이 사용자가 선택한 기간과 인접한지 여부를 판별 (레거시 범위 키워드용)
+    private boolean isAdjacentOption(ProductProperty property, KeywordValueEnum selected) {
+        int trm = property.getSaveTrm();
+        return switch (selected) {
+            case TERM_AROUND_1_YEAR -> trm == 24;
+            case TERM_2_TO_3_YEARS  -> trm == 12;
+            case TERM_OVER_3_YEARS  -> trm == 36;
+            default -> false;
+        };
+    }
+
+    // 신규 정확 매칭 키워드용 인접 기간 판정 (전후 구간)
+    // 옵션 순서: 1→3→6→12→24→36개월, 10개월은 정부상품 특례로 12개월 인접 처리
+    private boolean isAdjacentPeriod(int actualTrm, int targetTrm) {
+        return switch (targetTrm) {
+            case 1  -> actualTrm == 3;
+            case 3  -> actualTrm == 1 || actualTrm == 6;
+            case 6  -> actualTrm == 3 || actualTrm == 12;
+            case 12 -> actualTrm == 6 || actualTrm == 10 || actualTrm == 24;  // 10개월 정부상품 포함
+            case 24 -> actualTrm == 12 || actualTrm == 36;
+            case 36 -> actualTrm == 24;
+            default -> false;
+        };
+    }
+
+    // 특화 키워드 여부를 판별
+    // PRD: 신분특화 만점 (예: #군복무→장병내일준비적금)
+    // 나머지 STATUS_* 는 포함상품으로 절반 점수
+    private boolean isSpecializedKeyword(KeywordValueEnum kw) {
+        return kw == STATUS_MILITARY;
+    }
+
+    // ===== TOP3 균등 배점 (PRD: 3축 33/33/34) =====
+
+    /**
+     * TOP3 카드용 스코어 계산.
+     * 3축 균등 배점: 핵심혜택(33) + 납입한도(33) + 저축기간(34) = 100점
+     * 신분특화, 은행거래 축 제외.
+     */
+    public ProductMatchDto scoreForTop3(
+            Product product,
+            ProductProperty property,
+            SearchRequestDto request,
+            ResolvedKeywords keywords,
+            Double bankMaxInterestThreshold
+    ) {
+        boolean isGov = product.isGovernment();
+        Set<KeywordValueEnum> propertyKeywords = property.keywordCodes();
+
+        // TOP3 가중치 (공통 3축)
+        Map<String, Double> weights = distributeTop3Weights(
+                keywords.coreBenefits(),
+                keywords.savingPeriod(),
+                request.monthlySavingsGoal(),
+                isGov
+        );
+
+        // 3축만 계산 (신분/은행거래 제외)
+        double benefitScore = calcBenefitScore(
+                keywords.coreBenefits(), property, propertyKeywords, isGov, bankMaxInterestThreshold
+        ) * weights.get("benefits");
+
+        double depositScore = calcDepositScore(request.monthlySavingsGoal(), property)
+                * weights.get("deposit");
+
+        double periodScore = calcPeriodScore(keywords.savingPeriod(), property)
+                * weights.get("period");
+
+        double totalScore = benefitScore + depositScore + periodScore;
+
+        return ProductMatchDto.builder()
+                .productId(product.getId())
+                .productPropertyId(property.getId())
+                .productName(product.getDisplayProductName())
+                .providerName(property.providerName())
+                .source(product.getSource().getCode())
+                .totalScore(totalScore)
+                .benefitScore(benefitScore)
+                .periodScore(periodScore)
+                .identityScore(0.0)    // TOP3에서 미사용
+                .depositScore(depositScore)
+                .bankCondScore(0.0)    // TOP3에서 미사용
+                .tieBreaker(null)
+                .build();
+    }
+
+    /**
+     * TOP3 가중치 분배.
+     * 미선택 축 제외 후 나머지로 100점 비례 환산.
+     */
+    private Map<String, Double> distributeTop3Weights(
+            List<KeywordValueEnum> coreBenefits,
+            KeywordValueEnum savingPeriod,
+            Long monthlyDeposit,
+            boolean isGov
+    ) {
+        Map<String, Double> weights = new HashMap<>(ScoreWeightEnum.top3Weights());
+        List<String> inactive = new ArrayList<>();
+
+        // 적용 가능한 혜택 키워드가 없으면
+        if (applicableBenefitKeywords(coreBenefits, isGov).isEmpty()) {
+            inactive.add("benefits");
+        }
+
+        // 저축 기간이 없으면
+        if (savingPeriod == null) {
+            inactive.add("period");
+        }
+
+        // 월 납입 희망액이 없으면
+        if (monthlyDeposit == null) {
+            inactive.add("deposit");
+        }
+
+        if (inactive.isEmpty()) return weights;
+
+        // 미선택 축 제외 후 재분배
+        double removedTotal = inactive.stream().mapToDouble(weights::get).sum();
+        inactive.forEach(k -> weights.put(k, 0.0));
+        double activeTotal = weights.values().stream().mapToDouble(Double::doubleValue).sum();
+
+        if (activeTotal > 0) {
+            weights.replaceAll((k, v) -> v > 0 ? v + removedTotal * (v / activeTotal) : 0.0);
+        }
+
+        return weights;
+    }
+
+    private record ProductPropertyScore(
+            ProductProperty property,
+            double totalScore,
+            double benefitScore,
+            double periodScore,
+            double identityScore,
+            double depositScore,
+            double bankCondScore
+    ) {
+    }
+}

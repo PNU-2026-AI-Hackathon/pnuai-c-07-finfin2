@@ -1,0 +1,5 @@
+ALTER TABLE IF EXISTS llm_enrichment_cache
+    ADD COLUMN IF NOT EXISTS failure_count INT NOT NULL DEFAULT 0;
+
+ALTER TABLE IF EXISTS llm_enrichment_cache
+    ADD COLUMN IF NOT EXISTS last_failed_at TIMESTAMP WITH TIME ZONE;
